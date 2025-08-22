@@ -1,0 +1,279 @@
+"use client";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiService } from '../services/apiService';
+
+interface User {
+  id: string;
+  companyId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  role: 'owner' | 'admin' | 'user' | 'viewer';
+  subscription?: {
+    plan_id: string;
+    plan_name: string;
+    status: string;
+    end_date: string;
+    trial_end_date?: string;
+    auto_renew: boolean;
+  };
+  wallet?: {
+    balance: number;
+    reboostCredits: number;
+    currency: string;
+  };
+}
+
+interface UserContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  hasValidSubscription: boolean;
+  needsPlanSelection: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    companyName: string;
+  }) => Promise<void>;
+  logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
+  updateWallet: (walletUpdates: Partial<User['wallet']>) => void;
+  checkSubscription: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
+
+const UserContext = createContext<UserContextType | undefined>(undefined);
+
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+};
+
+interface UserProviderProps {
+  children: ReactNode;
+}
+
+export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Always start with true to prevent hydration mismatch
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    // Mark as client-side to prevent hydration mismatches
+    setIsClient(true);
+    
+    // Check for existing user session on app load
+    const checkAuthStatus = async () => {
+      try {
+
+        const token = localStorage.getItem('token');
+        console.log('UserContext: Token check result:', { hasToken: !!token });
+        
+        if (token) {
+          console.log('UserContext: Found token, getting user data...');
+          const userData = await apiService.getCurrentUser();
+          if (userData) {
+            console.log('UserContext: User data loaded:', userData);
+            setUser(userData);
+            
+            // If user data doesn't include subscription, try to fetch it separately
+            if (!userData.subscription) {
+              console.log('UserContext: No subscription in user data, checking separately...');
+              try {
+                const subscriptionData = await apiService.getSubscription();
+                console.log('UserContext: Subscription data fetch result:', subscriptionData);
+                if (subscriptionData && subscriptionData.subscription) {
+                  console.log('UserContext: Found subscription data:', subscriptionData.subscription);
+                  setUser(prev => prev ? { ...prev, subscription: subscriptionData.subscription } : userData);
+                }
+              } catch (subError) {
+                console.log('UserContext: No subscription found during init:', subError);
+              }
+            }
+          } else {
+            console.log('UserContext: No user data returned, removing token');
+            localStorage.removeItem('token');
+          }
+        } else {
+          console.log('UserContext: No token found - this is normal for first-time visitors');
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
+      } finally {
+        console.log('UserContext: Setting isLoading to false');
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
+
+  const checkSubscription = async () => {
+    try {
+      const subscriptionData = await apiService.getSubscription();
+      if (user && subscriptionData && subscriptionData.subscription) {
+        setUser({
+          ...user,
+          subscription: subscriptionData.subscription
+        });
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      console.log('UserContext: Refreshing user data...');
+      const userData = await apiService.getCurrentUser();
+      if (userData) {
+        console.log('UserContext: Received user data:', userData);
+        setUser(userData);
+        
+        // Also check subscription status separately if user data doesn't include it
+        if (!userData.subscription) {
+          console.log('UserContext: No subscription in user data, checking separately...');
+          try {
+            const subscriptionData = await apiService.getSubscription();
+            if (subscriptionData && subscriptionData.subscription) {
+              console.log('UserContext: Found subscription data:', subscriptionData.subscription);
+              setUser(prev => prev ? { ...prev, subscription: subscriptionData.subscription } : null);
+            }
+          } catch (subError) {
+            console.log('UserContext: No subscription found:', subError);
+          }
+        }
+      } else {
+        console.log('UserContext: No user data received');
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const response = await apiService.signin(email, password);
+      if (response && response.user) {
+        setUser(response.user);
+      } else {
+        throw new Error('Failed to get user data');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (data: {
+    email: string;
+    password: string;
+    confirmPassword: string;
+    firstName: string;
+    lastName: string;
+    companyName: string;
+    companySize: string;
+    industry: string;
+    phone: string;
+    agreeToTerms: boolean;
+  }) => {
+    try {
+      setIsLoading(true);
+      await apiService.signup(data);
+      await login(data.email, data.password);
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('token');
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+    }
+  };
+
+  const updateWallet = (walletUpdates: Partial<User['wallet']>) => {
+    if (user && user.wallet) {
+      const updatedWallet = { ...user.wallet, ...walletUpdates };
+      const updatedUser = { ...user, wallet: updatedWallet };
+      setUser(updatedUser);
+    }
+  };
+
+  const isAuthenticated = !!user;
+  
+  // Check if user has a valid subscription
+  // Enhanced: Check all possible end fields for all plan types
+  const now = new Date();
+  let hasValidSubscription = false;
+  if (user?.subscription) {
+    const sub = user.subscription;
+    const status = sub.status;
+    const isTrial = status === 'trial' || sub.plan_id === 'trial' || sub.plan_name === 'trial';
+    // Use whichever end date is present
+    const endDate = sub.end_date || sub.trial_end_date || sub.expires_at;
+    if (isTrial) {
+      // Trial is valid if not expired
+      hasValidSubscription = status === 'trial' && endDate && new Date(endDate) > now;
+    } else {
+      // Paid plan is valid if status is active/premium/basic and not expired
+      hasValidSubscription = ['active', 'premium', 'basic'].includes(status) && endDate && new Date(endDate) > now;
+    }
+  }
+  // Needs plan selection if not valid or explicitly expired
+  const needsPlanSelection = isAuthenticated && (!hasValidSubscription || user?.subscription?.status === 'expired');
+
+  // Debug logging for subscription status
+  if (isAuthenticated) {
+    console.log('UserContext Debug:', {
+      hasSubscription: !!user?.subscription,
+      subscriptionStatus: user?.subscription?.status,
+      subscriptionEndDate: user?.subscription?.end_date,
+      hasValidSubscription,
+      needsPlanSelection
+    });
+  }
+
+  const value: UserContextType = {
+    user,
+    isLoading,
+    isAuthenticated,
+    hasValidSubscription,
+    needsPlanSelection,
+    login,
+    signup,
+    logout,
+    updateUser,
+    updateWallet,
+    checkSubscription,
+    refreshUser,
+  };
+
+  return (
+    <UserContext.Provider value={value}>
+      {children}
+    </UserContext.Provider>
+  );
+};

@@ -1,0 +1,6 @@
+Name,Phone,Email,Tags,Notes
+"John Doe","+1234567890","john@example.com","customer,vip","Important client"
+"Jane Smith","+0987654321","jane@example.com","lead","Interested in premium plan"
+"Bob Johnson","+1122334455","","prospect","Follow up next week"
+"Alice Brown","+5566778899","alice@company.com","customer,enterprise","Enterprise client"
+"Charlie Wilson","+9988776655","charlie@startup.co","lead,tech","Tech startup founder"
