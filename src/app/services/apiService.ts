@@ -1,5 +1,12 @@
 // Secure API service with user authentication
 class ApiService {
+  // Create Razorpay order before payment
+  async createOrder(planId: string) {
+    return this.request('/subscription/create-payment-order', {
+      method: 'POST',
+      body: JSON.stringify({ plan_id: planId }),
+    });
+  }
   // Debug utility: decode JWT token payload
   public static decodeToken(token: string) {
     try {
@@ -587,6 +594,131 @@ class ApiService {
         error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
+  }
+
+  // Meta/WhatsApp OAuth methods
+  async getMetaOAuthUrl() {
+    return this.request('/api/auth/meta/connect');
+  }
+
+  async connectMetaAccount(code: string, state: string) {
+    return this.request('/api/auth/meta/callback', {
+      method: 'POST',
+      body: JSON.stringify({ code, state }),
+    });
+  }
+
+  async disconnectMetaAccount() {
+    return this.request('/api/auth/meta/disconnect', {
+      method: 'POST',
+    });
+  }
+
+  async getMetaConnectionStatus() {
+    return this.getOptional('/api/auth/meta/status');
+  }
+
+  // WhatsApp configuration methods
+  async getWhatsAppConfig(companyId?: string) {
+    const endpoint = companyId ? `/whatsapp/config?companyId=${companyId}` : '/whatsapp/config';
+    console.log(`🔍 Fetching WhatsApp config from: ${this.baseUrl}${endpoint}`);
+    console.log(`🔑 Token available: ${!!this.token}`);
+    console.log(`📧 Company ID: ${companyId}`);
+    
+    const result = await this.getOptional(endpoint);
+    console.log(`📋 WhatsApp config result:`, result);
+    return result;
+  }
+
+  async refreshWhatsAppConfig() {
+    return this.request('/whatsapp/refresh-config', {
+      method: 'POST',
+    });
+  }
+
+  async getReconnectUrl() {
+    return this.request('/whatsapp/reconnect-url', {
+      method: 'POST',
+    });
+  }
+
+  async deleteWhatsAppConfig() {
+    return this.request('/whatsapp/config', {
+      method: 'DELETE',
+    });
+  }
+
+  // WhatsApp Business Profile methods
+  async updateWhatsAppBusinessProfile(data: { category?: string; about?: string }) {
+    return this.request('/whatsapp/business-profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadWhatsAppBusinessPhoto(formData: FormData) {
+    return this.request('/whatsapp/business-profile/photo', {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header for FormData - let browser set it
+      headers: this.token ? { 'Authorization': `Bearer ${this.token}` } : undefined,
+    });
+  }
+
+  // Profile management methods
+  async getProfile() {
+    return this.request('/profile/auth/me');
+  }
+
+  async updateProfile(data: any) {
+    return this.request('/profile/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadProfilePicture(formData: FormData) {
+    return this.request('/profile/auth/me/profile-picture', {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header for FormData - let browser set it
+      headers: this.token ? { 'Authorization': `Bearer ${this.token}` } : undefined,
+    });
+  }
+
+  async updateNotificationSettings(settings: any) {
+    return this.request('/profile/auth/me/notifications', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async updateSecuritySettings(settings: any) {
+    return this.request('/profile/auth/me/security', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async updateUserPreferences(preferences: any) {
+    return this.request('/profile/auth/me/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
+
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    return this.request('/profile/auth/me/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAccount(data: { password: string; confirmation: string }) {
+    return this.request('/profile/auth/me', {
+      method: 'DELETE',
+      body: JSON.stringify(data),
+    });
   }
 }
 

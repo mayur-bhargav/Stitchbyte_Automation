@@ -1,12 +1,15 @@
 "use client";
+import { useState } from "react";
 import { useBalance, MESSAGE_COST } from "../contexts/BalanceContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { MdAccountBalanceWallet, MdAdd } from "react-icons/md";
+import AddBalanceModal from "./AddBalanceModal";
 
 export default function BalanceHeader() {
   const { balance, loading, addBalance } = useBalance();
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+  const [showAddBalanceModal, setShowAddBalanceModal] = useState(false);
 
   const handleTopUp = async () => {
     const amount = 500; // Default top-up amount
@@ -21,6 +24,7 @@ export default function BalanceHeader() {
   };
 
   return (
+    <>
     <div className={`flex items-center gap-4 px-6 py-3 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} rounded-xl ${isDarkMode ? 'hover:border-gray-600' : 'hover:border-gray-300'} transition-all duration-200 shadow-sm hover:shadow-md`}>
       <div className="flex items-center gap-3">
         <MdAccountBalanceWallet className={`w-6 h-6 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
@@ -43,5 +47,12 @@ export default function BalanceHeader() {
         Top Up
       </button>
     </div>
+
+      {/* Add Balance Modal */}
+      <AddBalanceModal 
+        isOpen={showAddBalanceModal} 
+        onClose={() => setShowAddBalanceModal(false)} 
+      />
+    </>
   );
 }

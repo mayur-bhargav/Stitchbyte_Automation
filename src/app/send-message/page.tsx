@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useBalance, MESSAGE_COST } from "../contexts/BalanceContext";
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
+import AddBalanceModal from '../components/AddBalanceModal';
 import { apiService } from '../services/apiService';
 
 // Toast notification function
@@ -91,6 +92,9 @@ function SendMessage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   
+  // State for AddBalanceModal
+  const [showAddBalanceModal, setShowAddBalanceModal] = useState(false);
+  
   // Use global balance context
   const { balance: userBalance, refreshBalance, addBalance: addBalanceContext } = useBalance();
 
@@ -101,23 +105,23 @@ function SendMessage() {
     apiService.getOptional('/templates')
       .then(data => {
         if (data) {
-          console.log("Templates API response:", data);
-          let tpls = (data.templates || data || [])
-            .filter((t: any) => t.companyId === user.companyId || !t.companyId) // Filter by company
-            .map((t: any) => {
-              if (typeof t === 'string') {
-                return { name: t, status: 'APPROVED', content: '', companyId: user.companyId };
-              } else {
-                return { 
-                  ...t, 
-                  status: (t.status || 'PENDING').toString().toUpperCase(),
-                  companyId: t.companyId || user.companyId
-                };
-              }
-            });
-          console.log("Processed templates:", tpls);
-          console.log("Approved templates:", tpls.filter(t => t.status === 'APPROVED'));
-          setTemplates(tpls);
+        console.log("Templates API response:", data);
+        let tpls = (data.templates || data || [])
+          .filter((t: any) => t.companyId === user.companyId || !t.companyId) // Filter by company
+          .map((t: any) => {
+            if (typeof t === 'string') {
+              return { name: t, status: 'APPROVED', content: '', companyId: user.companyId };
+            } else {
+              return { 
+                ...t, 
+                status: (t.status || 'PENDING').toString().toUpperCase(),
+                companyId: t.companyId || user.companyId
+              };
+            }
+          });
+        console.log("Processed templates:", tpls);
+        console.log("Approved templates:", tpls.filter(t => t.status === 'APPROVED'));
+        setTemplates(tpls);
         } else {
           console.log("Templates endpoint not available, showing empty templates");
           setTemplates([]);
@@ -151,7 +155,7 @@ function SendMessage() {
     apiService.getOptional('/message-usage')
       .then(data => {
         if (data) {
-          setMessageUsage(data);
+        setMessageUsage(data);
         }
         setUsageLoading(false);
       })
@@ -544,7 +548,7 @@ function SendMessage() {
           </div>
           <div className="mt-4">
             <button
-              onClick={() => addBalanceContext(100, "Balance added via Send Message page")}
+              onClick={() => setShowAddBalanceModal(true)}
               className="w-full px-4 py-2 text-sm bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors"
             >
               Add ₹100
@@ -972,7 +976,7 @@ function SendMessage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => addBalanceContext(Math.ceil(getAllPhoneNumbers().length * MESSAGE_COST - userBalance + 50), "Balance added for message sending")}
+                    onClick={() => setShowAddBalanceModal(true)}
                     className="ml-auto px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
                   >
                     Add Balance
@@ -1506,6 +1510,12 @@ function SendMessage() {
           </div>
         </div>
       )}
+      
+      {/* AddBalanceModal */}
+      <AddBalanceModal 
+        isOpen={showAddBalanceModal} 
+        onClose={() => setShowAddBalanceModal(false)} 
+      />
     </div>
     </>
   );

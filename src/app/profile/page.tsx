@@ -132,9 +132,9 @@ export default function ProfilePage() {
     const loadProfileData = async () => {
       if (user) {
         try {
-          // Try to load profile data from API (optional endpoint)
-          const profileResponse = await apiService.getOptional('/profile');
-          if (profileResponse?.success) {
+          // Load profile data from API
+          const profileResponse = await apiService.get('/profile/auth/me');
+          if (profileResponse.success) {
             const profile = profileResponse.profile;
             setProfileData(prev => ({
               ...prev,
@@ -167,22 +167,9 @@ export default function ProfilePage() {
             if (profile.darkMode !== undefined) {
               setDarkMode(profile.darkMode);
             }
-          } else {
-            // No profile data from API or API returned null, use user context
-            setProfileData(prev => ({
-              ...prev,
-              firstName: user.firstName || '',
-              lastName: user.lastName || '',
-              email: user.email || '',
-              phone: user.phone || '',
-              companyName: user.companyName || '',
-              companyAddress: user.companyAddress || '',
-              role: user.role || ''
-            }));
           }
         } catch (error) {
-          // Profile endpoint doesn't exist or failed - use user context data instead
-          console.log('Profile endpoint not available, using user context data');
+          console.error('Error loading profile data:', error);
           // Fall back to user context data
           setProfileData(prev => ({
             ...prev,
@@ -212,7 +199,7 @@ export default function ProfilePage() {
 
     try {
       // Update profile via API
-      const response = await apiService.put('/profile', {
+      const response = await apiService.put('/profile/auth/me', {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
         phone: profileData.phone,
@@ -256,8 +243,8 @@ export default function ProfilePage() {
   const handleCancel = async () => {
     try {
       // Reload profile data from API
-      const profileResponse = await apiService.getOptional('/profile');
-      if (profileResponse?.success) {
+      const profileResponse = await apiService.get('/profile/auth/me');
+      if (profileResponse.success) {
         const profile = profileResponse.profile;
         setProfileData({
           firstName: profile.firstName || '',
@@ -333,7 +320,7 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      const response = await apiService.put('/profile/password', {
+      const response = await apiService.put('/profile/auth/me/password', {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
@@ -360,7 +347,7 @@ export default function ProfilePage() {
 
   const saveNotificationSettings = async () => {
     try {
-      const response = await apiService.put('/profile/notifications', notificationSettings);
+      const response = await apiService.put('/profile/auth/me/notifications', notificationSettings);
       if (!response.success) {
         console.error('Failed to save notification settings');
       }
@@ -371,7 +358,7 @@ export default function ProfilePage() {
 
   const saveSecuritySettings = async () => {
     try {
-      const response = await apiService.put('/profile/security', securitySettings);
+      const response = await apiService.put('/profile/auth/me/security', securitySettings);
       if (!response.success) {
         console.error('Failed to save security settings');
       }
@@ -382,7 +369,7 @@ export default function ProfilePage() {
 
   const saveUserPreferences = async () => {
     try {
-      const response = await apiService.put('/profile/preferences', {
+      const response = await apiService.put('/profile/auth/me/preferences', {
         darkMode,
         language: profileData.language,
         timezone: 'UTC+5:30 (India Standard Time)' // Always India
@@ -410,7 +397,7 @@ export default function ProfilePage() {
     setError('');
     
     try {
-      const response = await apiService.delete('/profile', {
+      const response = await apiService.delete('/profile/auth/me', {
         password,
         confirmation
       });
@@ -431,17 +418,92 @@ export default function ProfilePage() {
     }
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must be less than 5MB');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);  // Changed from 'profile_picture' to 'file'
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+      // Upload to backend using direct fetch to match your format
+      const response = await fetch(`${apiService.baseURL}/profile/auth/me/profile-picture`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Removed Content-Type header - let browser set it automatically for FormData
+        },
+        body: formData
+      });
+
+      console.log('Upload response status:', response.status);
+
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        // Try to get error details
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use text
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Upload result:', result);
+      
+      if (result.success && result.profilePicture) {
+        // Update profile data with new image URL
         setProfileData(prev => ({
           ...prev,
-          profilePicture: e.target?.result as string
+          profilePicture: result.profilePicture
         }));
-      };
-      reader.readAsDataURL(file);
+
+        // Update user context if needed
+        if (user) {
+          updateUser({
+            ...user,
+            profilePicture: result.profilePicture
+          });
+        }
+
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        throw new Error(result.message || 'Upload succeeded but no image URL returned');
+      }
+    } catch (error: any) {
+      console.error('Profile picture upload error:', error);
+      setError(error?.message || 'Failed to upload profile picture. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -453,102 +515,101 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F0F6FF] p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Success Message */}
-        {showSuccess && (
-          <div className="bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-lg p-4 flex items-center gap-3 shadow-lg">
-            <MdCheck className="w-5 h-5 text-green-600" />
-            <span className="text-green-800">Profile updated successfully!</span>
-          </div>
-        )}
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+          <MdCheck className="w-5 h-5 text-green-600" />
+          <span className="text-green-800">Profile updated successfully!</span>
+        </div>
+      )}
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50/80 backdrop-blur-sm border border-red-200/50 rounded-lg p-4 flex items-center gap-3 shadow-lg">
-            <MdClose className="w-5 h-5 text-red-600" />
-            <span className="text-red-800">{error}</span>
-          </div>
-        )}
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <MdClose className="w-5 h-5 text-red-600" />
+          <span className="text-red-800">{error}</span>
+        </div>
+      )}
 
-        {/* Profile Header */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg border border-white/50 p-6">
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#2A8B8A] to-[#238080] flex items-center justify-center overflow-hidden shadow-lg">
-                {profileData.profilePicture ? (
-                  <img 
-                    src={profileData.profilePicture} 
-                    alt="Profile" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <MdPerson className="w-12 h-12 text-white" />
-                )}
-              </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-2 -right-2 bg-white/90 backdrop-blur-sm border-2 border-white/50 rounded-full p-2 hover:bg-white transition-colors shadow-lg"
-              >
-                <MdPhotoCamera className="w-4 h-4 text-gray-600" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
+      {/* Profile Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-[#258484] from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+              {user?.profilePicture || profileData.profilePicture ? (
+                <img
+                  src={user?.profilePicture || profileData.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <MdPerson className="w-12 h-12 text-white" />
+              )}
             </div>
-            
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User Profile' : 'User Profile'}
-              </h1>
-              <p className="text-gray-600">{user?.email}</p>
-              <div className="flex items-center gap-4 mt-2">
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] text-sm rounded-full border border-[#2A8B8A]/20">
-                  <MdBusiness className="w-4 h-4" />
-                  {user?.companyName || 'No Company'}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-2 -right-2 bg-white border-2 border-gray-300 rounded-full p-2 hover:bg-gray-50 transition-colors"
+            >
+              <MdPhotoCamera className="w-4 h-4 text-gray-600" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
+          
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User Profile' : 'User Profile'}
+            </h1>
+            <p className="text-gray-600">{user?.email}</p>
+            <div className="flex items-center gap-4 mt-2">
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                <MdBusiness className="w-4 h-4" />
+                {user?.companyName || 'No Company'}
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">
+                <MdAccountBox className="w-4 h-4" />
+                {user?.role || 'User'}
+              </span>
+              {user?.id && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                  <MdVerified className="w-4 h-4" />
+                  Verified Account
                 </span>
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100/80 backdrop-blur-sm text-gray-800 text-sm rounded-full border border-gray-200/50">
-                  <MdAccountBox className="w-4 h-4" />
-                  {user?.role || 'User'}
-                </span>
-                {user?.id && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100/80 backdrop-blur-sm text-green-800 text-sm rounded-full border border-green-200/50">
-                    <MdVerified className="w-4 h-4" />
-                    Verified Account
-                  </span>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg border border-white/50">
-          <div className="border-b border-gray-200/50">
-            <nav className="flex space-x-8 px-6">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === tab.id
-                        ? 'border-[#2A8B8A] text-[#2A8B8A]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
         <div className="p-6">
           {/* General Tab */}
@@ -562,7 +623,7 @@ export default function ProfilePage() {
                       <button
                         onClick={handleCancel}
                         disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100/80 backdrop-blur-sm rounded-lg hover:bg-gray-200/80 transition-colors disabled:opacity-50 border border-gray-200/50"
+                        className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                       >
                         <MdCancel className="w-4 h-4" />
                         Cancel
@@ -570,7 +631,7 @@ export default function ProfilePage() {
                       <button
                         onClick={handleSave}
                         disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors disabled:opacity-50 shadow-lg"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                       >
                         <MdSave className="w-4 h-4" />
                         {isLoading ? 'Saving...' : 'Save Changes'}
@@ -579,7 +640,7 @@ export default function ProfilePage() {
                   ) : (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors shadow-lg"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <MdEdit className="w-4 h-4" />
                       Edit Profile
@@ -596,7 +657,7 @@ export default function ProfilePage() {
                     value={profileData.firstName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="Enter your first name"
                   />
                 </div>
@@ -608,7 +669,7 @@ export default function ProfilePage() {
                     value={profileData.lastName}
                     onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="Enter your last name"
                   />
                 </div>
@@ -621,7 +682,7 @@ export default function ProfilePage() {
                       type="email"
                       value={profileData.email}
                       disabled
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300/50 rounded-lg bg-gray-50/80 backdrop-blur-sm text-gray-500"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                     />
                   </div>
                   <p className="text-sm text-gray-500 mt-1">Email cannot be changed</p>
@@ -636,7 +697,7 @@ export default function ProfilePage() {
                       value={profileData.phone}
                       onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
                       disabled={!isEditing}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                       placeholder="+1 (555) 123-4567"
                     />
                   </div>
@@ -651,7 +712,7 @@ export default function ProfilePage() {
                       value={profileData.companyName}
                       onChange={(e) => setProfileData(prev => ({ ...prev, companyName: e.target.value }))}
                       disabled={!isEditing}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                       placeholder="Your company name"
                     />
                   </div>
@@ -664,7 +725,7 @@ export default function ProfilePage() {
                     value={profileData.role}
                     onChange={(e) => setProfileData(prev => ({ ...prev, role: e.target.value }))}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="Your role/position"
                   />
                 </div>
@@ -679,7 +740,7 @@ export default function ProfilePage() {
                     onChange={(e) => setProfileData(prev => ({ ...prev, companyAddress: e.target.value }))}
                     disabled={!isEditing}
                     rows={3}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 resize-none bg-white/80 backdrop-blur-sm"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 resize-none"
                     placeholder="Company address..."
                   />
                 </div>
@@ -692,7 +753,7 @@ export default function ProfilePage() {
                   onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
                   disabled={!isEditing}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 resize-none bg-white/80 backdrop-blur-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 resize-none"
                   placeholder="Tell us about yourself..."
                 />
               </div>
@@ -705,7 +766,7 @@ export default function ProfilePage() {
                     value={profileData.website}
                     onChange={(e) => setProfileData(prev => ({ ...prev, website: e.target.value }))}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="https://yourwebsite.com"
                   />
                 </div>
@@ -717,7 +778,7 @@ export default function ProfilePage() {
                     value={profileData.linkedin}
                     onChange={(e) => setProfileData(prev => ({ ...prev, linkedin: e.target.value }))}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent disabled:bg-gray-50/80 disabled:text-gray-500 bg-white/80 backdrop-blur-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                     placeholder="https://linkedin.com/in/yourprofile"
                   />
                 </div>
@@ -757,13 +818,13 @@ export default function ProfilePage() {
                         
                         // Save to backend immediately
                         try {
-                          await apiService.put('/profile/notifications', newSettings);
+                          await apiService.put('/auth/me/notifications', newSettings);
                         } catch (error) {
                           console.error('Error saving notification settings:', error);
                         }
                       }}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        value ? 'bg-[#2A8B8A]' : 'bg-gray-300'
+                        value ? 'bg-blue-600' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -784,7 +845,7 @@ export default function ProfilePage() {
               <h2 className="text-lg font-semibold text-gray-900">Security Settings</h2>
               
               {/* Change Password */}
-              <div className="bg-gray-50/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200/50">
+              <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-4">Change Password</h3>
                 <div className="space-y-4">
                   <div>
@@ -794,7 +855,7 @@ export default function ProfilePage() {
                         type={showPasswords.current ? 'text' : 'password'}
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                        className="w-full px-3 py-2 pr-10 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent bg-white/80 backdrop-blur-sm"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Enter current password"
                       />
                       <button
@@ -814,7 +875,7 @@ export default function ProfilePage() {
                         type={showPasswords.new ? 'text' : 'password'}
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                        className="w-full px-3 py-2 pr-10 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent bg-white/80 backdrop-blur-sm"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Enter new password"
                       />
                       <button
@@ -834,7 +895,7 @@ export default function ProfilePage() {
                         type={showPasswords.confirm ? 'text' : 'password'}
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        className="w-full px-3 py-2 pr-10 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent bg-white/80 backdrop-blur-sm"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Confirm new password"
                       />
                       <button
@@ -850,7 +911,7 @@ export default function ProfilePage() {
                   <button
                     onClick={handlePasswordChange}
                     disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword || isLoading}
-                    className="px-4 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? 'Changing...' : 'Change Password'}
                   </button>
@@ -879,12 +940,12 @@ export default function ProfilePage() {
                             
                             // Save to backend immediately
                             try {
-                              await apiService.put('/profile/security', newSettings);
+                              await apiService.put('/auth/me/security', newSettings);
                             } catch (error) {
                               console.error('Error saving security settings:', error);
                             }
                           }}
-                          className="px-3 py-1 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent bg-white/80 backdrop-blur-sm"
+                          className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value={15}>15 minutes</option>
                           <option value={30}>30 minutes</option>
@@ -918,13 +979,13 @@ export default function ProfilePage() {
                           
                           // Save to backend immediately
                           try {
-                            await apiService.put('/profile/security', newSettings);
+                            await apiService.put('/auth/me/security', newSettings);
                           } catch (error) {
                             console.error('Error saving security settings:', error);
                           }
                         }}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          value ? 'bg-[#2A8B8A]' : 'bg-gray-300'
+                          value ? 'bg-blue-600' : 'bg-gray-300'
                         }`}
                       >
                         <span
@@ -961,7 +1022,7 @@ export default function ProfilePage() {
                       
                       // Save to backend immediately
                       try {
-                        await apiService.put('/profile/preferences', {
+                        await apiService.put('/auth/me/preferences', {
                           darkMode: newDarkMode,
                           language: profileData.language,
                           timezone: 'UTC+5:30 (India Standard Time)'
@@ -971,7 +1032,7 @@ export default function ProfilePage() {
                       }
                     }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      darkMode ? 'bg-[#2A8B8A]' : 'bg-gray-300'
+                      darkMode ? 'bg-blue-600' : 'bg-gray-300'
                     }`}
                   >
                     <span
@@ -998,7 +1059,7 @@ export default function ProfilePage() {
                       
                       // Save to backend immediately
                       try {
-                        await apiService.put('/profile/preferences', {
+                        await apiService.put('/auth/me/preferences', {
                           darkMode,
                           language: newLanguage,
                           timezone: 'UTC+5:30 (India Standard Time)'
@@ -1007,7 +1068,7 @@ export default function ProfilePage() {
                         console.error('Error saving preferences:', error);
                       }
                     }}
-                    className="px-3 py-1 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent bg-white/80 backdrop-blur-sm"
+                    className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="English (US)">English (US)</option>
                     <option value="English (UK)">English (UK)</option>
@@ -1026,7 +1087,7 @@ export default function ProfilePage() {
                       <p className="text-sm text-gray-500">Set to India Standard Time (IST)</p>
                     </div>
                   </div>
-                  <div className="px-3 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] rounded-lg text-sm font-medium border border-[#2A8B8A]/20">
+                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
                     UTC+5:30 (India Standard Time)
                   </div>
                 </div>
@@ -1035,7 +1096,7 @@ export default function ProfilePage() {
               {/* Account Management */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Management</h3>
-                <div className="bg-red-50/80 backdrop-blur-sm border border-red-200/50 rounded-lg p-4 shadow-lg">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <MdWarning className="w-5 h-5 text-red-600 mt-0.5" />
                     <div className="flex-1">
@@ -1046,7 +1107,7 @@ export default function ProfilePage() {
                       <button 
                         onClick={handleDeleteAccount}
                         disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
                       >
                         <MdDelete className="w-4 h-4" />
                         {isLoading ? 'Deleting...' : 'Delete Account'}
@@ -1059,10 +1120,9 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-      </div>
 
       {/* Account Info Footer */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg border border-white/50 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-medium text-gray-900">Account Information</h3>

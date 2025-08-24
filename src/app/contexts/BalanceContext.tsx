@@ -30,24 +30,50 @@ export const BalanceProvider: React.FC<BalanceProviderProps> = ({ children }) =>
 
   // Robust parser to support different backend response shapes
   const extractBalance = (res: any, fallback: number = 0): number => {
+    console.log('🔍 Extracting balance from response:', res);
     try {
-      if (res == null) return fallback;
-      if (typeof res === 'number') return res;
-      if (typeof res.balance === 'number') return res.balance;
-      if (typeof res.new_balance === 'number') return res.new_balance;
-      if (res.data) {
-        if (typeof res.data.balance === 'number') return res.data.balance;
-        if (res.data.wallet && typeof res.data.wallet.balance === 'number') return res.data.wallet.balance;
-        if (typeof res.data.new_balance === 'number') return res.data.new_balance;
+      if (res == null) {
+        console.log('❌ Response is null/undefined, using fallback:', fallback);
+        return fallback;
       }
+      if (typeof res === 'number') {
+        console.log('✅ Response is direct number:', res);
+        return res;
+      }
+      if (typeof res.balance === 'number') {
+        console.log('✅ Using res.balance:', res.balance);
+        return res.balance;
+      }
+      if (typeof res.new_balance === 'number') {
+        console.log('✅ Using res.new_balance:', res.new_balance);
+        return res.new_balance;
+      }
+      if (res.data) {
+        console.log('🔍 Checking res.data:', res.data);
+        if (typeof res.data.balance === 'number') {
+          console.log('✅ Using res.data.balance:', res.data.balance);
+          return res.data.balance;
+        }
+        if (res.data.wallet && typeof res.data.wallet.balance === 'number') {
+          console.log('✅ Using res.data.wallet.balance:', res.data.wallet.balance);
+          return res.data.wallet.balance;
+        }
+        if (typeof res.data.new_balance === 'number') {
+          console.log('✅ Using res.data.new_balance:', res.data.new_balance);
+          return res.data.new_balance;
+        }
+      }
+      console.log('❌ No balance found in response, using fallback:', fallback);
       return fallback;
-    } catch {
+    } catch (error) {
+      console.error('❌ Error extracting balance:', error, 'using fallback:', fallback);
       return fallback;
     }
   };
 
   // Try multiple endpoints if primary fails
   const tryFetchBalance = async (userId: string) => {
+    console.log('🔍 Fetching balance for user:', userId);
     const fallbacks = [
       `/user/balance/${userId}`,
       `/wallet/balance`,
@@ -57,37 +83,47 @@ export const BalanceProvider: React.FC<BalanceProviderProps> = ({ children }) =>
 
     for (const endpoint of fallbacks) {
       try {
+        console.log('📡 Trying balance endpoint:', endpoint);
         const res: any = await apiService.getOptional(endpoint);
+        console.log('📥 Balance API response from', endpoint, ':', res);
         if (res) {
           const value = extractBalance(res, NaN);
+          console.log('💰 Extracted balance value:', value);
           if (!Number.isNaN(value)) {
+            console.log('✅ Using balance from', endpoint, ':', value);
             return value;
           }
         }
       } catch (e) {
+        console.warn('❌ Balance endpoint failed:', endpoint, e);
         // continue to next fallback
-        // console.warn('Balance endpoint failed:', endpoint, e);
       }
     }
     // As a last resort, use user context value
-    return typeof user?.wallet?.balance === 'number' ? user!.wallet!.balance : 0;
+    const fallbackBalance = typeof user?.wallet?.balance === 'number' ? user!.wallet!.balance : 0;
+    console.log('🔄 Using fallback balance from user context:', fallbackBalance);
+    return fallbackBalance;
   };
 
   const refreshBalance = async () => {
     const userId = (user as any)?.user_id || (user as any)?.id;
+    console.log('🔄 Refreshing balance for user:', userId);
     if (!userId) {
-      console.warn('No user ID available for balance refresh');
+      console.warn('⚠️ No user ID available for balance refresh');
       return;
     }
 
     setLoading(true);
     try {
       const value = await tryFetchBalance(String(userId));
+      console.log('💰 Setting balance to:', value);
       setBalance(value);
     } catch (error) {
-      console.error("Error fetching balance:", error);
+      console.error("❌ Error fetching balance:", error);
       // Fallback to user context wallet balance on error
-      setBalance(user?.wallet?.balance || 0);
+      const fallbackBalance = user?.wallet?.balance || 0;
+      console.log('🔄 Using error fallback balance:', fallbackBalance);
+      setBalance(fallbackBalance);
     } finally {
       setLoading(false);
     }
@@ -191,4 +227,5 @@ export const useBalance = (): BalanceContextType => {
 
 // Constants for pricing
 export const MESSAGE_COST = 1.70; // ₹1.70 per message (Facebook's actual pricing)
+export const CAMPAIGN_STARTUP_FEE = 1.0; // ₹1.00 campaign startup fee
 export const CONVERSATION_COST = 0.85; // ₹0.85 per 24-hour conversation window

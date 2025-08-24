@@ -479,21 +479,21 @@ export default function ContactsPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={downloadTemplate}
-            className="bg-gray-600 text-white px-4 py-3 font-medium hover:bg-gray-700 transition-all duration-200 flex items-center gap-2 text-sm rounded-xl shadow-lg"
+            className="bg-gray-600 text-white px-4 py-3 font-medium hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
           >
             <MdDownload className="w-4 h-4" />
             Template
           </button>
           <button
             onClick={() => setShowImportModal(true)}
-            className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white px-4 py-3 font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-xl shadow-lg"
+            className="bg-blue-600 text-white px-4 py-3 font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
           >
             <MdUpload className="w-4 h-4" />
             Import
           </button>
           <button
             onClick={exportContacts}
-            className="bg-green-600 text-white px-4 py-3 font-medium hover:bg-green-700 transition-all duration-200 flex items-center gap-2 text-sm rounded-xl shadow-lg"
+            className="bg-green-600 text-white px-4 py-3 font-medium hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
           >
             <MdDownload className="w-4 h-4" />
             Export
@@ -503,7 +503,7 @@ export default function ContactsPage() {
               resetForm();
               setShowAddModal(true);
             }}
-            className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white px-6 py-3 font-medium transition-all duration-200 flex items-center gap-2 rounded-xl shadow-lg"
+            className="bg-[#2A8B8A] text-white px-6 py-3 font-medium hover:bg-[#238080] transition-colors flex items-center gap-2"
           >
             <MdAdd className="w-5 h-5" />
             Add Contact
@@ -513,15 +513,15 @@ export default function ContactsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-lg">
+        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2">
-            <MdPerson className="w-5 h-5 text-[#2A8B8A]" />
+            <MdPerson className="w-5 h-5 text-blue-600" />
             <span className="text-sm font-medium text-gray-600">Total</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 mt-1">{contacts.length}</p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-lg">
+        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2">
             <MdCheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm font-medium text-gray-600">Active</span>
@@ -529,7 +529,7 @@ export default function ContactsPage() {
           <p className="text-2xl font-bold text-green-600 mt-1">{contacts.filter(c => (c.status || "active") === "active").length}</p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-lg">
+        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2">
             <MdEmail className="w-5 h-5 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">With Email</span>
@@ -537,7 +537,7 @@ export default function ContactsPage() {
           <p className="text-2xl font-bold text-purple-600 mt-1">{contacts.filter(c => c.email).length}</p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-lg">
+        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2">
             <MdTag className="w-5 h-5 text-orange-600" />
             <span className="text-sm font-medium text-gray-600">Tagged</span>
@@ -547,7 +547,7 @@ export default function ContactsPage() {
       </div>
 
       {/* Controls Bar */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 p-4 shadow-lg">
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-3 flex-1">
@@ -559,7 +559,7 @@ export default function ContactsPage() {
                 placeholder="Search contacts by name, phone, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-[#2A8B8A] text-black bg-white/70 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
               />
               {searchTerm && (
                 <button
@@ -574,7 +574,7 @@ export default function ContactsPage() {
             {/* Tag Filter */}
             <div className="sm:w-48">
               <select
-                className="w-full p-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] text-black bg-white/70 transition-all duration-200"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                 value={selectedTag}
                 onChange={(e) => setSelectedTag(e.target.value)}
               >
@@ -590,7 +590,7 @@ export default function ContactsPage() {
 
       {/* Contacts List */}
       {filteredContacts.length === 0 ? (
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 p-12 text-center shadow-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <MdPerson className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             {searchTerm || selectedTag ? "No contacts found" : "No contacts yet"}
@@ -613,7 +613,7 @@ export default function ContactsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 overflow-hidden shadow-lg">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -702,7 +702,7 @@ export default function ContactsPage() {
                     </button>
                     <button 
                       onClick={() => handleEdit(contact)}
-                      className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white px-3 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-1 rounded-xl shadow-lg"
+                      className="bg-blue-600 text-white px-3 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-1 rounded-md"
                     >
                       <MdEdit className="w-4 h-4" />
                       Edit
@@ -743,7 +743,7 @@ export default function ContactsPage() {
       {/* Add/Edit Contact Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -903,8 +903,8 @@ export default function ContactsPage() {
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0  bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl max-w-md w-full border border-white/50">
-            <div className="p-6 border-b border-white/50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Import Contacts</h3>
                 <button
@@ -1046,7 +1046,7 @@ export default function ContactsPage() {
                         addNewTag();
                       }
                     }}
-                    className="flex-1 p-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] text-black bg-white/70 transition-all duration-200"
+                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                   />
                   <button
                     onClick={addNewTag}

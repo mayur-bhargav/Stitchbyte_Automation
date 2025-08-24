@@ -24,18 +24,10 @@ export default function WorkflowsPage() {
 
   const loadWorkflows = async () => {
     try {
-      // Use getOptional so a 404 (endpoint not present or no workflows) returns null
-      // instead of throwing an exception from the shared request helper.
-      const data = await apiService.getOptional("/workflows");
-      if (!data) {
-        setWorkflows([]);
-      } else {
-        setWorkflows(data?.workflows || []);
-      }
+      const data = await apiService.get("/workflows");
+      setWorkflows(data?.workflows || []);
     } catch (error) {
       console.error("Failed to load workflows:", error);
-      // Defensive fallback if request helper throws for unexpected reasons
-      setWorkflows([]);
     } finally {
       setLoading(false);
     }

@@ -106,7 +106,13 @@ export default function CampaignDetails() {
   const loadCampaignDetails = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -124,7 +130,13 @@ export default function CampaignDetails() {
 
   const loadCampaignActivity = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/activity`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/activity`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -138,11 +150,11 @@ export default function CampaignDetails() {
   const handleLaunchCampaign = async () => {
     if (!campaign) return;
 
-    const campaignStartupFee = 1.0;
-    const messageCosts = campaign.recipients * MESSAGE_COST;
+    const campaignStartupFee = CAMPAIGN_STARTUP_FEE;
+    const messageCosts = (campaign.contacts?.length || 0) * MESSAGE_COST;
     const totalCost = messageCosts + campaignStartupFee;
     
-    const minimumLaunchCost = 1.0;
+    const minimumLaunchCost = CAMPAIGN_STARTUP_FEE;
     if (totalCost < minimumLaunchCost) {
       showToastNotification(`Campaign cost (₹${totalCost.toFixed(2)}) is less than minimum launch cost (₹${minimumLaunchCost.toFixed(2)})`, 'error');
       return;
@@ -163,7 +175,7 @@ export default function CampaignDetails() {
 
     showConfirmation(
       'Launch Campaign',
-      `Are you sure you want to launch this campaign? Messages will be sent immediately. Total cost: ₹${totalCost.toFixed(2)} (₹${campaignStartupFee.toFixed(2)} startup fee + ₹${messageCosts.toFixed(2)} for ${campaign.recipients} messages)`,
+      `Are you sure you want to launch this campaign? Messages will be sent immediately. Total cost: ₹${totalCost.toFixed(2)} (₹${campaignStartupFee.toFixed(2)} startup fee + ₹${messageCosts.toFixed(2)} for ${campaign.contacts?.length || 0} messages)`,
       async () => {
         try {
           const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/launch`, {
@@ -411,7 +423,7 @@ export default function CampaignDetails() {
             {campaign.status === 'draft' && (
               <button 
                 onClick={handleLaunchCampaign}
-                disabled={userBalance < ((campaign.recipients * MESSAGE_COST) + 1.0)}
+                disabled={userBalance < (((campaign.recipients || 0) * MESSAGE_COST) + 1.0)}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,9 +487,14 @@ export default function CampaignDetails() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Recipients</p>
-              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{campaign.recipients.toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'} truncate`}>
+                {(campaign.recipients || 0) >= 1000 
+                  ? `${((campaign.recipients || 0) / 1000).toFixed(1)}k` 
+                  : (campaign.recipients || 0).toLocaleString()
+                }
+              </p>
             </div>
           </div>
         </div>
@@ -491,7 +508,7 @@ export default function CampaignDetails() {
             </div>
             <div>
               <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Sent</p>
-              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{campaign.sent.toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{(campaign.sent || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -505,7 +522,7 @@ export default function CampaignDetails() {
             </div>
             <div>
               <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Delivered</p>
-              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{campaign.delivered.toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{(campaign.delivered || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -520,7 +537,7 @@ export default function CampaignDetails() {
             </div>
             <div>
               <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Read</p>
-              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{campaign.read.toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{(campaign.read || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -534,7 +551,7 @@ export default function CampaignDetails() {
             </div>
             <div>
               <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Replied</p>
-              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{campaign.replied.toLocaleString()}</p>
+              <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{(campaign.replied || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -637,6 +654,45 @@ export default function CampaignDetails() {
                 </div>
               )}
 
+              {/* Recipients Overview */}
+              {campaign.contacts && campaign.contacts.length > 0 && (
+                <div>
+                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-black'} mb-4`}>Recipients</h3>
+                  <div className={`border ${isDarkMode ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'} rounded-lg p-4 transition-colors`}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 border border-blue-600 flex items-center justify-center rounded-lg">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Recipients</p>
+                        <div className="flex items-center gap-2">
+                          <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>{campaign.contacts.length}</p>
+                          {campaign.contacts.length > 3 && (
+                            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              (+{campaign.contacts.length - 3} more)
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {campaign.contacts.slice(0, 3).map((contact, index) => (
+                            <span key={index} className={`text-xs ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'} px-2 py-1 rounded truncate max-w-[120px]`}>
+                              {contact}
+                            </span>
+                          ))}
+                          {campaign.contacts.length > 3 && (
+                            <span className={`text-xs ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'} px-2 py-1 rounded`}>
+                              +{campaign.contacts.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Media Preview */}
               {campaign.media_url && (
                 <div>
@@ -706,10 +762,37 @@ export default function CampaignDetails() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>Recipients</h3>
-                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Total: {campaign.recipients}</span>
+                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Total: {campaign.recipients || 0}</span>
               </div>
               <div className={`border ${isDarkMode ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'} rounded-lg p-4 transition-colors`}>
-                <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Recipient details will be displayed here when available.</p>
+                {campaign.contacts && campaign.contacts.length > 0 ? (
+                  <div className="space-y-3">
+                    {campaign.contacts.slice(0, 5).map((contact, index) => (
+                      <div key={index} className={`flex items-center gap-3 p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg`}>
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'} truncate`}>
+                          {contact}
+                        </span>
+                      </div>
+                    ))}
+                    {campaign.contacts.length > 5 && (
+                      <div className={`flex items-center gap-3 p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg`}>
+                        <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-medium">+</span>
+                        </div>
+                        <span className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          +{campaign.contacts.length - 5} more contacts
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>No recipient details available.</p>
+                )}
               </div>
             </div>
           )}
@@ -948,6 +1031,7 @@ export default function CampaignDetails() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useBalance, MESSAGE_COST } from "../contexts/BalanceContext";
+import { useBalance, MESSAGE_COST, CAMPAIGN_STARTUP_FEE } from "../contexts/BalanceContext";
+import { useUser } from "../contexts/UserContext";
 import apiService from "../services/apiService";
 
 type Template = {
@@ -22,6 +23,7 @@ type CreateCampaignModalProps = {
 };
 
 export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated }: CreateCampaignModalProps) {
+  const { user } = useUser();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -57,8 +59,34 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
   useEffect(() => {
     if (isOpen) {
       loadTemplates();
+      checkWhatsAppConfiguration();
     }
   }, [isOpen]);
+
+  const checkWhatsAppConfiguration = async () => {
+    try {
+      const whatsappConfig = await apiService.getOptional('/whatsapp/config');
+      console.log('WhatsApp config check:', whatsappConfig);
+      
+      // Handle wrapped response format: {success: true, data: {...}}
+      const configData = whatsappConfig?.data || whatsappConfig;
+      
+      if (!configData || configData.status !== 'connected') {
+        setError('WhatsApp Business Account not configured. Please set up your WhatsApp integration in Settings before creating campaigns.');
+      } else if (!configData.selected_option?.waba_id || !configData.selected_phone?.id) {
+        setError('WhatsApp Business Account configuration incomplete. Please check your WhatsApp settings.');
+      } else {
+        // Clear any previous WhatsApp configuration errors
+        if (error?.includes('WhatsApp')) {
+          setError('');
+        }
+        console.log('✅ WhatsApp configuration validated successfully');
+      }
+    } catch (error) {
+      console.log('WhatsApp configuration check failed:', error);
+      setError('Unable to verify WhatsApp configuration. Please check your WhatsApp settings.');
+    }
+  };
 
   const loadTemplates = async () => {
     setTemplatesLoading(true);
@@ -197,7 +225,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
     // Budget validation if budget is set
     if (formData.budget && parseFloat(formData.budget) > 0) {
       const budget = parseFloat(formData.budget);
-      const campaignStartupFee = 1.0;
+      const campaignStartupFee = CAMPAIGN_STARTUP_FEE;
       const totalCost = (allRecipients.length * MESSAGE_COST) + campaignStartupFee;
       
       if (totalCost > budget) {
@@ -247,7 +275,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
       // Budget validation if budget is set
       if (formData.budget && parseFloat(formData.budget) > 0) {
         const budget = parseFloat(formData.budget);
-        const campaignStartupFee = 1.0;
+        const campaignStartupFee = CAMPAIGN_STARTUP_FEE;
         const totalCost = (newRecipients.length * MESSAGE_COST) + campaignStartupFee;
         
         if (totalCost > budget) {
@@ -348,7 +376,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
     }
 
     // Check if user has sufficient balance
-    const campaignStartupFee = 1.0;
+    const campaignStartupFee = CAMPAIGN_STARTUP_FEE;
     const totalCost = (formData.recipients.length * MESSAGE_COST) + campaignStartupFee;
     if (userBalance < totalCost) {
       setError(`Insufficient balance. You need ₹${totalCost.toFixed(2)} but only have ₹${userBalance.toFixed(2)}. Please add ₹${(totalCost - userBalance).toFixed(2)} to continue.`);
@@ -387,19 +415,11 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
         formDataToSend.append('media_url', mediaUrl);
       }
 
-      const token = localStorage.getItem('token');
-      const headers: HeadersInit = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch('http://localhost:8000/campaigns', {
+      // Use apiService which handles authentication automatically
+      const data = await apiService.request('/campaigns', {
         method: 'POST',
-        headers,
         body: formDataToSend
       });
-
-      const data = await response.json();
 
       if (data.success) {
         onCampaignCreated();
@@ -408,8 +428,14 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
       } else {
         setError(data.error || 'Failed to create campaign');
       }
-    } catch (error) {
-      setError('Failed to create campaign. Please try again.');
+    } catch (error: any) {
+      if (error.message?.includes('WhatsApp configuration incomplete')) {
+        setError('WhatsApp Business Account not properly configured. Please check your WhatsApp settings and ensure you have connected your WhatsApp Business Account.');
+      } else if (error.message?.includes('Missing access token')) {
+        setError('WhatsApp access token missing. Please reconnect your WhatsApp Business Account in Settings.');
+      } else {
+        setError(error.message || 'Failed to create campaign. Please try again.');
+      }
       console.error('Campaign creation error:', error);
     }
 
@@ -845,24 +871,24 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
                     <div className="mt-3 p-3 border border-blue-200 rounded-lg">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-blue-800">Estimated Cost:</span>
-                        <span className="text-lg font-bold text-blue-900">₹{((formData.recipients.length * MESSAGE_COST) + 1.0).toFixed(2)}</span>
+                        <span className="text-lg font-bold text-blue-900">₹{((formData.recipients.length * MESSAGE_COST) + CAMPAIGN_STARTUP_FEE).toFixed(2)}</span>
                       </div>
                       <div className="text-xs text-blue-600 mt-1 space-y-1">
-                        <p>₹1.00 campaign startup fee</p>
+                        <p>₹{CAMPAIGN_STARTUP_FEE.toFixed(2)} campaign startup fee</p>
                         <p>₹{MESSAGE_COST.toFixed(2)} per message × {formData.recipients.length} recipients</p>
                       </div>
-                      {userBalance < ((formData.recipients.length * MESSAGE_COST) + 1.0) && (
+                      {userBalance < ((formData.recipients.length * MESSAGE_COST) + CAMPAIGN_STARTUP_FEE) && (
                         <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs text-red-800 font-medium">Insufficient Balance</p>
                               <p className="text-xs text-red-600">
-                                Need ₹{(((formData.recipients.length * MESSAGE_COST) + 1.0) - userBalance).toFixed(2)} more
+                                Need ₹{(((formData.recipients.length * MESSAGE_COST) + CAMPAIGN_STARTUP_FEE) - userBalance).toFixed(2)} more
                               </p>
                             </div>
                             <button
                               type="button"
-                              onClick={() => addBalanceContext(Math.ceil(((formData.recipients.length * MESSAGE_COST) + 1.0) - userBalance + 50), "Balance added for campaign creation")}
+                              onClick={() => addBalanceContext(Math.ceil(((formData.recipients.length * MESSAGE_COST) + CAMPAIGN_STARTUP_FEE) - userBalance + 50), "Balance added for campaign creation")}
                               className="px-3 py-1 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
                             >
                               Add Balance
@@ -884,7 +910,21 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
                 <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-red-600">{error}</p>
+                <div className="flex-1">
+                  <p className="text-red-600">{error}</p>
+                  {error.includes('WhatsApp') && error.includes('Settings') && (
+                    <a 
+                      href="/settings" 
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2 font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Go to Settings
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -900,11 +940,11 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
             </button>
             <button
               type="submit"
-              disabled={loading || userBalance < ((formData.recipients.length * MESSAGE_COST) + 1.0) || isMediaRequired()}
+              disabled={loading || userBalance < ((formData.recipients.length * MESSAGE_COST) + CAMPAIGN_STARTUP_FEE) || isMediaRequired()}
               className="flex-1 bg-[#2A8B8A] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#238080] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Creating Campaign..." : 
-               userBalance < ((formData.recipients.length * MESSAGE_COST) + 1.0) ? "Insufficient Balance" :
+               userBalance < ((formData.recipients.length * MESSAGE_COST) + CAMPAIGN_STARTUP_FEE) ? "Insufficient Balance" :
                isMediaRequired() ? "Media Required" :
                "Create Campaign"}
             </button>
@@ -1102,14 +1142,14 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
                   <span className="font-medium">{selectedContacts.size}</span> contacts selected
                   {selectedContacts.size > 0 && (
                     <span className="ml-2">
-                      (Cost: ₹{(selectedContacts.size * MESSAGE_COST + 1.0).toFixed(2)})
+                      (Cost: ₹{(selectedContacts.size * MESSAGE_COST + CAMPAIGN_STARTUP_FEE).toFixed(2)})
                     </span>
                   )}
                   {formData.budget && parseFloat(formData.budget) > 0 && (
                     <div className="mt-1 text-xs">
                       {(() => {
                         const budget = parseFloat(formData.budget);
-                        const campaignStartupFee = 1.0;
+                        const campaignStartupFee = CAMPAIGN_STARTUP_FEE;
                         const currentCost = (formData.recipients.length * MESSAGE_COST) + campaignStartupFee;
                         const newTotalCost = ((formData.recipients.length + selectedContacts.size) * MESSAGE_COST) + campaignStartupFee;
                         const affordableContacts = Math.floor((budget - campaignStartupFee) / MESSAGE_COST);
@@ -1148,7 +1188,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
                   <button
                     onClick={applySelectedContacts}
                     disabled={selectedContacts.size === 0 || (formData.budget && parseFloat(formData.budget) > 0 && 
-                      ((formData.recipients.length + selectedContacts.size) * MESSAGE_COST + 1.0) > parseFloat(formData.budget))}
+                      ((formData.recipients.length + selectedContacts.size) * MESSAGE_COST + CAMPAIGN_STARTUP_FEE) > parseFloat(formData.budget))}
                     className="px-6 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add {selectedContacts.size} Contact{selectedContacts.size !== 1 ? 's' : ''}

@@ -329,18 +329,12 @@ export default function EditCampaignModal({ isOpen, onClose, campaign, onSuccess
   const fetchTemplates = async () => {
     setTemplatesLoading(true);
     try {
-      const data = await apiService.getOptional('/templates');
+      const data = await apiService.getTemplates();
       console.log('Templates API response:', data); // Debug log
-      if (data) {
-        // Backend returns {templates: [...]}
-        setTemplates(data.templates || []);
-      } else {
-        console.log('Templates endpoint not available, showing empty templates');
-        setTemplates([]);
-      }
+      // Backend returns {templates: [...]}
+      setTemplates(data.templates || []);
     } catch (error) {
-      console.log('Error fetching templates, showing empty templates:', error);
-      setTemplates([]);
+      console.error('Error fetching templates:', error);
     } finally {
       setTemplatesLoading(false);
     }
