@@ -395,54 +395,101 @@ function SendMessage() {
     try {
       let successCount = 0;
       let errorCount = 0;
+      const detailedErrors = []; // Track detailed error messages
+      
+      console.log('📋 Starting message sending process...');
+      console.log('📱 Phone numbers:', phoneNumbers);
+      console.log('📨 Template:', template);
+      console.log('🧩 Components:', comps);
+      console.log('👤 User company ID:', user?.companyId);
       
       for (const phoneNumber of phoneNumbers) {
         try {
           const selectedTpl = approvedTemplates.find(t => t.name === template);
           const hasMediaHeader = selectedTpl?.header_type && ['image', 'video', 'document'].includes(selectedTpl.header_type);
           
+          console.log(`🔄 Processing message for ${phoneNumber}...`);
+          console.log('📋 Template details:', {
+            name: selectedTpl?.name,
+            header_type: selectedTpl?.header_type,
+            hasMediaHeader,
+            variables: selectedTpl?.variables
+          });
+          
           let response;
           if (hasMediaHeader) {
+            console.log('🔄 Creating FormData for media message...');
             const formData = new FormData();
             formData.append('phone', phoneNumber);
             formData.append('template', template);
             formData.append('components', JSON.stringify(comps));
-            formData.append('companyId', user.companyId); // Add company security
+            formData.append('companyId', user?.companyId || ''); // Add company security
             
             // Add media file if selected, otherwise use URL
             if (mediaFile) {
               formData.append('media_file', mediaFile);
-              console.log('Uploading media file:', mediaFile.name, 'Size:', mediaFile.size);
+              console.log('📎 Uploading media file:', mediaFile.name, 'Size:', mediaFile.size);
             } else if (mediaUrl) {
               formData.append('media_url', mediaUrl);
-              console.log('Using media URL:', mediaUrl);
+              console.log('🔗 Using media URL:', mediaUrl);
+            } else {
+              console.log('📱 Using template default media');
             }
             
             if (isScheduled) {
               formData.append('scheduled_time', scheduledTime);
             }
 
-            response = await apiService.postFormData('/send-message-with-file', formData);
+            console.log('🚀 Making API call to /messages/send-message-with-file...');
+            console.log('📋 FormData contents:');
+            for (let [key, value] of formData.entries()) {
+              console.log(`  ${key}:`, value);
+            }
+            
+            response = await apiService.post('/messages/send-message-with-file', formData);
+            console.log('✅ Media message API response received:', response);
           } else {
+            console.log('🚀 Making API call to /messages/send-message (text message)...');
             const messageData = {
               phone: phoneNumber,
               template,
               components: comps,
-              companyId: user.companyId, // Add company security
+              companyId: user?.companyId, // Add company security
               ...(isScheduled && { scheduled_time: scheduledTime })
             };
             
-            response = await apiService.post('/send-message', messageData);
+            console.log('📋 Message data being sent:', JSON.stringify(messageData, null, 2));
+            
+            response = await apiService.post('/messages/send-message', messageData);
+            console.log('✅ Text message API response received:', response);
           }
           
+          // Enhanced response validation
+          console.log('🔍 Analyzing response for', phoneNumber);
+          console.log('📄 Full response:', JSON.stringify(response, null, 2));
+          
           if (response && response.success && !response.error) {
+            console.log('✅ Message sent successfully for', phoneNumber);
             successCount++;
             // Refresh balance from server to get the latest amount
             await refreshBalance();
           } else {
+            console.error('❌ Message failed for', phoneNumber);
+            console.error('📄 Error details:', {
+              success: response?.success,
+              error: response?.error,
+              message: response?.message,
+              status: response?.status,
+              fullResponse: response
+            });
+            
             errorCount++;
+            const errorDetail = response?.error || response?.message || 'Unknown error';
+            detailedErrors.push(`${phoneNumber}: ${errorDetail}`);
+            
             // Handle insufficient balance error specifically
             if (response && response.error && response.error.includes('balance')) {
+              console.error('💰 Insufficient balance detected');
               setResult({ 
                 error: response.error || "Insufficient balance. Please add funds to continue sending messages." 
               });
@@ -451,9 +498,15 @@ function SendMessage() {
             }
           }
         } catch (error) {
+          console.error('💥 Exception occurred while sending to', phoneNumber, ':', error);
+          console.error('📋 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           errorCount++;
+          const errorMessage = error instanceof Error ? error.message : 'Network or API error';
+          detailedErrors.push(`${phoneNumber}: ${errorMessage}`);
         }
       }
+      
+      console.log('📊 Final results:', { successCount, errorCount, detailedErrors });
       
       if (successCount > 0) {
         const action = isScheduled ? 'scheduled' : 'sent';
@@ -465,6 +518,11 @@ function SendMessage() {
         
         // Clear any previous error messages
         setResult(null);
+        
+        // Log any failures for debugging
+        if (errorCount > 0) {
+          console.warn('⚠️ Some messages failed:', detailedErrors);
+        }
         
         loadMessageUsage();
         await refreshBalance(); // Refresh balance from server
@@ -483,11 +541,45 @@ function SendMessage() {
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
       } else {
-        setResult({ error: `Failed to ${isScheduled ? 'schedule' : 'send'} all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}` });
+        console.error('❌ All messages failed!');
+        console.error('📋 Detailed errors:', detailedErrors);
+        
+        // Show detailed error information
+        const detailedErrorMessage = detailedErrors.length > 0 
+          ? `Failed to ${isScheduled ? 'schedule' : 'send'} all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}. Errors: ${detailedErrors.join('; ')}`
+          : `Failed to ${isScheduled ? 'schedule' : 'send'} all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}`;
+        
+        setResult({ error: detailedErrorMessage });
       }
       
     } catch (error) {
-      setResult({ error: `Failed to ${isScheduled ? 'schedule' : 'send'} message` });
+      // Enhanced error handling for WABA validation and image template errors
+      console.error('Send Message Error:', error);
+      let errorMessage = `Failed to ${isScheduled ? 'schedule' : 'send'} message`;
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message || errorMessage;
+      }
+      // Log full error for image template failures
+      if (selectedTpl?.header_type === 'image') {
+        console.error('Image template send error:', error);
+      }
+      // Check if it's a WABA registration/validation error
+      if (
+        errorMessage.includes('Account does not exist in Cloud API') ||
+        errorMessage.includes('waba_registration_required') ||
+        errorMessage.includes('not registered') ||
+        errorMessage.includes('133010')
+      ) {
+        const shouldValidate = window.confirm(
+          'Your WhatsApp Business Account needs to be validated. ' +
+          'Would you like to go to settings to validate it now?'
+        );
+        if (shouldValidate) {
+          window.location.href = '/settings';
+        }
+      } else {
+        setResult({ error: errorMessage });
+      }
     }
     
     setLoading(false);

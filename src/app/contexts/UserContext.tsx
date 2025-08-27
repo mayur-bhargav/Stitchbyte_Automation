@@ -31,7 +31,8 @@ interface UserContextType {
   isAuthenticated: boolean;
   hasValidSubscription: boolean;
   needsPlanSelection: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  backupCodeUsed: boolean;
+  login: (email: string, password: string, twoFactorCode?: string, codeType?: string) => Promise<any>;
   signup: (data: {
     email: string;
     password: string;
@@ -44,6 +45,7 @@ interface UserContextType {
   updateWallet: (walletUpdates: Partial<User['wallet']>) => void;
   checkSubscription: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  clearBackupCodeFlag: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -64,6 +66,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Always start with true to prevent hydration mismatch
   const [isClient, setIsClient] = useState(false);
+  const [backupCodeUsed, setBackupCodeUsed] = useState(false);
 
   useEffect(() => {
     // Mark as client-side to prevent hydration mismatches
@@ -161,12 +164,26 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, twoFactorCode?: string, codeType?: string) => {
     try {
       setIsLoading(true);
-      const response = await apiService.signin(email, password);
+      const response = await apiService.signin(email, password, twoFactorCode, codeType);
+      
+      // If 2FA is required, return the response without setting user
+      if (response && response.requires2FA && !twoFactorCode) {
+        return response;
+      }
+      
+      // Normal login or successful 2FA verification
       if (response && response.user) {
         setUser(response.user);
+        
+        // Set backup code flag if backup code was used
+        if (codeType === 'backup' && twoFactorCode) {
+          setBackupCodeUsed(true);
+        }
+        
+        return response;
       } else {
         throw new Error('Failed to get user data');
       }
@@ -256,12 +273,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     });
   }
 
+  const clearBackupCodeFlag = () => {
+    setBackupCodeUsed(false);
+  };
+
   const value: UserContextType = {
     user,
     isLoading,
     isAuthenticated,
     hasValidSubscription,
     needsPlanSelection,
+    backupCodeUsed,
     login,
     signup,
     logout,
@@ -269,6 +291,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     updateWallet,
     checkSubscription,
     refreshUser,
+    clearBackupCodeFlag,
   };
 
   return (

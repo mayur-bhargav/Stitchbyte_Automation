@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 
 type Message = {
@@ -62,24 +62,95 @@ export default function ChatConversation() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Define functions before useEffect hooks
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 100;
+    setShowScrollButton(!isAtBottom);
+  };
+
+  const loadMessages = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/chat/messages/${encodeURIComponent(phone)}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
+      const data = await response.json();
+      setMessages(data.messages || []);
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [phone]);
+
+  const loadContact = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/chat/contact/${encodeURIComponent(phone)}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
+      const data = await response.json();
+      setContact(data.contact);
+    } catch (error) {
+      console.error("Failed to load contact:", error);
+    }
+  }, [phone]);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch("http://localhost:8000/templates", {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
+      const data = await response.json();
+      const approvedTemplates = (data.templates || []).filter((t: any) => 
+        t.status?.toString().toUpperCase() === 'APPROVED'
+      );
+      setTemplates(approvedTemplates);
+    } catch (error) {
+      console.error("Failed to load templates:", error);
+    }
+  }, []);
+
   useEffect(() => {
+    // Initial load when component mounts or phone changes
+    console.log('Initializing chat for phone:', phone);
     loadMessages();
     loadContact();
     loadTemplates();
-    
-    // Real-time updates every 3 seconds
-    const interval = setInterval(() => {
-      loadMessages();
-      loadContact();
-    }, 3000);
     
     // Load theme preference
     const savedTheme = localStorage.getItem('chatTheme');
     if (savedTheme === 'dark') {
       setDarkMode(true);
     }
+  }, [phone, loadMessages, loadContact, loadTemplates]);
+
+  useEffect(() => {
+    // Real-time updates every 3 seconds
+    const interval = setInterval(() => {
+      loadMessages();
+      loadContact();
+    }, 3000);
     
-    // Keyboard shortcuts
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loadMessages, loadContact]);
+
+  useEffect(() => {
+    // Keyboard shortcuts - separate effect to avoid dependency issues
     const handleKeyPress = (e: KeyboardEvent) => {
       // Escape key to cancel selection or close modals
       if (e.key === 'Escape') {
@@ -92,9 +163,9 @@ export default function ChatConversation() {
       }
       
       // Ctrl/Cmd + A to select all messages
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target?.tagName.match(/INPUT|TEXTAREA/)) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !(e.target as HTMLElement)?.tagName?.match(/INPUT|TEXTAREA/)) {
         e.preventDefault();
-        setSelectedMessages(messages.map(m => m.id));
+        setSelectedMessages(prev => messages.map(m => m.id));
       }
       
       // Ctrl/Cmd + F to open search
@@ -105,66 +176,21 @@ export default function ChatConversation() {
       
       // Delete key to delete selected messages
       if (e.key === 'Delete' && selectedMessages.length > 0) {
-        deleteSelectedMessages();
+        // deleteSelectedMessages(); // TODO: Implement this function
+        console.log('Delete key pressed for', selectedMessages.length, 'messages');
       }
     };
     
     document.addEventListener('keydown', handleKeyPress);
     
     return () => {
-      clearInterval(interval);
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [phone, messages, selectedMessages]);
+  }, [selectedMessages]); // Only depend on selectedMessages for delete function
 
   useEffect(() => {
     scrollToBottom();
   }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 100;
-    setShowScrollButton(!isAtBottom);
-  };
-
-  const loadMessages = async () => {
-    try {
-      const response = await fetch(`http://localhost:8000/chat/messages/${encodeURIComponent(phone)}`);
-      const data = await response.json();
-      setMessages(data.messages || []);
-    } catch (error) {
-      console.error("Failed to load messages:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadContact = async () => {
-    try {
-      const response = await fetch(`http://localhost:8000/chat/contact/${encodeURIComponent(phone)}`);
-      const data = await response.json();
-      setContact(data.contact);
-    } catch (error) {
-      console.error("Failed to load contact:", error);
-    }
-  };
-
-  const loadTemplates = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/templates");
-      const data = await response.json();
-      const approvedTemplates = (data.templates || []).filter((t: any) => 
-        t.status?.toString().toUpperCase() === 'APPROVED'
-      );
-      setTemplates(approvedTemplates);
-    } catch (error) {
-      console.error("Failed to load templates:", error);
-    }
-  };
 
   const sendTextMessage = async () => {
     if (!newMessage.trim() && !mediaFile) return;
@@ -183,26 +209,43 @@ export default function ChatConversation() {
           formData.append('reply_to', replyTo.id);
         }
         
+        const token = localStorage.getItem('token');
         const response = await fetch("http://localhost:8000/chat/send-media", {
           method: "POST",
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
           body: formData,
         });
         
         if (response.ok) {
+          const result = await response.json();
+          console.log('Media message sent successfully:', result);
           setNewMessage("");
           setMediaFile(null);
           setReplyTo(null);
           if (fileInputRef.current) fileInputRef.current.value = "";
           loadMessages();
           playNotificationSound();
+          showNotification('Message sent successfully!', 'success');
           // Scroll to bottom when sending a new message
           setTimeout(scrollToBottom, 100);
+        } else {
+          const errorData = await response.text();
+          console.error('Failed to send media message:', response.status, errorData);
+          showNotification(`Failed to send media message: ${response.status}`, 'error');
         }
       } else {
         // Send text message
+        const token = localStorage.getItem('token');
+        console.log('Sending text message to:', phone, 'Message:', newMessage);
+        
         const response = await fetch("http://localhost:8000/chat/send-text", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
           body: JSON.stringify({
             phone: phone,
             message: newMessage,
@@ -211,16 +254,24 @@ export default function ChatConversation() {
         });
         
         if (response.ok) {
+          const result = await response.json();
+          console.log('Text message sent successfully:', result);
           setNewMessage("");
           setReplyTo(null);
           loadMessages();
           playNotificationSound();
+          showNotification('Message sent successfully!', 'success');
           // Scroll to bottom when sending a new message
           setTimeout(scrollToBottom, 100);
+        } else {
+          const errorData = await response.text();
+          console.error('Failed to send text message:', response.status, errorData);
+          showNotification(`Failed to send message: ${response.status}`, 'error');
         }
       }
     } catch (error) {
       console.error("Failed to send message:", error);
+      showNotification('Network error: Failed to send message', 'error');
     } finally {
       setSending(false);
       setIsTyping(false);
@@ -230,9 +281,13 @@ export default function ChatConversation() {
   const sendTemplate = async (templateName: string) => {
     setSending(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch("http://localhost:8000/send-message", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
         body: JSON.stringify({
           phone: phone,
           template: templateName,
@@ -243,9 +298,15 @@ export default function ChatConversation() {
       if (response.ok) {
         setShowTemplates(false);
         loadMessages();
+        showNotification('Template sent successfully!', 'success');
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to send template:', response.status, errorData);
+        showNotification(`Failed to send template: ${response.status}`, 'error');
       }
     } catch (error) {
       console.error("Failed to send template:", error);
+      showNotification('Network error: Failed to send template', 'error');
     } finally {
       setSending(false);
     }
@@ -637,7 +698,7 @@ export default function ChatConversation() {
               }`}>
                 {contact?.name || phone}
               </h2>
-              <p className={`text-sm flex items-center gap-2 ${
+              <div className={`text-sm flex items-center gap-2 ${
                 darkMode ? 'text-gray-400' : 'text-gray-500'
               }`}>
                 {contact?.is_typing && (
@@ -662,7 +723,7 @@ export default function ChatConversation() {
                     "Tap here for contact info"
                   )
                 )}
-              </p>
+              </div>
             </div>
             
             <div className="flex gap-2">

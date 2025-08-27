@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { apiService } from '../services/apiService';
+import { integrationTemplates, getTemplatesByCategory, getPopularTemplates, IntegrationTemplate } from './integrationTemplates';
+import IntegrationTemplateModal from './IntegrationTemplateModal';
 import {
   MdAdd,
   MdAutoAwesome,
@@ -42,7 +44,13 @@ import {
   MdCelebration,
   MdFavorite,
   MdQuestionAnswer,
-  MdHelp
+  MdHelp,
+  MdExtension,
+  MdStore,
+  MdSupport,
+  MdPayment,
+  MdAnalytics,
+  MdPersonAdd
 } from "react-icons/md";
 
 // Toast notification function
@@ -73,6 +81,11 @@ function AutomationsPage() {
   const [loading, setLoading] = useState(true);
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [currentView, setCurrentView] = useState<'list' | 'templates'>('list');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  // Integration template modal state
+  const [selectedIntegrationTemplate, setSelectedIntegrationTemplate] = useState<IntegrationTemplate | null>(null);
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   
   // Test modal state
   const [showTestModal, setShowTestModal] = useState(false);
@@ -80,8 +93,8 @@ function AutomationsPage() {
   const [testAutomationId, setTestAutomationId] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
-  // Mock templates data
-  const templates = [
+  // Mock templates data - combining regular templates with integration templates
+  const basicTemplates = [
     {
       id: 'welcome',
       name: 'Welcome New Users',
@@ -117,13 +130,30 @@ function AutomationsPage() {
     }
   ];
 
+  // Combine basic templates with integration templates
+  const templates = [...basicTemplates, ...integrationTemplates];
+
   const categories = [
     { id: "all", label: "All", icon: <MdList className="w-4 h-4" /> },
     { id: "popular", label: "Most popular", icon: <MdStar className="w-4 h-4" /> },
     { id: "engagement", label: "Improve engagement", icon: <MdChat className="w-4 h-4" /> },
     { id: "revenue", label: "Increase revenue", icon: <MdAttachMoney className="w-4 h-4" /> },
-    { id: "business", label: "Business Automation", icon: <MdBusinessCenter className="w-4 h-4" /> }
+    { id: "business", label: "Business Automation", icon: <MdBusinessCenter className="w-4 h-4" /> },
+    { id: "e-commerce", label: "E-commerce", icon: <MdStore className="w-4 h-4" /> },
+    { id: "crm", label: "CRM & Sales", icon: <MdPersonAdd className="w-4 h-4" /> },
+    { id: "productivity", label: "Productivity", icon: <MdExtension className="w-4 h-4" /> },
+    { id: "finance", label: "Finance & Payments", icon: <MdPayment className="w-4 h-4" /> },
+    { id: "support", label: "Customer Support", icon: <MdSupport className="w-4 h-4" /> },
+    { id: "marketing", label: "Marketing", icon: <MdEmail className="w-4 h-4" /> },
+    { id: "analytics", label: "Analytics", icon: <MdAnalytics className="w-4 h-4" /> }
   ];
+
+  // Filter templates based on selected category
+  const filteredTemplates = templates.filter(template => {
+    if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'popular') return template.popular === true;
+    return template.category === selectedCategory;
+  });
 
   // Load automations from backend
   const loadAutomations = async () => {
@@ -170,14 +200,28 @@ function AutomationsPage() {
     }
   };
 
-  const createFromTemplate = (template: any) => {
+    const createFromTemplate = (template: any) => {
     const params = new URLSearchParams();
     if (template) {
       params.set('template', template.id);
     }
-    const queryString = params.toString();
-    const url = `/automations/builder${queryString ? `?${queryString}` : ''}`;
-    router.push(url);
+    router.push(`/automations/builder?${params.toString()}`);
+  };
+
+  const handleTemplateClick = (template: any) => {
+    // Check if it's an integration template
+    if ((template as IntegrationTemplate).integration) {
+      setSelectedIntegrationTemplate(template as IntegrationTemplate);
+      setShowIntegrationModal(true);
+    } else {
+      // Regular template - go directly to builder
+      createFromTemplate(template);
+    }
+  };
+
+  const handleCreateIntegrationAutomation = (template: IntegrationTemplate) => {
+    setShowIntegrationModal(false);
+    createFromTemplate(template);
   };
 
   const renderIcon = (iconName: string) => {
@@ -185,7 +229,18 @@ function AutomationsPage() {
       MdCelebration,
       MdShoppingCart,
       MdAutoAwesome,
-      MdBusinessCenter
+      MdBusinessCenter,
+      MdPersonAdd,
+      MdTrendingUp,
+      MdSupport,
+      MdEmail,
+      MdPayment,
+      MdEvent,
+      MdAnalytics,
+      MdStore,
+      MdExtension,
+      MdChat,
+      MdNotifications
     };
     const IconComponent = icons[iconName] || MdAutoAwesome;
     return <IconComponent className="w-8 h-8" />;
@@ -349,7 +404,7 @@ function AutomationsPage() {
             </h1>
             <p className="text-gray-600 mt-2">
               {currentView === "templates" 
-                ? "Choose from our pre-built automations or create your own 4-step business workflow"
+                ? `Choose from our pre-built automations, ${integrationTemplates.length} integration templates, or create your own 4-step business workflow`
                 : "Set up automated workflows to streamline your messaging"
               }
             </p>
@@ -387,7 +442,12 @@ function AutomationsPage() {
             {categories.map((category) => (
               <button
                 key={category.id}
-                className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl hover:bg-white/90 transition-all duration-200 shadow-lg"
+                onClick={() => setSelectedCategory(category.id)}
+                className={`flex items-center gap-2 px-4 py-2 backdrop-blur-sm border rounded-xl hover:bg-white/90 transition-all duration-200 shadow-lg ${
+                  selectedCategory === category.id
+                    ? 'bg-[#2A8B8A] text-white border-[#2A8B8A]'
+                    : 'bg-white/80 border-white/50 text-gray-700'
+                }`}
               >
                 {category.icon}
                 {category.label}
@@ -397,23 +457,43 @@ function AutomationsPage() {
 
           {/* Templates Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template) => (
+            {filteredTemplates.map((template) => (
               <div
                 key={template.id}
                 className="bg-white/80 backdrop-blur-sm border border-white/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer rounded-xl hover:border-white/70 hover:-translate-y-1 shadow-lg"
-                onClick={() => createFromTemplate(template)}
+                onClick={() => handleTemplateClick(template)}
               >
                 <div className={`w-14 h-14 ${template.color} flex items-center justify-center text-white mb-4 rounded-xl shadow-lg`}>
                   {renderIcon(template.icon)}
                 </div>
                 <h3 className="text-lg font-semibold text-black mb-2">{template.name}</h3>
                 <p className="text-gray-600 text-sm leading-relaxed">{template.description}</p>
+                
+                {/* Integration Badge */}
+                {(template as any).integration && (
+                  <div className="mt-3 mb-2">
+                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs font-medium px-2 py-1 rounded-full">
+                      <MdExtension className="w-3 h-3" />
+                      {(template as any).integration}
+                    </span>
+                  </div>
+                )}
+                
                 {template.popular && (
                   <div className="mt-3">
                     <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-medium px-2 py-1 rounded-full">
                       <MdStar className="w-3 h-3" />
                       Popular
                     </span>
+                  </div>
+                )}
+                
+                {/* Benefits Preview for Integration Templates */}
+                {(template as any).benefits && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500">
+                      • {(template as any).benefits[0]}
+                    </p>
                   </div>
                 )}
               </div>
@@ -518,7 +598,7 @@ function AutomationsPage() {
               </div>
               <div className="divide-y divide-white/50">
                 {automations.map((automation, index) => (
-                  <div key={`${automation._id ?? automation.__clientTempId ?? 'automation'}-${index}`} className="p-6 hover:bg-white/50 transition-all duration-200">
+                  <div key={`${automation._id ?? 'automation'}-${index}`} className="p-6 hover:bg-white/50 transition-all duration-200">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -685,6 +765,14 @@ function AutomationsPage() {
           </div>
         </div>
       )}
+
+      {/* Integration Template Modal */}
+      <IntegrationTemplateModal
+        template={selectedIntegrationTemplate}
+        isOpen={showIntegrationModal}
+        onClose={() => setShowIntegrationModal(false)}
+        onCreateAutomation={handleCreateIntegrationAutomation}
+      />
     </div>
   );
 }

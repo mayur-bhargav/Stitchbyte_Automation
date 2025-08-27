@@ -31,7 +31,8 @@ import {
   MdExpandMore,
   MdCreditCard,
   MdGroup,
-  MdChat
+  MdChat,
+  MdExtension
 } from "react-icons/md";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -210,6 +211,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       '/triggers': 'Triggers',
       '/logs': 'Message Logs',
       '/analytics': 'Analytics',
+      '/integrations-marketplace': 'Integrations',
       '/profile': 'Profile Settings',
       '/settings': 'Settings',
       '/billing': 'Billing'
@@ -407,6 +409,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 }`}>
                   <MdAnalytics className={`w-5 h-5 ${isActiveRoute('/analytics') ? 'text-[#2A8B8A]' : ''}`} />
                   <span className="font-medium">Analytics</span>
+                </Link>
+                
+                <Link href="/integrations-marketplace" className={`flex items-center gap-3 px-4 py-3 transition-all duration-200 group rounded-lg ${
+                  isActiveRoute('/integrations-marketplace') 
+                    ? 'bg-[#2A8B8A]/10 text-[#2A8B8A] border-r-2 border-[#2A8B8A]' 
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}>
+                  <MdExtension className={`w-5 h-5 ${isActiveRoute('/integrations-marketplace') ? 'text-[#2A8B8A]' : ''}`} />
+                  <span className="font-medium">Integrations</span>
                 </Link>
               </div>
             </div>

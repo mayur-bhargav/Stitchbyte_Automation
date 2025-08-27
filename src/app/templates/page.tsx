@@ -56,7 +56,11 @@ function renderPreview(body: string, samples: string[]) {
 // --- Phone Preview Modal ---
 function PhonePreviewModal({ template, onClose }: { template: any, onClose: () => void }) {
   if (!template) return null;
-  const previewBody = (template.body || template.content || "").replace(/{{\s*(\d+)\s*}}/g, (_, idx) =>
+  
+  // Debug: Log template structure to understand the data format
+  console.log('Template data structure:', template);
+  
+  const previewBody = (template.body || template.content || "").replace(/{{\s*(\d+)\s*}}/g, (_: string, idx: string) =>
     (template.samples && template.samples[parseInt(idx) - 1]) || ""
   );
 
@@ -73,6 +77,37 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
       buttons = template.buttons;
     }
   }
+
+  // Get header media information - check multiple possible field names
+  const headerVarType = template.headerVarType || template.header_var_type || template.headerType || 'none';
+  const hasHeaderMedia = headerVarType && headerVarType !== 'none';
+  
+  // Check for header media URL from backend
+  const headerMediaUrl = template.headerMediaUrl || template.header_media_url || template.headerUrl || template.media_url;
+  
+  console.log('Header var type:', headerVarType);
+  console.log('Header media URL:', headerMediaUrl);
+  console.log('Buttons:', buttons);
+  
+  // Sample media URLs for preview (you can replace these with actual media URLs)
+  const getSampleMediaUrl = (type: string): string => {
+    // If we have a real media URL from backend, use it
+    if (headerMediaUrl) {
+      return headerMediaUrl;
+    }
+    
+    // Otherwise use placeholders
+    switch (type) {
+      case 'image':
+        return 'https://via.placeholder.com/300x200/dcf8c6/075e54?text=Sample+Image';
+      case 'video':
+        return 'https://sample-videos.com/zip/10/mp4/SampleVideo_360x240_1mb.mp4';
+      case 'document':
+        return '/file.svg'; // Using existing file icon
+      default:
+        return '/globe.svg'; // Default fallback image
+    }
+  };
 
   // Prevent click inside phone from closing modal
   const handlePhoneClick = (e: React.MouseEvent) => {
@@ -138,11 +173,66 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                 </div>
               </div>
             </div> */}
-            {/* Sent bubble */}
             <div className="flex items-end gap-2 justify-end">
               <div className="max-w-[70%]">
                 <div className="rounded-bl-2xl rounded-tl-2xl rounded-tr-md bg-[#dcf8c6] text-[#222] px-4 py-3 text-[15px] shadow" style={{borderBottomRightRadius: 8}}>
-                  {/* Header */}
+                  {/* Header Media */}
+                  {(hasHeaderMedia || headerMediaUrl) && (
+                    <div className="mb-3 -mx-4 -mt-3">
+                      {(headerVarType === 'image' || (!headerVarType && headerMediaUrl && (headerMediaUrl.includes('.jpg') || headerMediaUrl.includes('.jpeg') || headerMediaUrl.includes('.png') || headerMediaUrl.includes('.gif')))) && (
+                        <img 
+                          src={getSampleMediaUrl('image')} 
+                          alt="Header Image" 
+                          className="w-full h-32 object-cover rounded-t-2xl"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/globe.svg';
+                          }}
+                        />
+                      )}
+                      {(headerVarType === 'video' || (!headerVarType && headerMediaUrl && (headerMediaUrl.includes('.mp4') || headerMediaUrl.includes('.mov') || headerMediaUrl.includes('.avi')))) && (
+                        <div className="relative w-full h-32 bg-gray-200 rounded-t-2xl flex items-center justify-center">
+                          {headerMediaUrl ? (
+                            <video 
+                              src={headerMediaUrl} 
+                              className="w-full h-32 object-cover rounded-t-2xl"
+                              controls={false}
+                              muted
+                            />
+                          ) : (
+                            <svg width="40" height="40" fill="#075e54" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          )}
+                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                            0:30
+                          </div>
+                        </div>
+                      )}
+                      {(headerVarType === 'document' || (!headerVarType && headerMediaUrl && (headerMediaUrl.includes('.pdf') || headerMediaUrl.includes('.doc') || headerMediaUrl.includes('.txt')))) && (
+                        <div className="w-full h-24 bg-gray-100 rounded-t-2xl flex items-center justify-center px-4">
+                          <svg width="24" height="24" fill="#075e54" viewBox="0 0 24 24" className="mr-2">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                          </svg>
+                          <div className="text-sm text-gray-700">
+                            <div className="font-medium">
+                              {headerMediaUrl ? headerMediaUrl.split('/').pop() : 'Sample Document.pdf'}
+                            </div>
+                            <div className="text-xs text-gray-500">Document</div>
+                          </div>
+                        </div>
+                      )}
+                      {headerVarType === 'location' && (
+                        <div className="w-full h-32 bg-green-100 rounded-t-2xl flex items-center justify-center">
+                          <svg width="32" height="32" fill="#075e54" viewBox="0 0 24 24">
+                            <path d="M12,2C8.13,2 5,5.13 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9C19,5.13 15.87,2 12,2M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5Z"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Header Text */}
                   {template.header && (
                     <div className="font-semibold text-[14px] mb-2 text-[#075e54]">
                       {template.header}
@@ -156,24 +246,49 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                   
                   {/* Buttons */}
                   {buttons && buttons.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {buttons.map((button: any, index: number) => (
-                        <button
-                          key={index}
-                          className={`w-full px-3 py-2 rounded-lg text-[13px] font-medium transition border ${
-                            button.type === 'URL' 
-                              ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' 
-                              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                          }`}
-                        >
-                          {button.type === 'URL' && (
-                            <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24" className="inline mr-1">
-                              <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                            </svg>
-                          )}
-                          {button.text || `Button ${index + 1}`}
-                        </button>
-                      ))}
+                    <div className="mt-3 space-y-1">
+                      {buttons.map((button: any, index: number) => {
+                        // Handle different button data structures
+                        const buttonText = button.text || button.title || button.display_text || button.name || `Button ${index + 1}`;
+                        const buttonType = button.type || button.button_type || 'QUICK_REPLY';
+                        const buttonUrl = button.url || button.link || button.href;
+                        const buttonPhone = button.phone_number || button.phone;
+                        
+                        return (
+                          <button
+                            key={index}
+                            className={`w-full px-3 py-2 rounded-lg text-[12px] font-medium transition border text-center ${
+                              buttonType.toUpperCase().includes('URL') || buttonType.toUpperCase().includes('LINK')
+                                ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' 
+                                : buttonType.toUpperCase().includes('PHONE') || buttonType.toUpperCase().includes('CALL')
+                                ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {(buttonType.toUpperCase().includes('URL') || buttonType.toUpperCase().includes('LINK')) && (
+                              <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24" className="inline mr-1">
+                                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                              </svg>
+                            )}
+                            {(buttonType.toUpperCase().includes('PHONE') || buttonType.toUpperCase().includes('CALL')) && (
+                              <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24" className="inline mr-1">
+                                <path d="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
+                              </svg>
+                            )}
+                            {buttonText}
+                            {buttonUrl && (
+                              <div className="text-[10px] text-gray-500 mt-1 truncate">
+                                {buttonUrl}
+                              </div>
+                            )}
+                            {buttonPhone && (
+                              <div className="text-[10px] text-gray-500 mt-1">
+                                {buttonPhone}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   
@@ -317,7 +432,7 @@ function MetaTemplateModalWithReview({ form, setForm, formErrors, setFormErrors,
                 <div className="mt-6">
                   <div className="font-semibold text-lg mb-1 text-[#050505]">Samples for body content</div>
                   <div className="text-[#65676b] mb-4 text-base">To help us review your message template, please add an example for each variable in your body text. Do not use real customer information. Cloud API hosted by Meta reviews templates and variable parameters to protect the security and integrity of our services.</div>
-                  {variableMatches.map((v, idx) => (
+                  {variableMatches.map((v: string, idx: number) => (
                     <div key={v} className="flex items-center gap-3 mb-3">
                       <span className="text-[#050505] text-base min-w-[120px]">{v}</span>
                       <input
@@ -374,7 +489,7 @@ function MetaTemplateModalWithReview({ form, setForm, formErrors, setFormErrors,
                 <div className="mb-4">
                   <div className="font-medium text-[#65676b]">Sample Values</div>
                   <div className="flex flex-col gap-2 mt-2">
-                    {variableMatches.map((v, idx) => (
+                    {variableMatches.map((v: string, idx: number) => (
                       <div key={v} className="flex items-center gap-3">
                         <span className="text-[#050505] text-base min-w-[120px]">{v}</span>
                         <span className="text-base text-[#65676b]">{form.samples?.[idx] || <span className="italic text-[#b0b3b8]">(no sample)</span>}</span>
@@ -399,7 +514,7 @@ function MetaTemplateModalWithReview({ form, setForm, formErrors, setFormErrors,
             <div className="mb-3 text-base whitespace-pre-line text-[#050505]">{form.body || "Your message body will appear here."}</div>
             {form.footer && <div className="text-xs text-[#65676b] border-t border-[#e4e6eb] pt-2 mt-2">{form.footer}</div>}
             <div className="mt-4 flex flex-wrap gap-2">
-              {(form.body.match(/{{.*?}}/g) || []).map((v, idx) => (
+              {(form.body.match(/{{.*?}}/g) || []).map((v: string, idx: number) => (
                 <span key={idx} className="bg-[#e4e6eb] px-2 py-1 rounded text-xs text-[#65676b]">{v}</span>
               ))}
             </div>
@@ -424,14 +539,6 @@ function TemplatesPage() {
       fetchTemplates();
     }
   }, [user]);
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setForm(prev => ({
-      ...prev,
-      [name]: type === 'number' ? Number(value) : value,
-    }));
-  };
 
   const fetchTemplates = async () => {
     if (!user) return;
