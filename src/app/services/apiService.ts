@@ -134,19 +134,12 @@ class ApiService {
     return result;
   }
 
-  async signin(email: string, password: string, twoFactorCode?: string, codeType?: string) {
+  async signin(email: string, password: string) {
     try {
       const response = await fetch(`${this.baseUrl}/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          ...(twoFactorCode && { 
-            twoFactorCode,
-            codeType: codeType || 'authenticator' // default to authenticator if not specified
-          })
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
@@ -167,12 +160,6 @@ class ApiService {
       }
 
       const result = await response.json();
-      
-      // If 2FA is required, return the response without setting token
-      if (result.requires2FA && !twoFactorCode) {
-        return result;
-      }
-      
       // Support both 'token' and 'access_token' for compatibility
       const token = result.token || result.access_token;
       if (!token) {
@@ -193,40 +180,6 @@ class ApiService {
       // Handle network errors and other unexpected errors
       console.error('Network or unexpected error during signin:', error);
       throw new Error('Signin failed: Network error or server is unavailable. Please try again.');
-    }
-  }
-
-  async resend2FACode(email: string) {
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/resend-2fa-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to resend verification code';
-        try {
-          const error = await response.json();
-          if (error.detail) {
-            errorMessage = error.detail;
-          } else if (error.message) {
-            errorMessage = error.message;
-          }
-        } catch (parseError) {
-          errorMessage = `Failed to resend code: ${response.status} ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Resend 2FA code error:', error);
-      if (error instanceof Error && error.message.includes('Failed to resend')) {
-        throw error;
-      }
-      throw new Error('Failed to resend verification code: Network error. Please try again.');
     }
   }
 
@@ -551,212 +504,6 @@ class ApiService {
     return this.request(`/automations/${automationId}`, {
       method: 'DELETE',
     });
-  }
-
-  // AI Response methods using Google Gemini API directly
-  async generateAIResponse(requestData: {
-    message: string;
-    system_prompt?: string;
-    context_data?: string;
-    tone?: string;
-    temperature?: number;
-    max_tokens?: number;
-    user_phone?: string;
-    automation_id?: string;
-  }) {
-    const GEMINI_API_KEY = 'AIzaSyAQYZH3OOGzJ0TrIjTlIV_6aKvZRYYAvjQ';
-    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-
-    // Build the system prompt with security restrictions
-    const systemPrompt = this.buildSecureSystemPrompt(requestData);
-    
-    // Construct the prompt with context
-    const fullPrompt = this.constructAIPrompt(requestData, systemPrompt);
-
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-goog-api-key': GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: fullPrompt
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: requestData.temperature || 0.7,
-            maxOutputTokens: requestData.max_tokens || 150,
-            topP: 0.8,
-            topK: 40
-          },
-          safetySettings: [
-            {
-              category: 'HARM_CATEGORY_HARASSMENT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_HATE_SPEECH',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            }
-          ]
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        const aiResponse = data.candidates[0].content.parts[0].text;
-        
-        // Apply additional security filtering
-        const filteredResponse = this.applySecurityFiltering(aiResponse, requestData);
-        
-        return {
-          success: true,
-          response: filteredResponse,
-          usage: {
-            promptTokens: data.usageMetadata?.promptTokenCount || 0,
-            completionTokens: data.usageMetadata?.candidatesTokenCount || 0,
-            totalTokens: data.usageMetadata?.totalTokenCount || 0
-          }
-        };
-      } else {
-        throw new Error('No response generated by Gemini API');
-      }
-    } catch (error) {
-      console.error('Gemini API Error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        fallback_response: requestData.system_prompt || 'I apologize, but I cannot process your request at the moment. Please contact our support team for assistance.'
-      };
-    }
-  }
-
-  private buildSecureSystemPrompt(requestData: any): string {
-    const basePrompt = requestData.system_prompt || 'You are a helpful customer service assistant.';
-    
-    const securityInstructions = `
-SECURITY INSTRUCTIONS (MANDATORY):
-1. Only respond to questions related to our company and services
-2. Never share technical details about backend systems, APIs, or infrastructure
-3. Never reveal sensitive information like passwords, API keys, or internal processes
-4. If asked about topics outside company scope, politely redirect to company-related topics
-5. Do not provide information that could be used to hack or abuse systems
-6. Stay professional and helpful within these boundaries
-
-TONE: ${requestData.tone || 'professional'}
-
-COMPANY CONTEXT:
-${requestData.context_data || 'General customer service for our company.'}
-
-BASE INSTRUCTIONS:
-${basePrompt}
-`;
-
-    return securityInstructions;
-  }
-
-  private constructAIPrompt(requestData: any, systemPrompt: string): string {
-    return `${systemPrompt}
-
-CUSTOMER MESSAGE: "${requestData.message}"
-
-Please provide a helpful response following all security instructions above:`;
-  }
-
-  private applySecurityFiltering(response: string, requestData: any): string {
-    // List of sensitive terms that should not appear in responses
-    const sensitiveTerms = [
-      'api key', 'password', 'token', 'secret', 'database', 'backend', 'server',
-      'hack', 'exploit', 'vulnerability', 'admin', 'root', 'ssh', 'ftp',
-      'mysql', 'postgresql', 'mongodb', 'redis', 'docker', 'kubernetes',
-      'aws', 'azure', 'gcp', 'deployment', 'environment variable'
-    ];
-
-    // Check for sensitive terms (case insensitive)
-    const lowerResponse = response.toLowerCase();
-    const containsSensitiveInfo = sensitiveTerms.some(term => lowerResponse.includes(term));
-
-    if (containsSensitiveInfo) {
-      return requestData.fallback_response || 
-        'I can only help with questions about our company products and services. For technical support, please contact our support team directly.';
-    }
-
-    // Additional filtering for non-company related responses
-    const companyKeywords = ['company', 'service', 'product', 'support', 'help', 'customer'];
-    const hasCompanyContext = companyKeywords.some(keyword => lowerResponse.includes(keyword));
-
-    if (!hasCompanyContext && requestData.scope_restrictions?.company_only) {
-      return requestData.fallback_response || 
-        'I can only assist with questions related to our company and services. How can I help you with our products today?';
-    }
-
-    return response;
-  }
-
-  // Simple rate limiting check (in production, this should be server-side)
-  async checkAIRateLimit(userPhone: string, automationId: string): Promise<boolean> {
-    if (typeof window === 'undefined') return true;
-
-    const rateLimitKey = `ai_rate_limit_${userPhone}_${automationId}`;
-    const now = Date.now();
-    const oneHour = 60 * 60 * 1000;
-    const oneDay = 24 * oneHour;
-
-    try {
-      const storedData = localStorage.getItem(rateLimitKey);
-      const rateData = storedData ? JSON.parse(storedData) : {
-        hourly: { count: 0, resetTime: now + oneHour },
-        daily: { count: 0, resetTime: now + oneDay }
-      };
-
-      // Reset counters if time has passed
-      if (now > rateData.hourly.resetTime) {
-        rateData.hourly = { count: 0, resetTime: now + oneHour };
-      }
-      if (now > rateData.daily.resetTime) {
-        rateData.daily = { count: 0, resetTime: now + oneDay };
-      }
-
-      // Check limits (default: 10 per hour, 50 per day)
-      const hourlyLimit = 10;
-      const dailyLimit = 50;
-
-      if (rateData.hourly.count >= hourlyLimit || rateData.daily.count >= dailyLimit) {
-        return false;
-      }
-
-      // Increment counters
-      rateData.hourly.count++;
-      rateData.daily.count++;
-
-      // Save updated data
-      localStorage.setItem(rateLimitKey, JSON.stringify(rateData));
-      
-      return true;
-    } catch (error) {
-      console.error('Rate limit check error:', error);
-      return true; // Allow on error
-    }
   }
 
   // Plan and Subscription methods

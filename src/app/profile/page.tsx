@@ -30,8 +30,7 @@ import {
   MdLightMode,
   MdAccessTime,
   MdCalendarToday,
-  MdVerified,
-  MdError
+  MdVerified
 } from "react-icons/md";
 
 interface UserProfile {
@@ -63,14 +62,13 @@ interface NotificationSettings {
 
 interface SecuritySettings {
   twoFactorEnabled: boolean;
-  twoFactorType?: 'authenticator' | 'email';
   loginAlerts: boolean;
   sessionTimeout: number;
   allowMultipleSessions: boolean;
 }
 
 export default function ProfilePage() {
-  const { user, updateUser, logout, backupCodeUsed, clearBackupCodeFlag } = useUser();
+  const { user, updateUser, logout } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -83,9 +81,9 @@ export default function ProfilePage() {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    phone: '', // Not available in User context
+    phone: user?.phone || '',
     companyName: user?.companyName || '',
-    companyAddress: '', // Not available in User context
+    companyAddress: user?.companyAddress || '',
     role: user?.role || '',
     timezone: 'UTC+5:30 (India Standard Time)', // Always India
     language: 'English (US)',
@@ -130,127 +128,59 @@ export default function ProfilePage() {
   // Theme preference
   const [darkMode, setDarkMode] = useState(false);
 
-  // 2FA Configuration
-  const [show2FAModal, setShow2FAModal] = useState(false);
-  const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
-  const [showResetAuthenticatorModal, setShowResetAuthenticatorModal] = useState(false);
-  const [twoFactorType, setTwoFactorType] = useState<'authenticator' | 'email'>('authenticator');
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [is2FASetupComplete, setIs2FASetupComplete] = useState(false);
-  const [emailOtp, setEmailOtp] = useState('');
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [backupCodesSeen, setBackupCodesSeen] = useState(false);
-  
-  // Confirmation modal states
-  const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
-  const [showRegenerateCodesModal, setShowRegenerateCodesModal] = useState(false);
-
-  // Check if backup code was used and show reset authenticator modal
-  useEffect(() => {
-    if (backupCodeUsed) {
-      setShowResetAuthenticatorModal(true);
-    }
-  }, [backupCodeUsed]);
-
   useEffect(() => {
     const loadProfileData = async () => {
       if (user) {
         try {
-          // Load profile data from API using correct endpoint
+          // Load profile data from API
           const profileResponse = await apiService.get('/profile/auth/me');
-          if (profileResponse.success && profileResponse.profile) {
+          if (profileResponse.success) {
             const profile = profileResponse.profile;
-            setProfileData({
-              firstName: profile.firstName || user.firstName || '',
-              lastName: profile.lastName || user.lastName || '',
-              email: profile.email || user.email || '',
+            setProfileData(prev => ({
+              ...prev,
+              firstName: profile.firstName || '',
+              lastName: profile.lastName || '',
+              email: profile.email || '',
               phone: profile.phone || '',
-              companyName: profile.companyName || user.companyName || '',
+              companyName: profile.companyName || '',
               companyAddress: profile.companyAddress || '',
-              role: profile.role || user.role || '',
+              role: profile.role || '',
               bio: profile.bio || '',
               website: profile.website || '',
               linkedin: profile.linkedin || '',
               twitter: profile.twitter || '',
-              timezone: profile.timezone || 'UTC+5:30 (India Standard Time)',
-              language: profile.language || 'English (US)',
-              profilePicture: profile.profilePicture || ''
-            });
-          } else {
-            // Fall back to user context if API fails
-            setProfileData({
-              firstName: user.firstName || '',
-              lastName: user.lastName || '',
-              email: user.email || '',
-              phone: '',
-              companyName: user.companyName || '',
-              companyAddress: '',
-              role: user.role || '',
-              bio: '',
-              website: '',
-              linkedin: '',
-              twitter: '',
-              timezone: 'UTC+5:30 (India Standard Time)',
-              language: 'English (US)',
-              profilePicture: ''
-            });
-          }
-          
-          // Load notification settings
-          try {
-            const notifResponse = await apiService.get('/profile/notifications');
-            if (notifResponse.success) {
-              setNotificationSettings(notifResponse.settings);
+              timezone: 'UTC+5:30 (India Standard Time)', // Always India
+              language: profile.language || 'English (US)'
+            }));
+            
+            // Set notification settings
+            if (profileResponse.notifications) {
+              setNotificationSettings(profileResponse.notifications);
             }
-          } catch (error) {
-            console.log('Using default notification settings');
-          }
-          
-          // Load security settings
-          try {
-            const securityResponse = await apiService.get('/profile/security');
-            if (securityResponse.success) {
-              setSecuritySettings(securityResponse.settings);
+            
+            // Set security settings
+            if (profileResponse.security) {
+              setSecuritySettings(profileResponse.security);
             }
-          } catch (error) {
-            console.log('Using default security settings');
-          }
-          
-          // Load preferences
-          try {
-            const prefsResponse = await apiService.get('/profile/preferences');
-            if (prefsResponse.success) {
-              setDarkMode(prefsResponse.preferences.darkMode || false);
-              setProfileData(prev => ({
-                ...prev,
-                language: prefsResponse.preferences.language || 'English (US)'
-              }));
+            
+            // Set dark mode
+            if (profile.darkMode !== undefined) {
+              setDarkMode(profile.darkMode);
             }
-          } catch (error) {
-            console.log('Using default preferences');
           }
-          
         } catch (error) {
           console.error('Error loading profile data:', error);
-          // Fall back to user context on error
-          setProfileData({
+          // Fall back to user context data
+          setProfileData(prev => ({
+            ...prev,
             firstName: user.firstName || '',
             lastName: user.lastName || '',
             email: user.email || '',
-            phone: '',
+            phone: user.phone || '',
             companyName: user.companyName || '',
-            companyAddress: '',
-            role: user.role || '',
-            bio: '',
-            website: '',
-            linkedin: '',
-            twitter: '',
-            timezone: 'UTC+5:30 (India Standard Time)',
-            language: 'English (US)',
-            profilePicture: ''
-          });
+            companyAddress: user.companyAddress || '',
+            role: user.role || ''
+          }));
         }
       }
     };
@@ -268,7 +198,7 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      // Update profile via API using correct endpoint
+      // Update profile via API
       const response = await apiService.put('/profile/auth/me', {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
@@ -280,7 +210,7 @@ export default function ProfilePage() {
         website: profileData.website,
         linkedin: profileData.linkedin,
         twitter: profileData.twitter,
-        timezone: profileData.timezone,
+        timezone: 'UTC+5:30 (India Standard Time)', // Always India
         language: profileData.language
       });
 
@@ -290,15 +220,17 @@ export default function ProfilePage() {
           ...user,
           firstName: profileData.firstName,
           lastName: profileData.lastName,
+          phone: profileData.phone,
           companyName: profileData.companyName,
-          role: profileData.role as 'owner' | 'admin' | 'user' | 'viewer'
+          companyAddress: profileData.companyAddress,
+          role: profileData.role
         });
 
         setIsEditing(false);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       } else {
-        throw new Error(response.message || 'Failed to update profile');
+        throw new Error('Failed to update profile');
       }
     } catch (error: any) {
       console.error('Profile update error:', error);
@@ -310,9 +242,9 @@ export default function ProfilePage() {
 
   const handleCancel = async () => {
     try {
-      // Reload profile data from API using correct endpoint
+      // Reload profile data from API
       const profileResponse = await apiService.get('/profile/auth/me');
-      if (profileResponse.success && profileResponse.profile) {
+      if (profileResponse.success) {
         const profile = profileResponse.profile;
         setProfileData({
           firstName: profile.firstName || '',
@@ -326,9 +258,9 @@ export default function ProfilePage() {
           website: profile.website || '',
           linkedin: profile.linkedin || '',
           twitter: profile.twitter || '',
-          timezone: profile.timezone || 'UTC+5:30 (India Standard Time)',
+          timezone: 'UTC+5:30 (India Standard Time)', // Always India
           language: profile.language || 'English (US)',
-          profilePicture: profile.profilePicture || ''
+          profilePicture: ''
         });
       } else {
         // Fall back to user context
@@ -336,9 +268,9 @@ export default function ProfilePage() {
           firstName: user?.firstName || '',
           lastName: user?.lastName || '',
           email: user?.email || '',
-          phone: '',
+          phone: user?.phone || '',
           companyName: user?.companyName || '',
-          companyAddress: '',
+          companyAddress: user?.companyAddress || '',
           role: user?.role || '',
           timezone: 'UTC+5:30 (India Standard Time)',
           language: 'English (US)',
@@ -355,9 +287,9 @@ export default function ProfilePage() {
         firstName: user?.firstName || '',
         lastName: user?.lastName || '',
         email: user?.email || '',
-        phone: '',
+        phone: user?.phone || '',
         companyName: user?.companyName || '',
-        companyAddress: '',
+        companyAddress: user?.companyAddress || '',
         role: user?.role || '',
         timezone: 'UTC+5:30 (India Standard Time)',
         language: 'English (US)',
@@ -388,7 +320,6 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      // Use correct password change endpoint
       const response = await apiService.put('/profile/auth/me/password', {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
@@ -441,163 +372,13 @@ export default function ProfilePage() {
       const response = await apiService.put('/profile/auth/me/preferences', {
         darkMode,
         language: profileData.language,
-        timezone: profileData.timezone || 'UTC+5:30 (India Standard Time)'
+        timezone: 'UTC+5:30 (India Standard Time)' // Always India
       });
       if (!response.success) {
         console.error('Failed to save preferences');
       }
     } catch (error) {
       console.error('Error saving preferences:', error);
-    }
-  };
-
-  // 2FA Setup Functions
-  const setup2FA = async (type: 'authenticator' | 'email') => {
-    setTwoFactorType(type);
-    setShow2FAModal(true);
-    setIs2FASetupComplete(false);
-    setVerificationCode('');
-    setEmailOtp('');
-
-    try {
-      if (type === 'authenticator') {
-        // Generate QR code for authenticator app
-        const response = await apiService.post('/profile/auth/me/2fa/setup-authenticator');
-        if (response.success) {
-          setQrCodeUrl(response.qrCode);
-          setBackupCodes(response.backupCodes || []);
-        }
-      } else if (type === 'email') {
-        // Send OTP to user's email
-        const response = await apiService.post('/profile/auth/me/2fa/setup-email');
-        if (response.success) {
-          console.log('OTP sent to email');
-        }
-      }
-    } catch (error) {
-      console.error('Error setting up 2FA:', error);
-      setError('Failed to setup 2FA. Please try again.');
-    }
-  };
-
-  const verify2FASetup = async () => {
-    setIsVerifyingOtp(true);
-    setError('');
-
-    try {
-      const code = twoFactorType === 'authenticator' ? verificationCode : emailOtp;
-      const response = await apiService.post('/profile/auth/me/2fa/verify-setup', {
-        type: twoFactorType,
-        code: code
-      });
-
-      if (response.success) {
-        setIs2FASetupComplete(true);
-        setSecuritySettings(prev => ({ ...prev, twoFactorEnabled: true }));
-        
-        // Save to backend
-        await apiService.put('/profile/auth/me/security', {
-          ...securitySettings,
-          twoFactorEnabled: true,
-          twoFactorType: twoFactorType
-        });
-        
-        setShowSuccess(true);
-        setTimeout(() => {
-          setShow2FAModal(false);
-          setShowSuccess(false);
-        }, 2000);
-      } else {
-        setError('Invalid verification code. Please try again.');
-      }
-    } catch (error: any) {
-      console.error('Error verifying 2FA setup:', error);
-      setError(error?.message || 'Failed to verify code. Please try again.');
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  const disable2FA = async () => {
-    try {
-      const response = await apiService.delete('/profile/auth/me/2fa');
-      if (response.success) {
-        setSecuritySettings(prev => ({ ...prev, twoFactorEnabled: false }));
-        
-        // Save to backend
-        await apiService.put('/profile/auth/me/security', {
-          ...securitySettings,
-          twoFactorEnabled: false
-        });
-        
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
-        setShowDisable2FAModal(false);
-      }
-    } catch (error: any) {
-      console.error('Error disabling 2FA:', error);
-      setError('Failed to disable 2FA. Please try again.');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const resetAuthenticator = async () => {
-    try {
-      // First disable existing 2FA
-      const response = await apiService.delete('/profile/auth/me/2fa');
-      if (response.success) {
-        setSecuritySettings(prev => ({ ...prev, twoFactorEnabled: false }));
-        
-        // Reset all 2FA-related state
-        setQrCodeUrl('');
-        setBackupCodes([]);
-        setVerificationCode('');
-        setIs2FASetupComplete(false);
-        
-        // Clear backup code flag
-        clearBackupCodeFlag();
-        
-        // Close reset modal and open setup modal
-        setShowResetAuthenticatorModal(false);
-        setTwoFactorType('authenticator');
-        setShow2FAModal(true);
-        
-        // Automatically start the setup process to generate new QR code
-        await setup2FA('authenticator');
-      }
-    } catch (error: any) {
-      console.error('Error resetting authenticator:', error);
-      setError(error?.message || 'Failed to disable 2FA. Please try again.');
-    }
-  };
-
-  const regenerateBackupCodes = async () => {
-    try {
-      const response = await apiService.post('/profile/auth/me/2fa/regenerate-codes');
-      if (response.success) {
-        setBackupCodes(response.backupCodes || []);
-        setShowBackupCodesModal(true);
-        setBackupCodesSeen(false); // Reset seen status for new codes
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
-        setShowRegenerateCodesModal(false);
-      }
-    } catch (error: any) {
-      console.error('Error regenerating backup codes:', error);
-      setError(error?.message || 'Failed to regenerate backup codes. Please try again.');
-    }
-  };
-
-  const showBackupCodes = async () => {
-    try {
-      const response = await apiService.get('/profile/auth/me/2fa/backup-codes');
-      if (response.success) {
-        setBackupCodes(response.backupCodes || []);
-        setShowBackupCodesModal(true);
-      }
-    } catch (error: any) {
-      console.error('Error fetching backup codes:', error);
-      setError(error?.message || 'Failed to fetch backup codes. Please try again.');
     }
   };
 
@@ -705,11 +486,13 @@ export default function ProfilePage() {
           profilePicture: result.profilePicture
         }));
 
-        // Update profile data state only since profilePicture is not part of User interface
-        setProfileData(prev => ({
-          ...prev,
-          profilePicture: result.profilePicture
-        }));
+        // Update user context if needed
+        if (user) {
+          updateUser({
+            ...user,
+            profilePicture: result.profilePicture
+          });
+        }
 
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
@@ -754,9 +537,9 @@ export default function ProfilePage() {
         <div className="flex items-center gap-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-[#258484] from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
-              {profileData.profilePicture ? (
+              {user?.profilePicture || profileData.profilePicture ? (
                 <img
-                  src={profileData.profilePicture}
+                  src={user?.profilePicture || profileData.profilePicture}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
@@ -1033,9 +816,9 @@ export default function ProfilePage() {
                         };
                         setNotificationSettings(newSettings);
                         
-                        // Save to backend immediately using correct endpoint
+                        // Save to backend immediately
                         try {
-                          await apiService.put('/profile/auth/me/notifications', newSettings);
+                          await apiService.put('/auth/me/notifications', newSettings);
                         } catch (error) {
                           console.error('Error saving notification settings:', error);
                         }
@@ -1156,9 +939,8 @@ export default function ProfilePage() {
                             setSecuritySettings(newSettings);
                             
                             // Save to backend immediately
-                            // Save to backend using correct endpoint
                             try {
-                              await apiService.put('/profile/auth/me/security', newSettings);
+                              await apiService.put('/auth/me/security', newSettings);
                             } catch (error) {
                               console.error('Error saving security settings:', error);
                             }
@@ -1187,71 +969,31 @@ export default function ProfilePage() {
                           {key === 'allowMultipleSessions' && 'Allow multiple devices to be logged in simultaneously'}
                         </p>
                       </div>
-                      
-                      {key === 'twoFactorEnabled' ? (
-                        <div className="flex items-center gap-3">
-                          {value ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-green-600 font-medium">Enabled</span>
-                              <button
-                                onClick={() => setShowDisable2FAModal(true)}
-                                className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                              >
-                                Disable
-                              </button>
-                              {securitySettings.twoFactorType === 'authenticator' && (
-                                <button
-                                  onClick={showBackupCodes}
-                                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                >
-                                  Backup Codes
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setup2FA('authenticator')}
-                                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                              >
-                                Authenticator App
-                              </button>
-                              <button
-                                onClick={() => setup2FA('email')}
-                                className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                              >
-                                Email OTP
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            const newSettings = {
-                              ...securitySettings,
-                              [key]: typeof value === 'boolean' ? !value : value
-                            };
-                            setSecuritySettings(newSettings);
-                            
-                            // Save to backend immediately using correct endpoint
-                            try {
-                              await apiService.put('/profile/auth/me/security', newSettings);
-                            } catch (error) {
-                              console.error('Error saving security settings:', error);
-                            }
-                          }}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            value ? 'bg-blue-600' : 'bg-gray-300'
+                      <button
+                        onClick={async () => {
+                          const newSettings = {
+                            ...securitySettings,
+                            [key]: typeof value === 'boolean' ? !value : value
+                          };
+                          setSecuritySettings(newSettings);
+                          
+                          // Save to backend immediately
+                          try {
+                            await apiService.put('/auth/me/security', newSettings);
+                          } catch (error) {
+                            console.error('Error saving security settings:', error);
+                          }
+                        }}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          value ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            value ? 'translate-x-6' : 'translate-x-1'
                           }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              value ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      )}
+                        />
+                      </button>
                     </div>
                   );
                 })}
@@ -1278,12 +1020,12 @@ export default function ProfilePage() {
                       const newDarkMode = !darkMode;
                       setDarkMode(newDarkMode);
                       
-                      // Save to backend immediately using correct endpoint
+                      // Save to backend immediately
                       try {
-                        await apiService.put('/profile/auth/me/preferences', {
+                        await apiService.put('/auth/me/preferences', {
                           darkMode: newDarkMode,
                           language: profileData.language,
-                          timezone: profileData.timezone || 'UTC+5:30 (India Standard Time)'
+                          timezone: 'UTC+5:30 (India Standard Time)'
                         });
                       } catch (error) {
                         console.error('Error saving preferences:', error);
@@ -1315,12 +1057,12 @@ export default function ProfilePage() {
                       const newLanguage = e.target.value;
                       setProfileData(prev => ({ ...prev, language: newLanguage }));
                       
-                      // Save to backend immediately using correct endpoint
+                      // Save to backend immediately
                       try {
-                        await apiService.put('/profile/auth/me/preferences', {
+                        await apiService.put('/auth/me/preferences', {
                           darkMode,
                           language: newLanguage,
-                          timezone: profileData.timezone || 'UTC+5:30 (India Standard Time)'
+                          timezone: 'UTC+5:30 (India Standard Time)'
                         });
                       } catch (error) {
                         console.error('Error saving preferences:', error);
@@ -1401,423 +1143,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-
-      {/* 2FA Setup Modal */}
-      {show2FAModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Setup Two-Factor Authentication
-                </h2>
-                <button
-                  onClick={() => setShow2FAModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <MdClose className="w-6 h-6" />
-                </button>
-              </div>
-
-              {!is2FASetupComplete ? (
-                <div className="space-y-6">
-                  {twoFactorType === 'authenticator' ? (
-                    <div className="space-y-4">
-                      <div className="text-center">
-                        <h3 className="font-medium text-gray-900 mb-2">
-                          Scan QR Code with your Authenticator App
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Use Google Authenticator, Authy, or any TOTP-compatible app
-                        </p>
-                        {qrCodeUrl ? (
-                          <div className="flex justify-center mb-4">
-                            <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
-                          </div>
-                        ) : (
-                          <div className="w-48 h-48 mx-auto bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                            <span className="text-gray-500">Loading QR Code...</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Enter 6-digit code from your app
-                        </label>
-                        <input
-                          type="text"
-                          value={verificationCode}
-                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="123456"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest"
-                          maxLength={6}
-                        />
-                      </div>
-
-                      {backupCodes.length > 0 && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                          <h4 className="font-medium text-yellow-800 mb-2">Backup Codes</h4>
-                          <p className="text-sm text-yellow-700 mb-3">
-                            Save these codes in a safe place. You can use them to access your account if you lose your authenticator device.
-                          </p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {backupCodes.map((code, index) => (
-                              <div key={index} className="bg-white p-2 rounded border text-sm font-mono text-center">
-                                {code}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="text-center">
-                        <h3 className="font-medium text-gray-900 mb-2">
-                          Email OTP Verification
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                          We've sent a 6-digit code to your email address: {user?.email}
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Enter 6-digit code from your email
-                        </label>
-                        <input
-                          type="text"
-                          value={emailOtp}
-                          onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="123456"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest"
-                          maxLength={6}
-                        />
-                      </div>
-                      
-                      <button
-                        onClick={() => setup2FA('email')}
-                        className="w-full px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        Resend Code
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShow2FAModal(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={verify2FASetup}
-                      disabled={isVerifyingOtp || (twoFactorType === 'authenticator' ? verificationCode.length !== 6 : emailOtp.length !== 6)}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isVerifyingOtp ? 'Verifying...' : 'Verify & Enable'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <MdCheck className="w-8 h-8 text-green-600" />
-                  </div>
-                  <h3 className="font-medium text-gray-900">
-                    Two-Factor Authentication Enabled!
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Your account is now protected with {twoFactorType === 'authenticator' ? 'authenticator app' : 'email OTP'} verification.
-                  </p>
-                  <button
-                    onClick={() => setShow2FAModal(false)}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Done
-                  </button>
-                </div>
-              )}
-
-              {error && (
-                <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2">
-                    <MdWarning className="w-5 h-5 text-red-600" />
-                    <span className="text-red-800 text-sm">{error}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Backup Codes Modal */}
-      {showBackupCodesModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Backup Codes
-                </h2>
-                <button
-                  onClick={() => setShowBackupCodesModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <MdClose className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MdWarning className="w-5 h-5 text-yellow-600" />
-                    <h3 className="font-medium text-yellow-800">Important</h3>
-                  </div>
-                  <p className="text-sm text-yellow-700">
-                    Save these codes in a safe place. Each code can only be used once and will give you access to your account if you lose your authenticator device.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900">Your Backup Codes:</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {backupCodes.map((code, index) => (
-                      <div key={index} className="bg-gray-100 p-3 rounded border text-sm font-mono text-center">
-                        {code}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      const codesText = backupCodes.join('\n');
-                      navigator.clipboard.writeText(codesText);
-                      setShowSuccess(true);
-                      setTimeout(() => setShowSuccess(false), 2000);
-                    }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Copy Codes
-                  </button>
-                  <button
-                    onClick={() => {
-                      const codesText = backupCodes.join('\n');
-                      const blob = new Blob([codesText], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'stitchbyte-backup-codes.txt';
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                      setBackupCodesSeen(true);
-                    }}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Download
-                  </button>
-                  {!backupCodesSeen && (
-                    <button
-                      onClick={() => setShowRegenerateCodesModal(true)}
-                      className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                    >
-                      Regenerate
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setShowBackupCodesModal(false);
-                      setBackupCodesSeen(true);
-                    }}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Authenticator Modal */}
-      {showResetAuthenticatorModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl p-8 max-w-md w-full mx-4">
-            <div className="flex items-center mb-6">
-              <MdWarning className="text-yellow-500 text-3xl mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">Reset Authenticator App</h3>
-            </div>
-            
-            <div className="mb-6">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start">
-                  <MdInfo className="text-yellow-600 text-xl mr-3 mt-0.5" />
-                  <div>
-                    <p className="text-yellow-800 font-medium mb-2">Backup Code Used</p>
-                    <p className="text-yellow-700 text-sm">
-                      You've successfully logged in using a backup code. This suggests you may have lost access to your authenticator app.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <p className="text-gray-700 mb-4">
-                For better security, we recommend setting up your authenticator app again. This will:
-              </p>
-              
-              <ul className="text-gray-600 text-sm space-y-2 mb-4">
-                <li className="flex items-center">
-                  <MdCheck className="text-green-500 mr-2" />
-                  Generate a new QR code for your authenticator app
-                </li>
-                <li className="flex items-center">
-                  <MdCheck className="text-green-500 mr-2" />
-                  Create fresh backup codes
-                </li>
-                <li className="flex items-center">
-                  <MdCheck className="text-green-500 mr-2" />
-                  Ensure your account remains secure
-                </li>
-              </ul>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={resetAuthenticator}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-              >
-                <MdSecurity className="mr-2" />
-                Setup New Authenticator
-              </button>
-              <button
-                onClick={() => {
-                  setShowResetAuthenticatorModal(false);
-                  clearBackupCodeFlag();
-                }}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Maybe Later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Disable 2FA Confirmation Modal */}
-      {showDisable2FAModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl p-8 max-w-md w-full mx-4">
-            <div className="flex items-center mb-6">
-              <MdWarning className="text-red-500 text-3xl mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">Disable Two-Factor Authentication</h3>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700 mb-4">
-                Are you sure you want to disable two-factor authentication? This action will:
-              </p>
-              
-              <ul className="text-gray-600 text-sm space-y-2 mb-4 ml-4">
-                <li className="flex items-center">
-                  <MdError className="text-red-500 mr-2 text-sm" />
-                  Make your account less secure
-                </li>
-                <li className="flex items-center">
-                  <MdError className="text-red-500 mr-2 text-sm" />
-                  Remove all backup codes
-                </li>
-                <li className="flex items-center">
-                  <MdError className="text-red-500 mr-2 text-sm" />
-                  Disable authenticator app protection
-                </li>
-              </ul>
-              
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 text-sm font-medium">
-                  ⚠️ Your account will only be protected by your password after this change.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowDisable2FAModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={disable2FA}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Yes, Disable 2FA
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Regenerate Backup Codes Confirmation Modal */}
-      {showRegenerateCodesModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl p-8 max-w-md w-full mx-4">
-            <div className="flex items-center mb-6">
-              <MdWarning className="text-yellow-500 text-3xl mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">Regenerate Backup Codes</h3>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700 mb-4">
-                Are you sure you want to regenerate your backup codes? This action will:
-              </p>
-              
-              <ul className="text-gray-600 text-sm space-y-2 mb-4 ml-4">
-                <li className="flex items-center">
-                  <MdWarning className="text-yellow-500 mr-2 text-sm" />
-                  Invalidate all existing backup codes
-                </li>
-                <li className="flex items-center">
-                  <MdInfo className="text-blue-500 mr-2 text-sm" />
-                  Generate 8 new backup codes
-                </li>
-                <li className="flex items-center">
-                  <MdInfo className="text-blue-500 mr-2 text-sm" />
-                  Require you to save the new codes
-                </li>
-              </ul>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-yellow-800 text-sm font-medium">
-                  💡 Make sure to download and save your new backup codes securely.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowRegenerateCodesModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={regenerateBackupCodes}
-                className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-              >
-                Yes, Regenerate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

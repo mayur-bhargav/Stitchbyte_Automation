@@ -5,8 +5,6 @@ import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
-import IntegrationModal from '../components/IntegrationModal';
-import ShopifyIntegration from '../components/ShopifyIntegration';
 
 interface Integration {
   id: string;
@@ -26,7 +24,7 @@ const integrations: Integration[] = [
     description: 'Connect your Shopify store for automated order notifications and customer updates.',
     image: '/integrations/shopify.svg',
     category: 'E-commerce',
-    status: 'available',
+    status: 'coming-soon',
     color: 'bg-green-500'
   },
   {
@@ -492,9 +490,6 @@ export default function IntegrationsPage() {
   const { user } = useUser();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [shopifyConnected, setShopifyConnected] = useState(false);
   const { toast, showInfo, hideToast } = useToast();
 
   const categories = ['all', 'E-commerce', 'CRM', 'Productivity', 'Development', 'Analytics', 'Marketing', 'Finance', 'Support', 'Social'];
@@ -507,28 +502,8 @@ export default function IntegrationsPage() {
   });
 
   const handleConnect = (integration: Integration) => {
-    if (integration.id === 'shopify') {
-      // Open Shopify integration modal
-      setSelectedIntegration(integration);
-      setIsModalOpen(true);
-    } else {
-      // Show toast notification for other integrations
-      showInfo(`${integration.name} integration is coming soon! We'll notify you via your registered email (${user?.email || 'your email'}) when it's available.`);
-    }
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedIntegration(null);
-  };
-
-  const handleShopifyStatusChange = (connected: boolean) => {
-    setShopifyConnected(connected);
-    // Update the integration status in the list
-    const shopifyIntegration = integrations.find(i => i.id === 'shopify');
-    if (shopifyIntegration) {
-      shopifyIntegration.status = connected ? 'connected' : 'coming-soon';
-    }
+    // Show toast notification for coming soon feature
+    showInfo(`${integration.name} integration is coming soon! We'll notify you via your registered email (${user?.email || 'your email'}) when it's available.`);
   };
 
   return (
@@ -598,18 +573,10 @@ export default function IntegrationsPage() {
             >
               {/* Integration Image */}
               <div className="flex items-center justify-center mb-4">
-                <div className={`w-16 h-16 ${integration.color} rounded-lg flex items-center justify-center relative`}>
+                <div className={`w-16 h-16 ${integration.color} rounded-lg flex items-center justify-center`}>
                   <span className="text-white font-bold text-xl">
                     {integration.name.charAt(0)}
                   </span>
-                  {/* Connected indicator */}
-                  {integration.status === 'connected' && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -635,14 +602,9 @@ export default function IntegrationsPage() {
                 {(integration.status === 'available' || integration.status === 'coming-soon') && (
                   <button
                     onClick={() => handleConnect(integration)}
-                    className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                      integration.status === 'available'
-                        ? 'bg-[#2A8B8A] text-white hover:bg-[#238080]'
-                        : 'bg-gray-400 text-white cursor-not-allowed'
-                    }`}
-                    disabled={integration.status !== 'available'}
+                    className="px-4 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors text-sm font-medium"
                   >
-                    {integration.status === 'available' ? 'Connect' : 'Coming Soon'}
+                    Connect
                   </button>
                 )}
                 {integration.status === 'connected' && (
@@ -690,17 +652,6 @@ export default function IntegrationsPage() {
         onClose={hideToast}
         duration={6000}
       />
-
-      {/* Integration Modal */}
-      <IntegrationModal
-        integration={selectedIntegration}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-      >
-        {selectedIntegration?.id === 'shopify' && (
-          <ShopifyIntegration onStatusChange={handleShopifyStatusChange} />
-        )}
-      </IntegrationModal>
     </ProtectedRoute>
   );
 }

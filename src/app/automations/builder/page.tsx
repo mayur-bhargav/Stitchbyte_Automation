@@ -3,10 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from "../../contexts/UserContext";
 import { apiService } from "../../services/apiService";
-import { aiService } from "../../services/aiService";
-import { WhatsAppPreview } from './WhatsAppPreview';
-import { integrationWebhooks, getIntegrationByAccount, getWebhooksByIntegration } from '../integrationWebhooks';
-import { integrationTemplates, IntegrationTemplate } from '../integrationTemplates';
 import {
   MdClose,
   MdSave,
@@ -27,26 +23,14 @@ import {
   MdPause,
   MdRefresh,
   MdCode,
-  MdArrowBack,
-  MdStore,
-  MdShoppingCart,
-  MdPerson,
-  MdPayment,
-  MdSupport,
-  MdEmail,
-  MdExtension,
-  MdInfo,
-  MdSmartToy,
-  MdBusinessCenter,
-  MdChat,
-  MdTrendingUp
+  MdArrowBack
 } from "react-icons/md";
 
 // Get API base URL
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
 // Enhanced Types for Dynamic Flow Builder
-type FlowStepType = 'trigger' | 'message' | 'condition' | 'data_input' | 'api_call' | 'webhook' | 'delay' | 'custom_action' | 'branch' | 'ai_response';
+type FlowStepType = 'trigger' | 'message' | 'condition' | 'data_input' | 'api_call' | 'webhook' | 'delay' | 'custom_action' | 'branch';
 
 type FlowStep = {
   id: string;
@@ -90,12 +74,6 @@ export default function AutomationBuilderPage() {
   const [activeTab, setActiveTab] = useState('builder');
   const [isSaving, setIsSaving] = useState(false);
   
-  // AI testing state
-  const [testMessage, setTestMessage] = useState('');
-  const [isTestingAI, setIsTestingAI] = useState(false);
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [testResult, setTestResult] = useState<any>(null);
-  
   const canvasRef = useRef<HTMLDivElement>(null);
   
   // Drag functionality at component level
@@ -129,7 +107,6 @@ export default function AutomationBuilderPage() {
   const stepTemplates = [
     { type: 'trigger', title: 'Trigger', icon: MdFlashOn, color: 'bg-purple-500' },
     { type: 'message', title: 'Send Message', icon: MdMessage, color: 'bg-blue-500' },
-    { type: 'ai_response', title: 'AI Response', icon: MdSmartToy, color: 'bg-gradient-to-r from-purple-500 to-pink-500' },
     { type: 'condition', title: 'Condition/Branch', icon: MdCode, color: 'bg-yellow-500' },
     { type: 'data_input', title: 'Collect Data', icon: MdInput, color: 'bg-green-500' },
     { type: 'api_call', title: 'API Call', icon: MdBuild, color: 'bg-red-500' },
@@ -191,403 +168,11 @@ export default function AutomationBuilderPage() {
   
   const loadTemplate = async (templateId: string) => {
     try {
+      // TODO: Load template from backend
       console.log('Loading template:', templateId);
-      
-      // Check if it's an integration template
-      const integrationTemplate = integrationTemplates.find(t => t.id === templateId);
-      
-      if (integrationTemplate) {
-        console.log('Loading integration template:', integrationTemplate);
-        
-        // Set automation name and description from template
-        setFormData({
-          name: integrationTemplate.name,
-          description: integrationTemplate.description,
-          status: 'draft'
-        });
-        
-        // Create workflow steps from integration template
-        const steps = createStepsFromIntegrationTemplate(integrationTemplate);
-        setFlowSteps(steps);
-        
-        // Create connections between steps
-        const connections = createConnectionsFromTemplate(steps);
-        setConnections(connections);
-        
-        // Select the first step
-        if (steps.length > 0) {
-          setSelectedStepId(steps[0].id);
-        }
-      } else {
-        // Handle regular templates here
-        console.log('Regular template handling not implemented yet');
-      }
     } catch (error) {
       console.error('Error loading template:', error);
     }
-  };
-
-  // Create workflow steps from integration template
-  const createStepsFromIntegrationTemplate = (template: IntegrationTemplate): FlowStep[] => {
-    const steps: FlowStep[] = [];
-    const stepWidth = 280;
-    const stepHeight = 200;
-    let currentX = 50;
-    const baseY = 100;
-
-    // 1. Create trigger step
-    const triggerStep: FlowStep = {
-      id: 'trigger_' + Date.now(),
-      type: 'trigger',
-      title: `${template.trigger.platform} Trigger`,
-      config: {
-        type: 'integration',
-        integration: template.integration,
-        webhook_event: template.trigger.event,
-        webhook_url: generateWebhookUrl(template.integration, template.trigger.event),
-        webhook_variables: template.workflow.find(w => w.variables)?.variables || []
-      },
-      position: { x: currentX, y: baseY },
-      connections: []
-    };
-    steps.push(triggerStep);
-    currentX += stepWidth;
-
-    // 2. Create workflow steps based on template
-    template.workflow.forEach((workflowStep, index) => {
-      let stepType: FlowStepType = 'custom_action';
-      let stepConfig: any = {};
-
-      // Map workflow actions to step types
-      switch (workflowStep.action) {
-        case 'send_message':
-          stepType = 'message';
-          stepConfig = {
-            message: workflowStep.template || workflowStep.description,
-            buttons: [],
-            attachments: []
-          };
-          break;
-        case 'wait':
-        case 'delay':
-          stepType = 'delay';
-          stepConfig = {
-            duration: 5,
-            unit: 'minutes'
-          };
-          break;
-        case 'notify_admin':
-        case 'notify_team':
-        case 'notify_agent':
-          stepType = 'message';
-          stepConfig = {
-            message: workflowStep.template || `Admin notification: ${workflowStep.description}`,
-            buttons: [],
-            attachments: []
-          };
-          break;
-        case 'conditional_action':
-          stepType = 'condition';
-          stepConfig = {
-            condition: 'status == "success"',
-            true_path: [],
-            false_path: []
-          };
-          break;
-        case 'api_call':
-          stepType = 'api_call';
-          stepConfig = {
-            url: '',
-            method: 'POST',
-            headers: {},
-            body: {}
-          };
-          break;
-        default:
-          stepType = 'custom_action';
-          stepConfig = {
-            action: workflowStep.action,
-            description: workflowStep.description
-          };
-      }
-
-      const step: FlowStep = {
-        id: `step_${index}_${Date.now()}`,
-        type: stepType,
-        title: workflowStep.action.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        config: stepConfig,
-        position: { x: currentX, y: baseY },
-        connections: []
-      };
-
-      steps.push(step);
-      currentX += stepWidth;
-    });
-
-    return steps;
-  };
-
-  // Create connections between template steps
-  const createConnectionsFromTemplate = (steps: FlowStep[]): Connection[] => {
-    const connections: Connection[] = [];
-    
-    // Connect steps sequentially
-    for (let i = 0; i < steps.length - 1; i++) {
-      connections.push({
-        from: steps[i].id,
-        to: steps[i + 1].id
-      });
-      
-      // Update step connections
-      steps[i].connections.push(steps[i + 1].id);
-    }
-    
-    return connections;
-  };
-
-  // Function to generate webhook URL (you might want to move this to a utility file)
-  const generateWebhookUrl = (integrationId: string, webhookEvent: string): string => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
-    return `${baseUrl}/webhooks/${integrationId}/${webhookEvent}`;
-  };
-
-  // Function to get integration data from our simplified list
-  const getIntegrationData = (integrationId: string) => {
-    const integrationMap = {
-      // E-commerce Platforms
-      shopify: { 
-        name: 'Shopify', 
-        description: 'E-commerce platform for online stores',
-        icon: MdShoppingCart,
-        color: 'bg-green-500'
-      },
-      woocommerce: { 
-        name: 'WooCommerce', 
-        description: 'WordPress e-commerce plugin',
-        icon: MdShoppingCart,
-        color: 'bg-purple-500'
-      },
-      magento: { 
-        name: 'Magento', 
-        description: 'Adobe commerce platform',
-        icon: MdShoppingCart,
-        color: 'bg-orange-500'
-      },
-      bigcommerce: { 
-        name: 'BigCommerce', 
-        description: 'Enterprise e-commerce platform',
-        icon: MdShoppingCart,
-        color: 'bg-blue-500'
-      },
-
-      // Payment Platforms
-      stripe: { 
-        name: 'Stripe', 
-        description: 'Online payment processing platform',
-        icon: MdPayment,
-        color: 'bg-purple-600'
-      },
-      paypal: { 
-        name: 'PayPal', 
-        description: 'Digital payments platform',
-        icon: MdPayment,
-        color: 'bg-blue-500'
-      },
-      razorpay: { 
-        name: 'Razorpay', 
-        description: 'Indian payments gateway',
-        icon: MdPayment,
-        color: 'bg-blue-700'
-      },
-      square: { 
-        name: 'Square', 
-        description: 'Point of sale & payments',
-        icon: MdPayment,
-        color: 'bg-black'
-      },
-
-      // CRM Platforms
-      hubspot: { 
-        name: 'HubSpot', 
-        description: 'CRM and marketing automation',
-        icon: MdBusinessCenter,
-        color: 'bg-orange-500'
-      },
-      salesforce: { 
-        name: 'Salesforce', 
-        description: 'Cloud-based CRM platform',
-        icon: MdBusinessCenter,
-        color: 'bg-blue-600'
-      },
-      pipedrive: { 
-        name: 'Pipedrive', 
-        description: 'Sales pipeline CRM',
-        icon: MdBusinessCenter,
-        color: 'bg-green-600'
-      },
-      zoho: { 
-        name: 'Zoho CRM', 
-        description: 'Business software suite',
-        icon: MdBusinessCenter,
-        color: 'bg-red-500'
-      },
-
-      // Communication Platforms
-      slack: { 
-        name: 'Slack', 
-        description: 'Team communication platform',
-        icon: MdChat,
-        color: 'bg-purple-500'
-      },
-      discord: { 
-        name: 'Discord', 
-        description: 'Voice & text chat platform',
-        icon: MdChat,
-        color: 'bg-indigo-600'
-      },
-      telegram: { 
-        name: 'Telegram', 
-        description: 'Messaging app platform',
-        icon: MdChat,
-        color: 'bg-blue-500'
-      },
-      microsoft_teams: { 
-        name: 'Microsoft Teams', 
-        description: 'Business chat platform',
-        icon: MdChat,
-        color: 'bg-blue-600'
-      },
-
-      // Automation Platforms
-      zapier: { 
-        name: 'Zapier', 
-        description: 'Workflow automation platform',
-        icon: MdExtension,
-        color: 'bg-orange-500'
-      },
-      make: { 
-        name: 'Make (Integromat)', 
-        description: 'Visual platform automation',
-        icon: MdExtension,
-        color: 'bg-purple-600'
-      },
-      ifttt: { 
-        name: 'IFTTT', 
-        description: 'If This Then That automation',
-        icon: MdExtension,
-        color: 'bg-black'
-      },
-
-      // Analytics Platforms
-      google_analytics: { 
-        name: 'Google Analytics', 
-        description: 'Web analytics and reporting',
-        icon: MdTrendingUp,
-        color: 'bg-blue-500'
-      },
-      mixpanel: { 
-        name: 'Mixpanel', 
-        description: 'Product analytics platform',
-        icon: MdTrendingUp,
-        color: 'bg-purple-600'
-      },
-      amplitude: { 
-        name: 'Amplitude', 
-        description: 'Digital analytics platform',
-        icon: MdTrendingUp,
-        color: 'bg-blue-600'
-      },
-
-      // Support Platforms
-      zendesk: { 
-        name: 'Zendesk', 
-        description: 'Customer service platform',
-        icon: MdSupport,
-        color: 'bg-green-600'
-      },
-      freshdesk: { 
-        name: 'Freshdesk', 
-        description: 'Help desk software',
-        icon: MdSupport,
-        color: 'bg-green-500'
-      },
-      intercom: { 
-        name: 'Intercom', 
-        description: 'Customer messaging platform',
-        icon: MdSupport,
-        color: 'bg-blue-500'
-      },
-
-      // Email Marketing
-      mailchimp: { 
-        name: 'Mailchimp', 
-        description: 'Email marketing platform',
-        icon: MdEmail,
-        color: 'bg-yellow-500'
-      },
-      constant_contact: { 
-        name: 'Constant Contact', 
-        description: 'Email marketing service',
-        icon: MdEmail,
-        color: 'bg-blue-500'
-      },
-
-      // Social Media
-      twitter: { 
-        name: 'Twitter (X)', 
-        description: 'Social media platform',
-        icon: MdChat,
-        color: 'bg-black'
-      },
-      facebook: { 
-        name: 'Facebook', 
-        description: 'Social media platform',
-        icon: MdChat,
-        color: 'bg-blue-600'
-      },
-      instagram: { 
-        name: 'Instagram', 
-        description: 'Photo sharing platform',
-        icon: MdChat,
-        color: 'bg-pink-500'
-      },
-
-      // Project Management
-      trello: { 
-        name: 'Trello', 
-        description: 'Project management boards',
-        icon: MdBuild,
-        color: 'bg-blue-500'
-      },
-      asana: { 
-        name: 'Asana', 
-        description: 'Team project management',
-        icon: MdBuild,
-        color: 'bg-orange-500'
-      },
-      monday: { 
-        name: 'Monday.com', 
-        description: 'Work operating system',
-        icon: MdBuild,
-        color: 'bg-purple-500'
-      },
-
-      // Cloud Storage
-      dropbox: { 
-        name: 'Dropbox', 
-        description: 'Cloud storage platform',
-        icon: MdStore,
-        color: 'bg-blue-600'
-      },
-      google_drive: { 
-        name: 'Google Drive', 
-        description: 'Cloud storage & collaboration',
-        icon: MdStore,
-        color: 'bg-green-500'
-      }
-    };
-
-    return integrationMap[integrationId as keyof typeof integrationMap] || null;
   };
   
   const addStep = (stepType: FlowStepType) => {
@@ -625,34 +210,9 @@ export default function AutomationBuilderPage() {
   const getDefaultConfig = (stepType: FlowStepType) => {
     switch (stepType) {
       case 'trigger':
-        return { 
-          type: 'keyword', 
-          keywords: [],
-          integration: '',
-          webhook_event: '',
-          webhook_url: ''
-        };
+        return { type: 'keyword', keywords: [] };
       case 'message':
         return { message: '', buttons: [], attachments: [] };
-      case 'ai_response':
-        return { 
-          enabled: true,
-          system_prompt: 'You are a helpful customer service assistant for our company. Be professional, helpful, and stay focused on customer support topics.',
-          tone: 'professional',
-          temperature: 0.7,
-          max_tokens: 150,
-          scope_restrictions: {
-            company_only: true,
-            no_technical_details: true,
-            no_personal_info: true
-          },
-          trigger_keywords: ['help', 'support', 'question', 'ask'],
-          fallback_message: 'I can help you with general questions about our services. For specific support, please contact our team.',
-          rate_limit: {
-            max_requests_per_user: 5,
-            time_window: '1hour'
-          }
-        };
       case 'condition':
         return { condition: '', true_path: [], false_path: [] };
       case 'data_input':
@@ -675,22 +235,7 @@ export default function AutomationBuilderPage() {
       setSelectedStepId(null);
     }
   };
-
-  // Helper function to render integration icons
-  const renderIntegrationIcon = (iconName: string) => {
-    const icons: { [key: string]: any } = {
-      MdStore,
-      MdShoppingCart,
-      MdPerson,
-      MdPayment,
-      MdSupport,
-      MdEmail,
-      MdExtension
-    };
-    const IconComponent = icons[iconName] || MdExtension;
-    return <IconComponent className="w-5 h-5" />;
-  };
-
+  
   const updateStep = (stepId: string, updates: Partial<FlowStep>) => {
     setFlowSteps(flowSteps.map(step => 
       step.id === stepId ? { ...step, ...updates } : step
@@ -1147,10 +692,6 @@ export default function AutomationBuilderPage() {
   const renderStepPreview = (step: FlowStep) => {
     switch (step.type) {
       case 'trigger':
-        if (step.config.type === 'integration' && step.config.integration && step.config.webhook_event) {
-          const integration = getIntegrationData(step.config.integration);
-          return `Trigger: ${integration?.name || step.config.integration} → ${step.config.webhook_event}`;
-        }
         return `Trigger: ${step.config.type} - ${step.config.keywords?.join(', ') || 'Not configured'}`;
       case 'message':
         return renderWhatsAppMessagePreview(step);
@@ -1170,48 +711,54 @@ export default function AutomationBuilderPage() {
   };
   
   const renderConnections = () => {
+    console.log('renderConnections called, connections:', connections);
     if (!canvasRef.current || connections.length === 0) {
+      console.log('No connections to render');
       return null;
     }
 
     return (
       <svg
-        className="absolute top-0 left-0 w-full h-full overflow-visible pointer-events-none z-20"
+        className="absolute top-0 left-0 w-full h-full overflow-visible"
         style={{
-          width: '100%',
-          height: '100%'
+          zIndex: 5,
+          pointerEvents: 'none'
         }}
       >
         <defs>
           <marker
             id="arrowhead"
-            markerWidth="12"
-            markerHeight="8"
-            refX="11"
-            refY="4"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
             orient="auto"
             markerUnits="strokeWidth"
           >
             <polygon
-              points="0 0, 12 4, 0 8"
+              points="0 0, 10 3.5, 0 7"
               fill="#6366f1"
             />
           </marker>
           
           <marker
             id="arrowhead-green"
-            markerWidth="12"
-            markerHeight="8"
-            refX="11"
-            refY="4"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
             orient="auto"
             markerUnits="strokeWidth"
           >
             <polygon
-              points="0 0, 12 4, 0 8"
+              points="0 0, 10 3.5, 0 7"
               fill="#10b981"
             />
           </marker>
+          
+          <filter id="connection-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="2" dy="2" stdDeviation="1" floodColor="rgba(0,0,0,0.2)"/>
+          </filter>
         </defs>
         
         {connections.map((connection, index) => {
@@ -1220,35 +767,103 @@ export default function AutomationBuilderPage() {
           
           if (!fromStep || !toStep) return null;
           
-          // Calculate connection points with proper scaling
-          const stepWidth = 280;
-          const stepHeight = 140;
+          // Calculate connection points accounting for zoom and position  
+          const stepWidth = 200;
+          const stepHeight = 120;
           
-          const fromX = (fromStep.position.x + stepWidth) * canvasZoom + canvasPosition.x;
-          const fromY = (fromStep.position.y + stepHeight / 2) * canvasZoom + canvasPosition.y;
-          const toX = toStep.position.x * canvasZoom + canvasPosition.x;
-          const toY = (toStep.position.y + stepHeight / 2) * canvasZoom + canvasPosition.y;
+          // Account for canvas transforms
+          const scaledStepWidth = stepWidth * canvasZoom;
+          const scaledStepHeight = stepHeight * canvasZoom;
           
-          // Create smooth curved path
-          const dx = toX - fromX;
-          const dy = toY - fromY;
-          const controlOffset = Math.max(Math.abs(dx) * 0.5, 50);
+          const fromX = (fromStep.position.x * canvasZoom) + canvasPosition.x + scaledStepWidth; // Right edge 
+          const fromY = (fromStep.position.y * canvasZoom) + canvasPosition.y + (scaledStepHeight / 2); // Middle height
+          const toX = (toStep.position.x * canvasZoom) + canvasPosition.x; // Left edge  
+          const toY = (toStep.position.y * canvasZoom) + canvasPosition.y + (scaledStepHeight / 2); // Middle height
           
-          const pathD = `M ${fromX},${fromY} C ${fromX + controlOffset},${fromY} ${toX - controlOffset},${toY} ${toX},${toY}`;
+          console.log('Connection coordinates:', { 
+            fromX, fromY, toX, toY, 
+            fromStep: fromStep.position, 
+            toStep: toStep.position,
+            canvasZoom,
+            canvasPosition 
+          });
+          
+          // Create curved path for better visual
+          const controlPointOffset = Math.abs(toX - fromX) * 0.3;
+          const controlPoint1X = fromX + Math.min(controlPointOffset, 100);
+          const controlPoint1Y = fromY;
+          const controlPoint2X = toX - Math.min(controlPointOffset, 100);
+          const controlPoint2Y = toY;
+          
+          const pathD = `M ${fromX} ${fromY} 
+                        C ${controlPoint1X} ${controlPoint1Y}, 
+                          ${controlPoint2X} ${controlPoint2Y}, 
+                          ${toX} ${toY}`;
           
           return (
             <g key={`connection-${index}`}>
+              {/* Connection path */}
               <path
                 d={pathD}
                 stroke={connection.fromButton !== undefined ? "#10b981" : "#6366f1"}
                 strokeWidth="3"
                 fill="none"
                 markerEnd={connection.fromButton !== undefined ? "url(#arrowhead-green)" : "url(#arrowhead)"}
-                opacity="0.9"
-                style={{ 
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                filter="url(#connection-shadow)"
+                className="transition-all duration-200"
+                strokeDasharray={connection.fromButton !== undefined ? "5,5" : "none"}
+              />
+              
+              {/* Connection label if needed */}
+              {connection.label && (
+                <text
+                  x={(fromX + toX) / 2}
+                  y={(fromY + toY) / 2 - 15}
+                  textAnchor="middle"
+                  className="text-xs fill-gray-600 font-medium pointer-events-none"
+                  style={{ fontSize: '12px' }}
+                >
+                  {connection.label}
+                </text>
+              )}
+              
+              {/* Button connection indicator */}
+              {connection.fromButton !== undefined && (
+                <text
+                  x={(fromX + toX) / 2}
+                  y={(fromY + toY) / 2 - 15}
+                  textAnchor="middle"
+                  className="text-xs fill-green-600 font-medium pointer-events-none"
+                  style={{ fontSize: '10px' }}
+                >
+                  ⚡ Button
+                </text>
+              )}
+              
+              {/* Connection delete button (clickable area) */}
+              <circle
+                cx={(fromX + toX) / 2}
+                cy={(fromY + toY) / 2}
+                r="8"
+                fill="rgba(239, 68, 68, 0.1)"
+                stroke="#ef4444"
+                strokeWidth="1"
+                className="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                style={{ pointerEvents: 'all' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeConnection(connection.from, connection.to, connection.fromButton);
                 }}
               />
+              <text
+                x={(fromX + toX) / 2}
+                y={(fromY + toY) / 2 + 3}
+                textAnchor="middle"
+                className="text-xs fill-red-600 font-bold opacity-0 hover:opacity-100 transition-opacity"
+                style={{ fontSize: '10px', pointerEvents: 'none' }}
+              >
+                ×
+              </text>
             </g>
           );
         })}
@@ -1272,691 +887,14 @@ export default function AutomationBuilderPage() {
               </label>
               <select
                 value={step.config.type || 'keyword'}
-                onChange={(e) => {
-                  const newType = e.target.value;
-                  updateConfig({ 
-                    ...step.config, 
-                    type: newType,
-                    // Reset integration fields when changing type
-                    integration: newType === 'integration' ? '' : step.config.integration,
-                    webhook_event: newType === 'integration' ? '' : step.config.webhook_event
-                  });
-                }}
+                onChange={(e) => updateConfig({ ...step.config, type: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
                 <option value="keyword">Keyword Trigger</option>
                 <option value="schedule">Schedule Trigger</option>
                 <option value="webhook">Webhook Trigger</option>
-                <option value="integration">Integration Webhook</option>
               </select>
             </div>
-
-            {/* Integration Selection */}
-            {step.config.type === 'integration' && (
-              <>
-                {/* Change Integration Button (if integration already selected) */}
-                {step.config.integration && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 ${getIntegrationData(step.config.integration)?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center text-white`}>
-                          {(() => {
-                            const integration = getIntegrationData(step.config.integration);
-                            if (integration?.icon) {
-                              const Icon = integration.icon;
-                              return <Icon className="w-4 h-4" />;
-                            }
-                            return <MdExtension className="w-4 h-4" />;
-                          })()}
-                        </div>
-                        <div>
-                          <p className="font-medium text-blue-900">
-                            {getIntegrationData(step.config.integration)?.name || step.config.integration}
-                          </p>
-                          <p className="text-sm text-blue-700">
-                            {getIntegrationData(step.config.integration)?.description || ''}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => updateConfig({ 
-                          ...step.config, 
-                          integration: '',
-                          webhook_event: '',
-                          webhook_url: '',
-                          webhook_variables: []
-                        })}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Change Integration
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Integration Platform Selection */}
-                {!step.config.integration && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Integration Platform
-                    </label>
-                    <div className="grid grid-cols-1 gap-3">
-                      {/* All Popular Integrations */}
-                      {[
-                        // E-commerce Platforms
-                        { 
-                          id: 'shopify', 
-                          name: 'Shopify', 
-                          description: 'E-commerce platform for online stores',
-                          icon: MdShoppingCart,
-                          color: 'bg-green-500',
-                          webhooks: ['new_order', 'payment_received', 'product_update']
-                        },
-                        { 
-                          id: 'woocommerce', 
-                          name: 'WooCommerce', 
-                          description: 'WordPress e-commerce plugin',
-                          icon: MdShoppingCart,
-                          color: 'bg-purple-500',
-                          webhooks: ['order_created', 'payment_complete', 'product_updated']
-                        },
-                        { 
-                          id: 'magento', 
-                          name: 'Magento', 
-                          description: 'Adobe commerce platform',
-                          icon: MdShoppingCart,
-                          color: 'bg-orange-500',
-                          webhooks: ['order_placed', 'customer_created', 'product_saved']
-                        },
-                        { 
-                          id: 'bigcommerce', 
-                          name: 'BigCommerce', 
-                          description: 'Enterprise e-commerce platform',
-                          icon: MdShoppingCart,
-                          color: 'bg-blue-500',
-                          webhooks: ['order_created', 'customer_created', 'product_created']
-                        },
-
-                        // Payment Platforms
-                        { 
-                          id: 'stripe', 
-                          name: 'Stripe', 
-                          description: 'Online payment processing platform',
-                          icon: MdPayment,
-                          color: 'bg-purple-600',
-                          webhooks: ['payment_success', 'payment_failed', 'subscription_created']
-                        },
-                        { 
-                          id: 'paypal', 
-                          name: 'PayPal', 
-                          description: 'Digital payments platform',
-                          icon: MdPayment,
-                          color: 'bg-blue-500',
-                          webhooks: ['payment_completed', 'subscription_activated', 'dispute_created']
-                        },
-                        { 
-                          id: 'razorpay', 
-                          name: 'Razorpay', 
-                          description: 'Indian payments gateway',
-                          icon: MdPayment,
-                          color: 'bg-blue-700',
-                          webhooks: ['payment_captured', 'payment_failed', 'subscription_charged']
-                        },
-                        { 
-                          id: 'square', 
-                          name: 'Square', 
-                          description: 'Point of sale & payments',
-                          icon: MdPayment,
-                          color: 'bg-black',
-                          webhooks: ['payment_updated', 'order_fulfillment', 'invoice_payment']
-                        },
-
-                        // CRM Platforms
-                        { 
-                          id: 'hubspot', 
-                          name: 'HubSpot', 
-                          description: 'CRM and marketing automation',
-                          icon: MdBusinessCenter,
-                          color: 'bg-orange-500',
-                          webhooks: ['new_contact', 'deal_created', 'email_opened']
-                        },
-                        { 
-                          id: 'salesforce', 
-                          name: 'Salesforce', 
-                          description: 'Cloud-based CRM platform',
-                          icon: MdBusinessCenter,
-                          color: 'bg-blue-600',
-                          webhooks: ['lead_created', 'opportunity_updated', 'account_updated']
-                        },
-                        { 
-                          id: 'pipedrive', 
-                          name: 'Pipedrive', 
-                          description: 'Sales pipeline CRM',
-                          icon: MdBusinessCenter,
-                          color: 'bg-green-600',
-                          webhooks: ['deal_added', 'person_added', 'activity_added']
-                        },
-                        { 
-                          id: 'zoho', 
-                          name: 'Zoho CRM', 
-                          description: 'Business software suite',
-                          icon: MdBusinessCenter,
-                          color: 'bg-red-500',
-                          webhooks: ['lead_created', 'contact_created', 'deal_created']
-                        },
-
-                        // Communication Platforms
-                        { 
-                          id: 'slack', 
-                          name: 'Slack', 
-                          description: 'Team communication platform',
-                          icon: MdChat,
-                          color: 'bg-purple-500',
-                          webhooks: ['message_received', 'channel_created', 'user_joined']
-                        },
-                        { 
-                          id: 'discord', 
-                          name: 'Discord', 
-                          description: 'Voice & text chat platform',
-                          icon: MdChat,
-                          color: 'bg-indigo-600',
-                          webhooks: ['message_create', 'guild_member_add', 'reaction_add']
-                        },
-                        { 
-                          id: 'telegram', 
-                          name: 'Telegram', 
-                          description: 'Messaging app platform',
-                          icon: MdChat,
-                          color: 'bg-blue-500',
-                          webhooks: ['message_received', 'callback_query', 'inline_query']
-                        },
-                        { 
-                          id: 'microsoft_teams', 
-                          name: 'Microsoft Teams', 
-                          description: 'Business chat platform',
-                          icon: MdChat,
-                          color: 'bg-blue-600',
-                          webhooks: ['message_received', 'meeting_started', 'channel_created']
-                        },
-
-                        // Automation Platforms
-                        { 
-                          id: 'zapier', 
-                          name: 'Zapier', 
-                          description: 'Workflow automation platform',
-                          icon: MdExtension,
-                          color: 'bg-orange-500',
-                          webhooks: ['zap_triggered', 'automation_complete', 'error_occurred']
-                        },
-                        { 
-                          id: 'make', 
-                          name: 'Make (Integromat)', 
-                          description: 'Visual platform automation',
-                          icon: MdExtension,
-                          color: 'bg-purple-600',
-                          webhooks: ['scenario_executed', 'operation_complete', 'error_occurred']
-                        },
-                        { 
-                          id: 'ifttt', 
-                          name: 'IFTTT', 
-                          description: 'If This Then That automation',
-                          icon: MdExtension,
-                          color: 'bg-black',
-                          webhooks: ['applet_triggered', 'action_completed', 'service_connected']
-                        },
-
-                        // Analytics Platforms
-                        { 
-                          id: 'google_analytics', 
-                          name: 'Google Analytics', 
-                          description: 'Web analytics and reporting',
-                          icon: MdTrendingUp,
-                          color: 'bg-blue-500',
-                          webhooks: ['goal_completed', 'traffic_spike', 'conversion_tracked']
-                        },
-                        { 
-                          id: 'mixpanel', 
-                          name: 'Mixpanel', 
-                          description: 'Product analytics platform',
-                          icon: MdTrendingUp,
-                          color: 'bg-purple-600',
-                          webhooks: ['event_tracked', 'funnel_completed', 'cohort_updated']
-                        },
-                        { 
-                          id: 'amplitude', 
-                          name: 'Amplitude', 
-                          description: 'Digital analytics platform',
-                          icon: MdTrendingUp,
-                          color: 'bg-blue-600',
-                          webhooks: ['event_ingested', 'user_property_updated', 'cohort_computed']
-                        },
-
-                        // Support Platforms
-                        { 
-                          id: 'zendesk', 
-                          name: 'Zendesk', 
-                          description: 'Customer service platform',
-                          icon: MdSupport,
-                          color: 'bg-green-600',
-                          webhooks: ['ticket_created', 'ticket_updated', 'user_created']
-                        },
-                        { 
-                          id: 'freshdesk', 
-                          name: 'Freshdesk', 
-                          description: 'Help desk software',
-                          icon: MdSupport,
-                          color: 'bg-green-500',
-                          webhooks: ['ticket_created', 'ticket_resolved', 'contact_created']
-                        },
-                        { 
-                          id: 'intercom', 
-                          name: 'Intercom', 
-                          description: 'Customer messaging platform',
-                          icon: MdSupport,
-                          color: 'bg-blue-500',
-                          webhooks: ['conversation_created', 'user_created', 'message_created']
-                        },
-
-                        // Email Marketing
-                        { 
-                          id: 'mailchimp', 
-                          name: 'Mailchimp', 
-                          description: 'Email marketing platform',
-                          icon: MdEmail,
-                          color: 'bg-yellow-500',
-                          webhooks: ['campaign_sent', 'subscribe', 'unsubscribe']
-                        },
-                        { 
-                          id: 'constant_contact', 
-                          name: 'Constant Contact', 
-                          description: 'Email marketing service',
-                          icon: MdEmail,
-                          color: 'bg-blue-500',
-                          webhooks: ['contact_added', 'campaign_sent', 'bounce_received']
-                        },
-
-                        // Social Media
-                        { 
-                          id: 'twitter', 
-                          name: 'Twitter (X)', 
-                          description: 'Social media platform',
-                          icon: MdChat,
-                          color: 'bg-black',
-                          webhooks: ['tweet_created', 'mention_received', 'follow_received']
-                        },
-                        { 
-                          id: 'facebook', 
-                          name: 'Facebook', 
-                          description: 'Social media platform',
-                          icon: MdChat,
-                          color: 'bg-blue-600',
-                          webhooks: ['page_post', 'message_received', 'lead_generated']
-                        },
-                        { 
-                          id: 'instagram', 
-                          name: 'Instagram', 
-                          description: 'Photo sharing platform',
-                          icon: MdChat,
-                          color: 'bg-pink-500',
-                          webhooks: ['media_published', 'comment_received', 'mention_received']
-                        },
-
-                        // Project Management
-                        { 
-                          id: 'trello', 
-                          name: 'Trello', 
-                          description: 'Project management boards',
-                          icon: MdBuild,
-                          color: 'bg-blue-500',
-                          webhooks: ['card_created', 'card_moved', 'list_created']
-                        },
-                        { 
-                          id: 'asana', 
-                          name: 'Asana', 
-                          description: 'Team project management',
-                          icon: MdBuild,
-                          color: 'bg-orange-500',
-                          webhooks: ['task_created', 'project_created', 'story_added']
-                        },
-                        { 
-                          id: 'monday', 
-                          name: 'Monday.com', 
-                          description: 'Work operating system',
-                          icon: MdBuild,
-                          color: 'bg-purple-500',
-                          webhooks: ['item_created', 'column_value_changed', 'board_created']
-                        },
-
-                        // Cloud Storage
-                        { 
-                          id: 'dropbox', 
-                          name: 'Dropbox', 
-                          description: 'Cloud storage platform',
-                          icon: MdStore,
-                          color: 'bg-blue-600',
-                          webhooks: ['file_uploaded', 'folder_shared', 'file_deleted']
-                        },
-                        { 
-                          id: 'google_drive', 
-                          name: 'Google Drive', 
-                          description: 'Cloud storage & collaboration',
-                          icon: MdStore,
-                          color: 'bg-green-500',
-                          webhooks: ['file_created', 'file_shared', 'folder_created']
-                        }
-                      ].map((integration) => {
-                        const Icon = integration.icon;
-                        return (
-                          <div
-                            key={integration.id}
-                            onClick={() => updateConfig({ 
-                              ...step.config, 
-                              integration: integration.id,
-                              webhook_event: '',
-                              webhook_url: '',
-                              webhook_variables: []
-                            })}
-                            className={`p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                              step.config.integration === integration.id
-                                ? 'border-purple-500 bg-purple-50'
-                                : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 ${integration.color} rounded-lg flex items-center justify-center text-white`}>
-                                <Icon className="w-5 h-5" />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{integration.name}</h4>
-                                <p className="text-sm text-gray-600">{integration.description}</p>
-                                <div className="mt-1">
-                                  <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                                    {integration.webhooks.length} webhook{integration.webhooks.length !== 1 ? 's' : ''} available
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Webhook Event Selection */}
-                {step.config.integration && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Webhook Event
-                    </label>
-                    {(() => {
-                      // Define webhook events for all integrations
-                      const integrationEvents = {
-                        // E-commerce
-                        shopify: [
-                          { id: 'new_order', name: 'New Order', description: 'Triggered when a new order is placed' },
-                          { id: 'payment_received', name: 'Payment Received', description: 'Triggered when payment is confirmed' },
-                          { id: 'product_update', name: 'Product Update', description: 'Triggered when product is updated' }
-                        ],
-                        woocommerce: [
-                          { id: 'order_created', name: 'Order Created', description: 'Triggered when new order is created' },
-                          { id: 'payment_complete', name: 'Payment Complete', description: 'Triggered when payment is completed' },
-                          { id: 'product_updated', name: 'Product Updated', description: 'Triggered when product is updated' }
-                        ],
-                        magento: [
-                          { id: 'order_placed', name: 'Order Placed', description: 'Triggered when order is placed' },
-                          { id: 'customer_created', name: 'Customer Created', description: 'Triggered when customer is created' },
-                          { id: 'product_saved', name: 'Product Saved', description: 'Triggered when product is saved' }
-                        ],
-                        bigcommerce: [
-                          { id: 'order_created', name: 'Order Created', description: 'Triggered when order is created' },
-                          { id: 'customer_created', name: 'Customer Created', description: 'Triggered when customer is created' },
-                          { id: 'product_created', name: 'Product Created', description: 'Triggered when product is created' }
-                        ],
-
-                        // Payments
-                        stripe: [
-                          { id: 'payment_success', name: 'Payment Success', description: 'Triggered when payment succeeds' },
-                          { id: 'payment_failed', name: 'Payment Failed', description: 'Triggered when payment fails' },
-                          { id: 'subscription_created', name: 'Subscription Created', description: 'Triggered when subscription is created' }
-                        ],
-                        paypal: [
-                          { id: 'payment_completed', name: 'Payment Completed', description: 'Triggered when payment is completed' },
-                          { id: 'subscription_activated', name: 'Subscription Activated', description: 'Triggered when subscription is activated' },
-                          { id: 'dispute_created', name: 'Dispute Created', description: 'Triggered when dispute is created' }
-                        ],
-                        razorpay: [
-                          { id: 'payment_captured', name: 'Payment Captured', description: 'Triggered when payment is captured' },
-                          { id: 'payment_failed', name: 'Payment Failed', description: 'Triggered when payment fails' },
-                          { id: 'subscription_charged', name: 'Subscription Charged', description: 'Triggered when subscription is charged' }
-                        ],
-                        square: [
-                          { id: 'payment_updated', name: 'Payment Updated', description: 'Triggered when payment is updated' },
-                          { id: 'order_fulfillment', name: 'Order Fulfillment', description: 'Triggered when order is fulfilled' },
-                          { id: 'invoice_payment', name: 'Invoice Payment', description: 'Triggered when invoice is paid' }
-                        ],
-
-                        // CRM
-                        hubspot: [
-                          { id: 'new_contact', name: 'New Contact', description: 'Triggered when new contact is added' },
-                          { id: 'deal_created', name: 'Deal Created', description: 'Triggered when new deal is created' },
-                          { id: 'email_opened', name: 'Email Opened', description: 'Triggered when email is opened' }
-                        ],
-                        salesforce: [
-                          { id: 'lead_created', name: 'Lead Created', description: 'Triggered when lead is created' },
-                          { id: 'opportunity_updated', name: 'Opportunity Updated', description: 'Triggered when opportunity is updated' },
-                          { id: 'account_updated', name: 'Account Updated', description: 'Triggered when account is updated' }
-                        ],
-                        pipedrive: [
-                          { id: 'deal_added', name: 'Deal Added', description: 'Triggered when deal is added' },
-                          { id: 'person_added', name: 'Person Added', description: 'Triggered when person is added' },
-                          { id: 'activity_added', name: 'Activity Added', description: 'Triggered when activity is added' }
-                        ],
-                        zoho: [
-                          { id: 'lead_created', name: 'Lead Created', description: 'Triggered when lead is created' },
-                          { id: 'contact_created', name: 'Contact Created', description: 'Triggered when contact is created' },
-                          { id: 'deal_created', name: 'Deal Created', description: 'Triggered when deal is created' }
-                        ],
-
-                        // Communication
-                        slack: [
-                          { id: 'message_received', name: 'Message Received', description: 'Triggered when message is received' },
-                          { id: 'channel_created', name: 'Channel Created', description: 'Triggered when channel is created' },
-                          { id: 'user_joined', name: 'User Joined', description: 'Triggered when user joins workspace' }
-                        ],
-                        discord: [
-                          { id: 'message_create', name: 'Message Create', description: 'Triggered when message is created' },
-                          { id: 'guild_member_add', name: 'Member Added', description: 'Triggered when member joins server' },
-                          { id: 'reaction_add', name: 'Reaction Added', description: 'Triggered when reaction is added' }
-                        ],
-                        telegram: [
-                          { id: 'message_received', name: 'Message Received', description: 'Triggered when message is received' },
-                          { id: 'callback_query', name: 'Callback Query', description: 'Triggered when button is pressed' },
-                          { id: 'inline_query', name: 'Inline Query', description: 'Triggered when inline query is made' }
-                        ],
-                        microsoft_teams: [
-                          { id: 'message_received', name: 'Message Received', description: 'Triggered when message is received' },
-                          { id: 'meeting_started', name: 'Meeting Started', description: 'Triggered when meeting starts' },
-                          { id: 'channel_created', name: 'Channel Created', description: 'Triggered when channel is created' }
-                        ],
-
-                        // Automation
-                        zapier: [
-                          { id: 'zap_triggered', name: 'Zap Triggered', description: 'Triggered when Zap automation runs' },
-                          { id: 'automation_complete', name: 'Automation Complete', description: 'Triggered when automation completes' },
-                          { id: 'error_occurred', name: 'Error Occurred', description: 'Triggered when error occurs' }
-                        ],
-                        make: [
-                          { id: 'scenario_executed', name: 'Scenario Executed', description: 'Triggered when scenario is executed' },
-                          { id: 'operation_complete', name: 'Operation Complete', description: 'Triggered when operation completes' },
-                          { id: 'error_occurred', name: 'Error Occurred', description: 'Triggered when error occurs' }
-                        ],
-                        ifttt: [
-                          { id: 'applet_triggered', name: 'Applet Triggered', description: 'Triggered when applet runs' },
-                          { id: 'action_completed', name: 'Action Completed', description: 'Triggered when action completes' },
-                          { id: 'service_connected', name: 'Service Connected', description: 'Triggered when service is connected' }
-                        ],
-
-                        // Analytics
-                        google_analytics: [
-                          { id: 'goal_completed', name: 'Goal Completed', description: 'Triggered when goal is completed' },
-                          { id: 'traffic_spike', name: 'Traffic Spike', description: 'Triggered when traffic increases significantly' },
-                          { id: 'conversion_tracked', name: 'Conversion Tracked', description: 'Triggered when conversion is tracked' }
-                        ],
-                        mixpanel: [
-                          { id: 'event_tracked', name: 'Event Tracked', description: 'Triggered when event is tracked' },
-                          { id: 'funnel_completed', name: 'Funnel Completed', description: 'Triggered when funnel is completed' },
-                          { id: 'cohort_updated', name: 'Cohort Updated', description: 'Triggered when cohort is updated' }
-                        ],
-                        amplitude: [
-                          { id: 'event_ingested', name: 'Event Ingested', description: 'Triggered when event is ingested' },
-                          { id: 'user_property_updated', name: 'User Property Updated', description: 'Triggered when user property is updated' },
-                          { id: 'cohort_computed', name: 'Cohort Computed', description: 'Triggered when cohort is computed' }
-                        ],
-
-                        // Support
-                        zendesk: [
-                          { id: 'ticket_created', name: 'Ticket Created', description: 'Triggered when ticket is created' },
-                          { id: 'ticket_updated', name: 'Ticket Updated', description: 'Triggered when ticket is updated' },
-                          { id: 'user_created', name: 'User Created', description: 'Triggered when user is created' }
-                        ],
-                        freshdesk: [
-                          { id: 'ticket_created', name: 'Ticket Created', description: 'Triggered when ticket is created' },
-                          { id: 'ticket_resolved', name: 'Ticket Resolved', description: 'Triggered when ticket is resolved' },
-                          { id: 'contact_created', name: 'Contact Created', description: 'Triggered when contact is created' }
-                        ],
-                        intercom: [
-                          { id: 'conversation_created', name: 'Conversation Created', description: 'Triggered when conversation is created' },
-                          { id: 'user_created', name: 'User Created', description: 'Triggered when user is created' },
-                          { id: 'message_created', name: 'Message Created', description: 'Triggered when message is created' }
-                        ],
-
-                        // Email Marketing
-                        mailchimp: [
-                          { id: 'campaign_sent', name: 'Campaign Sent', description: 'Triggered when campaign is sent' },
-                          { id: 'subscribe', name: 'Subscribe', description: 'Triggered when someone subscribes' },
-                          { id: 'unsubscribe', name: 'Unsubscribe', description: 'Triggered when someone unsubscribes' }
-                        ],
-                        constant_contact: [
-                          { id: 'contact_added', name: 'Contact Added', description: 'Triggered when contact is added' },
-                          { id: 'campaign_sent', name: 'Campaign Sent', description: 'Triggered when campaign is sent' },
-                          { id: 'bounce_received', name: 'Bounce Received', description: 'Triggered when email bounces' }
-                        ],
-
-                        // Social Media
-                        twitter: [
-                          { id: 'tweet_created', name: 'Tweet Created', description: 'Triggered when tweet is created' },
-                          { id: 'mention_received', name: 'Mention Received', description: 'Triggered when mentioned' },
-                          { id: 'follow_received', name: 'Follow Received', description: 'Triggered when followed' }
-                        ],
-                        facebook: [
-                          { id: 'page_post', name: 'Page Post', description: 'Triggered when page posts' },
-                          { id: 'message_received', name: 'Message Received', description: 'Triggered when message is received' },
-                          { id: 'lead_generated', name: 'Lead Generated', description: 'Triggered when lead is generated' }
-                        ],
-                        instagram: [
-                          { id: 'media_published', name: 'Media Published', description: 'Triggered when media is published' },
-                          { id: 'comment_received', name: 'Comment Received', description: 'Triggered when comment is received' },
-                          { id: 'mention_received', name: 'Mention Received', description: 'Triggered when mentioned' }
-                        ],
-
-                        // Project Management
-                        trello: [
-                          { id: 'card_created', name: 'Card Created', description: 'Triggered when card is created' },
-                          { id: 'card_moved', name: 'Card Moved', description: 'Triggered when card is moved' },
-                          { id: 'list_created', name: 'List Created', description: 'Triggered when list is created' }
-                        ],
-                        asana: [
-                          { id: 'task_created', name: 'Task Created', description: 'Triggered when task is created' },
-                          { id: 'project_created', name: 'Project Created', description: 'Triggered when project is created' },
-                          { id: 'story_added', name: 'Story Added', description: 'Triggered when story is added' }
-                        ],
-                        monday: [
-                          { id: 'item_created', name: 'Item Created', description: 'Triggered when item is created' },
-                          { id: 'column_value_changed', name: 'Column Value Changed', description: 'Triggered when column value changes' },
-                          { id: 'board_created', name: 'Board Created', description: 'Triggered when board is created' }
-                        ],
-
-                        // Cloud Storage
-                        dropbox: [
-                          { id: 'file_uploaded', name: 'File Uploaded', description: 'Triggered when file is uploaded' },
-                          { id: 'folder_shared', name: 'Folder Shared', description: 'Triggered when folder is shared' },
-                          { id: 'file_deleted', name: 'File Deleted', description: 'Triggered when file is deleted' }
-                        ],
-                        google_drive: [
-                          { id: 'file_created', name: 'File Created', description: 'Triggered when file is created' },
-                          { id: 'file_shared', name: 'File Shared', description: 'Triggered when file is shared' },
-                          { id: 'folder_created', name: 'Folder Created', description: 'Triggered when folder is created' }
-                        ]
-                      };
-
-                      const events = integrationEvents[step.config.integration as keyof typeof integrationEvents] || [];
-                      
-                      return (
-                        <div className="space-y-3">
-                          {events.map((webhook) => (
-                            <div
-                              key={webhook.id}
-                              onClick={() => {
-                                const webhookUrl = `https://api.stitchbyte.com/webhooks/${step.config.integration}/${webhook.id}`;
-                                updateConfig({ 
-                                  ...step.config, 
-                                  webhook_event: webhook.id,
-                                  webhook_url: webhookUrl,
-                                  webhook_variables: []
-                                });
-                              }}
-                              className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                                step.config.webhook_event === webhook.id
-                                  ? 'border-purple-500 bg-purple-50'
-                                  : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-gray-900">{webhook.name}</h4>
-                                  <p className="text-sm text-gray-600 mt-1">{webhook.description}</p>
-                                  <div className="mt-2">
-                                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                                      {webhook.id}
-                                    </span>
-                                  </div>
-                                </div>
-                                {step.config.webhook_event === webhook.id && (
-                                  <div className="flex-shrink-0 ml-3">
-                                    <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                      </svg>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-
-                {/* Webhook URL Display */}
-                {step.config.webhook_event && step.config.webhook_url && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Webhook URL
-                    </label>
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <code className="text-sm text-gray-800 break-all">{step.config.webhook_url}</code>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Configure this URL in your {getIntegrationData(step.config.integration)?.name || step.config.integration} account to receive webhooks.
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-
             {step.config.type === 'keyword' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2184,44 +1122,6 @@ export default function AutomationBuilderPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 placeholder="Hi {{name}}, Thank you for shopping with us. Would you like delivery updates?"
               />
-
-              {/* Integration Variables Display */}
-              {(() => {
-                const triggerStep = flowSteps.find(s => s.type === 'trigger');
-                if (triggerStep?.config.type === 'integration' && triggerStep.config.webhook_variables) {
-                  return (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="text-sm font-medium text-blue-900 mb-2">
-                        🔗 Available Integration Variables
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {triggerStep.config.webhook_variables.map((variable: any, index: number) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              const currentMessage = step.config.message || '';
-                              const variableTag = `{{${variable.name}}}`;
-                              updateConfig({ 
-                                ...step.config, 
-                                message: currentMessage + variableTag 
-                              });
-                            }}
-                            className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200 text-left"
-                            title={`${variable.description} (${variable.type})\nExample: ${variable.example}`}
-                          >
-                            {`{{${variable.name}}}`}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-xs text-blue-600 mt-2">
-                        Click any variable to add it to your message. These come from your selected integration webhook.
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   onClick={() => updateConfig({ 
@@ -2431,386 +1331,6 @@ export default function AutomationBuilderPage() {
           </div>
         );
 
-      case 'ai_response':
-        return (
-          <div className="space-y-6">
-            {/* AI Model Configuration Header */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border border-purple-200">
-              <div className="flex items-center gap-3 mb-2">
-                <MdSmartToy className="text-2xl text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-800">AI Response Configuration</h3>
-              </div>
-              <p className="text-sm text-gray-600">
-                Configure your AI assistant to provide intelligent, context-aware responses using Gemini 2.0 Pro
-              </p>
-            </div>
-
-            {/* System Prompt */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🎯 System Prompt & Instructions
-              </label>
-              <textarea
-                value={step.config.system_prompt || ''}
-                onChange={(e) => updateConfig({ ...step.config, system_prompt: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-32 resize-none"
-                placeholder="Define how the AI should behave. Example: You are a helpful customer service assistant for [Company Name]. Always be polite, professional, and helpful. Focus only on company-related queries and avoid technical discussions about backend systems."
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Provide clear instructions for the AI behavior and scope
-              </p>
-            </div>
-
-            {/* Response Tone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🎭 Response Tone
-              </label>
-              <select
-                value={step.config.tone || 'professional'}
-                onChange={(e) => updateConfig({ ...step.config, tone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="professional">Professional & Formal</option>
-                <option value="friendly">Friendly & Approachable</option>
-                <option value="casual">Casual & Relaxed</option>
-                <option value="enthusiastic">Enthusiastic & Energetic</option>
-                <option value="empathetic">Empathetic & Understanding</option>
-                <option value="concise">Concise & Direct</option>
-                <option value="detailed">Detailed & Thorough</option>
-              </select>
-            </div>
-
-            {/* AI Parameters */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🌡️ Temperature ({step.config.temperature || 0.7})
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={step.config.temperature || 0.7}
-                  onChange={(e) => updateConfig({ ...step.config, temperature: parseFloat(e.target.value) })}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Precise</span>
-                  <span>Creative</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📝 Max Response Length
-                </label>
-                <select
-                  value={step.config.max_tokens || 150}
-                  onChange={(e) => updateConfig({ ...step.config, max_tokens: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="50">Short (50 tokens)</option>
-                  <option value="100">Medium (100 tokens)</option>
-                  <option value="150">Standard (150 tokens)</option>
-                  <option value="250">Long (250 tokens)</option>
-                  <option value="400">Extended (400 tokens)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Trigger Keywords */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🔍 Trigger Keywords (Optional)
-              </label>
-              <input
-                type="text"
-                value={step.config.trigger_keywords || ''}
-                onChange={(e) => updateConfig({ ...step.config, trigger_keywords: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                placeholder="help, support, question, info (comma-separated)"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                If specified, AI will only respond when message contains these keywords. Leave empty to respond to all messages.
-              </p>
-            </div>
-
-            {/* Context Data */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                📊 Company Context & Knowledge Base
-              </label>
-              <textarea
-                value={step.config.context_data || ''}
-                onChange={(e) => updateConfig({ ...step.config, context_data: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-24 resize-none"
-                placeholder="Add key company information: products, services, policies, FAQs, contact details, etc."
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Provide company-specific information to help AI give accurate responses
-              </p>
-            </div>
-
-            {/* Security & Limitations */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-yellow-800 mb-3 flex items-center gap-2">
-                🔒 Security & Scope Restrictions
-              </h4>
-              
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={step.config.scope_restrictions?.company_only !== false}
-                    onChange={(e) => updateConfig({
-                      ...step.config,
-                      scope_restrictions: {
-                        ...step.config.scope_restrictions,
-                        company_only: e.target.checked
-                      }
-                    })}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-yellow-800">
-                    Only answer company-related questions
-                  </span>
-                </label>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={step.config.scope_restrictions?.no_technical_details !== false}
-                    onChange={(e) => updateConfig({
-                      ...step.config,
-                      scope_restrictions: {
-                        ...step.config.scope_restrictions,
-                        no_technical_details: e.target.checked
-                      }
-                    })}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-yellow-800">
-                    Prevent sharing technical/backend details
-                  </span>
-                </label>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={step.config.scope_restrictions?.no_sensitive_info !== false}
-                    onChange={(e) => updateConfig({
-                      ...step.config,
-                      scope_restrictions: {
-                        ...step.config.scope_restrictions,
-                        no_sensitive_info: e.target.checked
-                      }
-                    })}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-yellow-800">
-                    Block sensitive information sharing
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* Fallback Response */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🔄 Fallback Response
-              </label>
-              <textarea
-                value={step.config.fallback_response || ''}
-                onChange={(e) => updateConfig({ ...step.config, fallback_response: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-20 resize-none"
-                placeholder="I'm sorry, I can only help with questions related to our company and services. Please contact our support team for other inquiries."
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Message sent when AI cannot or should not respond to the query
-              </p>
-            </div>
-
-            {/* Rate Limiting */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ⏱️ Rate Limit (per hour)
-                </label>
-                <select
-                  value={step.config.rate_limit?.per_hour || 10}
-                  onChange={(e) => updateConfig({
-                    ...step.config,
-                    rate_limit: {
-                      ...step.config.rate_limit,
-                      per_hour: parseInt(e.target.value)
-                    }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="5">5 responses/hour</option>
-                  <option value="10">10 responses/hour</option>
-                  <option value="20">20 responses/hour</option>
-                  <option value="50">50 responses/hour</option>
-                  <option value="100">100 responses/hour</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📅 Daily Limit
-                </label>
-                <select
-                  value={step.config.rate_limit?.per_day || 50}
-                  onChange={(e) => updateConfig({
-                    ...step.config,
-                    rate_limit: {
-                      ...step.config.rate_limit,
-                      per_day: parseInt(e.target.value)
-                    }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="25">25 responses/day</option>
-                  <option value="50">50 responses/day</option>
-                  <option value="100">100 responses/day</option>
-                  <option value="200">200 responses/day</option>
-                  <option value="500">500 responses/day</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Rate Limit Exceeded Message */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🚫 Rate Limit Exceeded Message
-              </label>
-              <input
-                type="text"
-                value={step.config.rate_limit_message || ''}
-                onChange={(e) => updateConfig({
-                  ...step.config,
-                  rate_limit_message: e.target.value
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                placeholder="Our AI assistant has reached its daily limit. Please contact our human support team."
-              />
-            </div>
-
-            {/* Test AI Response */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-green-800 mb-3 flex items-center gap-2">
-                🧪 Test AI Response
-              </h4>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-green-700 mb-1">Test Message:</label>
-                  <input
-                    type="text"
-                    value={testMessage}
-                    onChange={(e) => setTestMessage(e.target.value)}
-                    className="w-full px-3 py-2 border border-green-300 rounded-lg text-sm"
-                    placeholder="Hello, I have a question about your services"
-                  />
-                </div>
-                
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleTestAIResponse}
-                    disabled={isTestingAI || !testMessage.trim()}
-                    className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isTestingAI ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        Testing...
-                      </>
-                    ) : (
-                      <>
-                        <MdPlayArrow />
-                        Test Response
-                      </>
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={handleTestConnection}
-                    disabled={isTestingConnection}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {isTestingConnection ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        Testing...
-                      </>
-                    ) : (
-                      <>
-                        🔗
-                        Test Connection
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                {testResult && (
-                  <div className={`p-3 rounded-lg text-sm ${
-                    testResult.success 
-                      ? 'bg-green-100 border border-green-300 text-green-800'
-                      : 'bg-red-100 border border-red-300 text-red-800'
-                  }`}>
-                    <div className="font-medium mb-1">
-                      {testResult.success ? '✅ Success' : '❌ Error'}
-                    </div>
-                    <div className="whitespace-pre-wrap">
-                      {testResult.response || testResult.error}
-                    </div>
-                    {testResult.usage && (
-                      <div className="text-xs mt-2 opacity-75">
-                        Tokens used: {testResult.usage.totalTokens} (prompt: {testResult.usage.promptTokens}, completion: {testResult.usage.completionTokens})
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Preview Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
-                👁️ Configuration Preview
-              </h4>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p><strong>Model:</strong> Gemini 2.0 Flash</p>
-                <p><strong>Tone:</strong> {step.config.tone || 'professional'}</p>
-                <p><strong>Temperature:</strong> {step.config.temperature || 0.7} (0=precise, 1=creative)</p>
-                <p><strong>Max Length:</strong> {step.config.max_tokens || 150} tokens</p>
-                <p><strong>Security:</strong> {step.config.scope_restrictions?.company_only !== false ? '✓' : '✗'} Company-only responses</p>
-                <p><strong>Rate Limit:</strong> {step.config.rate_limit?.per_hour || 10}/hr, {step.config.rate_limit?.per_day || 50}/day</p>
-                {step.config.trigger_keywords && (
-                  <p><strong>Triggers:</strong> {step.config.trigger_keywords}</p>
-                )}
-              </div>
-            </div>
-
-            {/* How It Works */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
-                ℹ️ How AI Response Works
-              </h4>
-              <div className="text-xs text-gray-600 space-y-2">
-                <p>1. <strong>Message Received:</strong> When a customer sends a message</p>
-                <p>2. <strong>Keyword Check:</strong> If trigger keywords are set, message must contain them</p>
-                <p>3. <strong>Rate Limit Check:</strong> Ensures user hasn't exceeded hourly/daily limits</p>
-                <p>4. <strong>AI Generation:</strong> Gemini 2.0 Flash generates response using your configuration</p>
-                <p>5. <strong>Security Filter:</strong> Response is filtered for sensitive content and scope compliance</p>
-                <p>6. <strong>Response Sent:</strong> Filtered response is sent back to customer</p>
-              </div>
-            </div>
-          </div>
-        );
-
       // Add other step type configurations here...
       default:
         return (
@@ -2818,51 +1338,6 @@ export default function AutomationBuilderPage() {
             Configuration for {step.type} step type coming soon...
           </div>
         );
-    }
-  };
-  
-  // AI testing handlers
-  const handleTestAIResponse = async () => {
-    if (!testMessage.trim()) return;
-    
-    setIsTestingAI(true);
-    setTestResult(null);
-    
-    try {
-      const selectedStep = flowSteps.find(step => step.id === selectedStepId);
-      if (!selectedStep || selectedStep.type !== 'ai_response') {
-        throw new Error('No AI response step selected');
-      }
-      
-      const result = await aiService.previewAIResponse(testMessage, selectedStep.config);
-      setTestResult(result);
-    } catch (error) {
-      setTestResult({
-        success: false,
-        error: error instanceof Error ? error.message : 'Test failed'
-      });
-    } finally {
-      setIsTestingAI(false);
-    }
-  };
-  
-  const handleTestConnection = async () => {
-    setIsTestingConnection(true);
-    setTestResult(null);
-    
-    try {
-      const result = await aiService.testConnection();
-      setTestResult({
-        success: result.success,
-        response: result.message
-      });
-    } catch (error) {
-      setTestResult({
-        success: false,
-        error: error instanceof Error ? error.message : 'Connection test failed'
-      });
-    } finally {
-      setIsTestingConnection(false);
     }
   };
   
@@ -2940,13 +1415,13 @@ export default function AutomationBuilderPage() {
                 </button>
                 <button
                   onClick={() => setActiveTab('preview')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     activeTab === 'preview' 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  <MdVisibility className="w-4 h-4" />
+                  <MdVisibility className="w-4 h-4 mr-2 inline" />
                   Live Preview
                 </button>
               </div>
@@ -3076,13 +1551,39 @@ export default function AutomationBuilderPage() {
                 )}
               </div>
             ) : (
-              <div className="w-full h-full bg-gray-100 flex items-center justify-center p-6">
-                <div className="flex-shrink-0">
-                  <WhatsAppPreview
-                    flowSteps={flowSteps}
-                    isTestMode={true}
-                    companyName={formData.name || "Your Company"}
-                  />
+              <div className="w-full h-full bg-white p-6 overflow-auto">
+                <div className="max-w-2xl mx-auto">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Live Preview</h3>
+                  
+                  {/* Preview Content */}
+                  <div className="space-y-4">
+                    {flowSteps.map((step, index) => (
+                      <div key={step.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-8 h-8 ${getStepColor(step.type)} rounded-lg flex items-center justify-center`}>
+                            {React.createElement(getStepIcon(step.type), { className: "w-4 h-4 text-white" })}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">{step.title}</div>
+                            <div className="text-sm text-gray-500">Step {index + 1}</div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                          {renderStepPreview(step)}
+                        </div>
+                        
+                        {step.connections.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="text-xs text-gray-500 flex items-center gap-2">
+                              <MdArrowForward className="w-3 h-3" />
+                              Connects to {step.connections.length} step(s)
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -3090,7 +1591,7 @@ export default function AutomationBuilderPage() {
 
           {/* Right Sidebar - Step Configuration */}
           {selectedStepId && (
-            <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-auto relative z-[100] shadow-xl">
+            <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-auto">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-gray-900">Configure Step</h3>
