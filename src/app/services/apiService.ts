@@ -1,13 +1,5 @@
 // Secure API service with user authentication
 class ApiService {
-  async validateWaba(): Promise<any> {
-    return this.post('/whatsapp/validate-waba', {});
-  }
-
-  // Keep the old method for backward compatibility but point to new endpoint
-  async registerWaba(): Promise<any> {
-    return this.validateWaba();
-  }
   // Create Razorpay order before payment
   async createOrder(planId: string) {
     return this.request('/subscription/create-payment-order', {

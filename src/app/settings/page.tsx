@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import WabaRegistration from "../components/WabaRegistration";
 import { useRouter } from "next/navigation";
 import { useUser } from "../contexts/UserContext";
 import { apiService } from "../services/apiService";
@@ -576,10 +575,6 @@ export default function SettingsPage() {
           {error && <div className="text-[#e55353] text-center mt-4 p-3 bg-red-50/80 backdrop-blur-sm rounded-lg border border-red-200/50 shadow-lg">{error}</div>}
           {success && <div className="text-[#31a24c] text-center mt-4 p-3 bg-green-50/80 backdrop-blur-sm rounded-lg border border-green-200/50 shadow-lg">{success}</div>}
         </div>
-      {/* WABA Registration Button/Prompt */}
-      <div className="mt-8">
-        <WabaRegistration />
-      </div>
       </div>
     </section>
   );
