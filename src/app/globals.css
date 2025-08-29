@@ -140,3 +140,23 @@ select:disabled {
   transform: translateY(-1px);
   box-shadow: 0 12px 40px rgba(2, 6, 23, 0.12);
 }
+
+/* Contact widget enter/exit animation */
+.animate-contact-enter {
+  animation: contactEnter 260ms cubic-bezier(.22,1,.36,1) forwards;
+}
+
+@keyframes contactEnter {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* Quick actions menu slide-up */
+.quick-actions-slide-in {
+  animation: quickMenuIn 280ms cubic-bezier(.22,1,.36,1) forwards;
+}
+
+@keyframes quickMenuIn {
+  from { transform: translateY(12px) scale(.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}

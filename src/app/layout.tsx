@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "./components/ClientLayout";
+import QuickActions from "./components/QuickActions";
 import { UserProvider } from "./contexts/UserContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import SubscriptionGuard from "./components/SubscriptionGuard";
@@ -76,6 +77,7 @@ export default function RootLayout({
             <SubscriptionGuard>
               <ClientLayout>
                 {children}
+                <QuickActions />
               </ClientLayout>
             </SubscriptionGuard>
           </UserProvider>
