@@ -183,6 +183,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           setBackupCodeUsed(true);
         }
         
+        // Immediately fetch subscription data after login to ensure proper redirect
+        try {
+          console.log('UserContext: Fetching subscription data after login...');
+          const subscriptionData = await apiService.getSubscription();
+          if (subscriptionData && subscriptionData.subscription) {
+            console.log('UserContext: Found subscription data after login:', subscriptionData.subscription);
+            setUser(prev => prev ? { ...prev, subscription: subscriptionData.subscription } : null);
+          } else {
+            console.log('UserContext: No subscription found after login');
+          }
+        } catch (subError) {
+          console.log('UserContext: Error fetching subscription after login:', subError);
+        }
+        
         return response;
       } else {
         throw new Error('Failed to get user data');

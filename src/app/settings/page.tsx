@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import WabaRegistration from "../components/WabaRegistration";
 import { useRouter } from "next/navigation";
 import { useUser } from "../contexts/UserContext";
 import { apiService } from "../services/apiService";
@@ -225,19 +224,37 @@ export default function SettingsPage() {
       setLoading(true);
       setError("");
       
-      // Get reconnect URL from backend
-      const response = await apiService.getReconnectUrl();
-      
-      if (response?.url) {
-        window.location.href = response.url;
-      } else {
-        setError("Failed to get reconnect URL");
+      // Try to get reconnect URL from backend first
+      console.log('Attempting to get reconnect URL from backend...');
+      try {
+        const response = await apiService.getReconnectUrl();
+        console.log('Reconnect URL response:', response);
+        
+        if (response?.url) {
+          console.log('Redirecting to backend URL:', response.url);
+          window.location.href = response.url;
+          return;
+        }
+      } catch (apiError) {
+        console.warn('Backend reconnect URL failed, falling back to direct OAuth:', apiError);
       }
       
-    } catch (error) {
-      console.error('Error getting reconnect URL:', error);
-      setError("Failed to initiate reconnection");
-      setTimeout(() => setError(""), 3000);
+      // Check if META_APP_ID is available for fallback
+      if (!META_APP_ID) {
+        setError("Configuration error: Meta App ID not found. Please contact support.");
+        return;
+      }
+      
+      // Fallback to direct Facebook OAuth URL (same as dashboard)
+      const fallbackUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(window.location.origin + '/auth/whatsapp-callback')}&scope=whatsapp_business_management,whatsapp_business_messaging,business_management,pages_read_engagement,pages_manage_metadata&response_type=code`;
+      
+      console.log('Using fallback OAuth URL');
+      window.location.href = fallbackUrl;
+      
+    } catch (error: any) {
+      console.error('Error in reconnect process:', error);
+      setError(`Failed to initiate reconnection: ${error.message || error}`);
+      setTimeout(() => setError(""), 5000);
     } finally {
       setLoading(false);
     }
@@ -576,10 +593,7 @@ export default function SettingsPage() {
           {error && <div className="text-[#e55353] text-center mt-4 p-3 bg-red-50/80 backdrop-blur-sm rounded-lg border border-red-200/50 shadow-lg">{error}</div>}
           {success && <div className="text-[#31a24c] text-center mt-4 p-3 bg-green-50/80 backdrop-blur-sm rounded-lg border border-green-200/50 shadow-lg">{success}</div>}
         </div>
-      {/* WABA Registration Button/Prompt */}
-      <div className="mt-8">
-        <WabaRegistration />
-      </div>
+  {/* WABA registration prompt removed as requested */}
       </div>
     </section>
   );

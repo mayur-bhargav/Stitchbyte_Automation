@@ -107,10 +107,10 @@ export default function SignIn() {
           showToastNotification('Please enter your 2FA verification code', 'success');
         }
       } else {
-        // Normal login success
+        // Normal login success - use window.location for full page refresh to ensure SubscriptionGuard runs
         showToastNotification(`Welcome back!`, 'success');
         setTimeout(() => {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         }, 1500);
       }
     } catch (error) {
@@ -147,7 +147,7 @@ export default function SignIn() {
       
       showToastNotification(`Welcome back! ${showBackupCode ? 'Backup code' : '2FA'} verification successful.`, 'success');
       setTimeout(() => {
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       }, 1500);
     } catch (error: any) {
       console.error('2FA verification error:', error);

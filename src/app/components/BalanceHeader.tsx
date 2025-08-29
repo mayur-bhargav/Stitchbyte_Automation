@@ -11,16 +11,8 @@ export default function BalanceHeader() {
   const isDarkMode = theme === 'dark';
   const [showAddBalanceModal, setShowAddBalanceModal] = useState(false);
 
-  const handleTopUp = async () => {
-    const amount = 500; // Default top-up amount
-    const success = await addBalance(amount, "Wallet top-up from header");
-    if (success) {
-      // Optional: Show success message
-      console.log(`Successfully added ₹${amount}`);
-    } else {
-      // Optional: Show error message
-      console.error("Failed to add balance");
-    }
+  const handleTopUp = () => {
+    setShowAddBalanceModal(true);
   };
 
   return (
