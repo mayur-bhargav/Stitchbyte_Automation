@@ -981,7 +981,57 @@ Please provide a helpful response following all security instructions above:`;
       body: JSON.stringify(data),
     });
   }
+
+  // WooCommerce Integration methods
+  async getWooCommerceStatus() {
+    return this.getOptional('/connectors/woocommerce/status');
+  }
+
+  async connectWooCommerce(storeUrl: string) {
+    return this.request('/connectors/woocommerce/connect', {
+      method: 'POST',
+      body: JSON.stringify({ store_url: storeUrl }),
+    });
+  }
+
+  async disconnectWooCommerce() {
+    return this.request('/connectors/woocommerce/disconnect', {
+      method: 'DELETE',
+    });
+  }
+
+  async testWooCommerceConnection() {
+    return this.request('/connectors/woocommerce/test', {
+      method: 'POST',
+    });
+  }
+
+  // Shopify Integration methods (for consistency)
+  async getShopifyStatus() {
+    return this.getOptional('/connectors/shopify/status');
+  }
+
+  async connectShopify(shopDomain: string) {
+    return this.request('/connectors/shopify/connect', {
+      method: 'POST',
+      body: JSON.stringify({ shop_domain: shopDomain }),
+    });
+  }
+
+  async disconnectShopify() {
+    return this.request('/connectors/shopify/disconnect', {
+      method: 'DELETE',
+    });
+  }
+
+  async testShopifyConnection() {
+    return this.request('/connectors/shopify/test', {
+      method: 'POST',
+    });
+  }
 }
 
-export const apiService = new ApiService();
+// Export singleton instance
+const apiService = new ApiService();
+export { apiService };
 export default apiService;

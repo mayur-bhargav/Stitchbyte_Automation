@@ -930,7 +930,7 @@ export default function DashboardPage() {
               { title: "WhatsApp Connected", completed: dashboardData.whatsappProfile?.connected === true },
               { title: "Templates Created", completed: dashboardData.stats.templates > 0 },
               { title: "Contacts Added", completed: dashboardData.stats.contacts > 0 },
-              { title: "First Campaign", completed: dashboardData.stats.messagesSent > 0 }
+              { title: "First Campaign", completed: (dashboardData.campaigns?.campaigns?.length || 0) > 0 }
             ].map((step, index) => (
               <div key={index} className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center shadow-inner ${

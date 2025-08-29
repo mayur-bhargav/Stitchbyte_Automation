@@ -13,9 +13,15 @@ interface ShopifyStatus {
 
 interface ShopifyIntegrationProps {
   onStatusChange?: (connected: boolean) => void;
+  onDisconnectRequest?: () => void;
+  onSuccessMessage?: (message: string) => void;
 }
 
-const ShopifyIntegration: React.FC<ShopifyIntegrationProps> = ({ onStatusChange }) => {
+const ShopifyIntegration: React.FC<ShopifyIntegrationProps> = ({
+  onStatusChange,
+  onDisconnectRequest,
+  onSuccessMessage
+}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [shopDomain, setShopDomain] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,20 +84,33 @@ const ShopifyIntegration: React.FC<ShopifyIntegrationProps> = ({ onStatusChange 
   };
 
   const disconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect your Shopify store? This will stop all order notifications.')) {
-      return;
+    // Use callback to request disconnect confirmation from parent
+    if (onDisconnectRequest) {
+      onDisconnectRequest();
+    } else {
+      // Fallback to confirm if no callback provided
+      if (!confirm('Are you sure you want to disconnect your Shopify store? This will stop all order notifications.')) {
+        return;
+      }
+      await performDisconnect();
     }
+  };
 
+  const performDisconnect = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       await apiService.delete('/connectors/shopify/disconnect');
       setIsConnected(false);
       setStatus(null);
       setShopDomain('');
       onStatusChange?.(false);
-      alert('Shopify integration disconnected successfully');
+      if (onSuccessMessage) {
+        onSuccessMessage('Shopify integration disconnected successfully');
+      } else {
+        alert('Shopify integration disconnected successfully');
+      }
     } catch (error: any) {
       console.error('Disconnect failed:', error);
       setError('Failed to disconnect. Please try again.');
@@ -103,10 +122,14 @@ const ShopifyIntegration: React.FC<ShopifyIntegrationProps> = ({ onStatusChange 
   const testConnection = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await apiService.post('/connectors/shopify/test');
-      alert('Connection test successful! Check the console for webhook details.');
+      if (onSuccessMessage) {
+        onSuccessMessage('Connection test successful! Check the console for webhook details.');
+      } else {
+        alert('Connection test successful! Check the console for webhook details.');
+      }
       console.log('Shopify test response:', response);
     } catch (error: any) {
       console.error('Test failed:', error);
