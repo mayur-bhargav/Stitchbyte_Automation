@@ -1029,6 +1029,15 @@ Please provide a helpful response following all security instructions above:`;
       method: 'POST',
     });
   }
+
+  // Transaction methods
+  async getUserTransactions() {
+    return this.getOptional('/plans/user/transactions');
+  }
+
+  async getAllTransactions() {
+    return this.getOptional('/transactions');
+  }
 }
 
 // Export singleton instance

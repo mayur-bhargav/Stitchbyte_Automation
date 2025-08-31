@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
+import { useThemeWatcher, getThemeColors } from '../hooks/useThemeToggle';
 import ProtectedRoute from '../components/ProtectedRoute';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -493,9 +494,12 @@ const integrations: Integration[] = [
 
 export default function IntegrationsPage() {
   const { user } = useUser();
+  const { darkMode } = useThemeWatcher();
+  const colors = getThemeColors(darkMode);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
+  const [showSearchBar, setShowSearchBar] = useState<boolean>(false);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shopifyConnected, setShopifyConnected] = useState(false);
@@ -509,6 +513,27 @@ export default function IntegrationsPage() {
   const { toast, showInfo, hideToast } = useToast();
 
   const categories = ['all', 'E-commerce', 'CRM', 'Productivity', 'Development', 'Analytics', 'Marketing', 'Finance', 'Support', 'Social'];
+
+  // Handle search icon click
+  const handleSearchIconClick = () => {
+    setShowSearchBar(true);
+    setIsSearchActive(true);
+  };
+
+  // Handle search close
+  const handleSearchClose = () => {
+    setShowSearchBar(false);
+    setIsSearchActive(false);
+    setSearchTerm('');
+    setSelectedCategory('all');
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setIsSearchActive(value.length > 0);
+  };
 
   // Check Shopify and WooCommerce status on page load
   useEffect(() => {
@@ -566,8 +591,10 @@ export default function IntegrationsPage() {
 
   const filteredIntegrations = integrationsList.filter(integration => {
     const matchesCategory = selectedCategory === 'all' || integration.category === selectedCategory;
-    const matchesSearch = integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         integration.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = !isSearchActive || 
+                         integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         integration.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         integration.category.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -694,250 +721,465 @@ export default function IntegrationsPage() {
   return (
     <ProtectedRoute>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="border border-gray-200 p-8 rounded-lg bg-white">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-[#2A8B8A] rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
-              <p className="text-gray-600">Connect StitchByte with your favorite tools and platforms</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        {/* Combined Header and Filter Container */}
+        <div className="rounded-xl border overflow-hidden" 
+             style={{ 
+               backgroundColor: colors.background,
+               borderColor: colors.border
+             }}>
+          
+          {/* Header Section */}
+          <div className="p-8 border-b" 
+               style={{ borderColor: colors.border }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-[#2A8B8A] to-[#1e6b6b] rounded-xl flex items-center justify-center shadow-lg">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search integrations..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setIsSearchActive(e.target.value.length > 0);
-                  }}
-                  onFocus={() => setIsSearchActive(searchTerm.length > 0)}
-                  onBlur={() => setIsSearchActive(searchTerm.length > 0)}
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setIsSearchActive(false);
-                      setSelectedCategory('all');
-                    }}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-[#2A8B8A] to-[#1e6b6b] bg-clip-text text-transparent">
+                    Integrations Marketplace
+                  </h1>
+                  <p className="text-lg mt-1" style={{ color: colors.textMuted }}>
+                    Connect StitchByte with your favorite tools and platforms
+                  </p>
+                </div>
+              </div>
+              
+              {/* Stats Badge */}
+              <div className="hidden md:flex items-center gap-4">
+                <div className="text-center px-4 py-2 rounded-lg" 
+                     style={{ backgroundColor: colors.backgroundSecondary }}>
+                  <div className="text-2xl font-bold" style={{ color: colors.text }}>
+                    {integrationsList.length}
+                  </div>
+                  <div className="text-xs font-medium" style={{ color: colors.textMuted }}>
+                    Available
+                  </div>
+                </div>
+                <div className="text-center px-4 py-2 rounded-lg" 
+                     style={{ backgroundColor: colors.backgroundSecondary }}>
+                  <div className="text-2xl font-bold text-green-500">
+                    {integrationsList.filter(i => i.status === 'connected').length}
+                  </div>
+                  <div className="text-xs font-medium" style={{ color: colors.textMuted }}>
+                    Connected
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter/Search Section */}
+          <div className="p-6" 
+               style={{ backgroundColor: colors.backgroundSecondary }}>
+            
+            {/* Show search bar when active, otherwise show filters with search icon */}
+            {showSearchBar ? (
+              /* Search Bar */
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5" style={{ color: colors.textMuted }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                  </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search integrations..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    autoFocus
+                    className="block w-full pl-12 pr-4 py-4 border-2 rounded-xl focus:outline-none focus:ring-0 focus:border-[#2A8B8A] text-base font-medium transition-colors"
+                    style={{
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.text
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleSearchClose}
+                  className="px-6 py-4 rounded-xl border-2 transition-all text-sm font-semibold hover:scale-105"
+                  style={{
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    color: colors.textSecondary
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.hover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.background;
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              /* Filters with Search Icon */
+              <div className="space-y-4">
+                <div className="flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
+                  {/* Category Filters */}
+                  <div className="flex-1">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-sm font-semibold py-3 pr-3" style={{ color: colors.text }}>
+                        Categories:
+                      </span>
+                      {categories.map((category) => (
+                        <button
+                          key={category}
+                          onClick={() => setSelectedCategory(category)}
+                          className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-105"
+                          style={{
+                            backgroundColor: selectedCategory === category ? '#2A8B8A' : colors.background,
+                            color: selectedCategory === category ? '#ffffff' : colors.textSecondary,
+                            border: `2px solid ${selectedCategory === category ? '#2A8B8A' : colors.border}`
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedCategory !== category) {
+                              e.currentTarget.style.backgroundColor = colors.hover;
+                              e.currentTarget.style.borderColor = '#2A8B8A';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedCategory !== category) {
+                              e.currentTarget.style.backgroundColor = colors.background;
+                              e.currentTarget.style.borderColor = colors.border;
+                            }
+                          }}
+                        >
+                          {category === 'all' ? 'All Categories' : category}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Search Icon Button */}
+                  <div className="flex-shrink-0">
+                    <button
+                      onClick={handleSearchIconClick}
+                      className="p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 group"
+                      style={{
+                        backgroundColor: colors.background,
+                        borderColor: colors.border
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.hover;
+                        e.currentTarget.style.borderColor = '#2A8B8A';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.background;
+                        e.currentTarget.style.borderColor = colors.border;
+                      }}
+                      title="Search integrations"
+                    >
+                      <svg 
+                        className="h-6 w-6 transition-colors group-hover:scale-110" 
+                        style={{ color: colors.textMuted }}
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Filter Summary */}
+                {selectedCategory !== 'all' && (
+                  <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: colors.border }}>
+                    <span className="text-sm font-medium" style={{ color: colors.textMuted }}>
+                      Showing {filteredIntegrations.length} {selectedCategory} integration{filteredIntegrations.length !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className="text-xs px-2 py-1 rounded-md hover:scale-105 transition-all"
+                      style={{
+                        backgroundColor: colors.hover,
+                        color: colors.textSecondary
+                      }}
+                    >
+                      Clear filter
+                    </button>
+                  </div>
                 )}
               </div>
-              {isSearchActive && (
-                <p className="text-xs text-gray-500 mt-1">Searching... Category filters are hidden</p>
-              )}
-            </div>
-
-            {/* Category Filter */}
-            <div className={`flex flex-wrap gap-2 transition-all duration-300 ease-in-out md:items-center ${
-              isSearchActive ? 'opacity-0 max-h-0 overflow-hidden' : 'opacity-100 max-h-20 overflow-visible'
-            }`}>
-              {!isSearchActive && (
-                <div className="w-full md:w-auto mb-2 md:mb-0">
-                  <span className="text-sm font-medium text-gray-700 mr-2">Filter by:</span>
+            )}
+            
+            {/* Search Results Info */}
+            {isSearchActive && searchTerm && (
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: colors.border }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium" style={{ color: colors.text }}>
+                    <span className="text-[#2A8B8A] font-bold">{filteredIntegrations.length}</span> integration{filteredIntegrations.length !== 1 ? 's' : ''} found for 
+                    <span className="font-bold"> "{searchTerm}"</span>
+                  </p>
+                  {filteredIntegrations.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full bg-[#2A8B8A] text-white font-medium">
+                      {Math.round((filteredIntegrations.length / integrationsList.length) * 100)}% match
+                    </span>
+                  )}
                 </div>
-              )}
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedCategory === category
-                      ? 'bg-[#2A8B8A] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {category === 'all' ? 'All Categories' : category}
-                </button>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Integrations Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredIntegrations.map((integration) => (
-            <div
-              key={integration.id}
-              className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200"
-            >
-              {/* Integration Image */}
-              <div className="flex items-center justify-center mb-4">
-                <div className={`w-16 h-16 ${integration.color} rounded-lg flex items-center justify-center relative`}>
-                  <span className="text-white font-bold text-xl">
-                    {integration.name.charAt(0)}
-                  </span>
-                  {/* Connected indicator */}
-                  {integration.status === 'connected' && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Integration Name */}
-              <h3 className="text-xl font-semibold text-gray-900 text-center mb-2">
-                {integration.name}
-              </h3>
-
-              {/* Integration Description */}
-              <p className="text-gray-600 text-sm text-center mb-4 line-clamp-3">
-                {integration.description}
-              </p>
-
-              {/* Connected Details for Shopify */}
-              {integration.id === 'shopify' && integration.status === 'connected' && shopifyDetails && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-green-700 space-y-1">
-                    {shopifyDetails.shop_domain && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="font-medium">{shopifyDetails.shop_domain}</span>
-                      </div>
-                    )}
-                    {shopifyDetails.connected_at && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Connected {new Date(shopifyDetails.connected_at).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Connected Details for WooCommerce */}
-              {integration.id === 'woocommerce' && integration.status === 'connected' && wooCommerceDetails && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-green-700 space-y-1">
-                    {wooCommerceDetails.store_url && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
-                        </svg>
-                        <span className="font-medium">{wooCommerceDetails.store_url}</span>
-                      </div>
-                    )}
-                    {wooCommerceDetails.connected_at && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Connected {new Date(wooCommerceDetails.connected_at).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                    {wooCommerceDetails.webhook_id && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        <span>Webhook ID: {wooCommerceDetails.webhook_id}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Category Badge */}
-              <div className="flex justify-center mb-4">
-                <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                  {integration.category}
-                </span>
-              </div>
-
-              {/* Action Button */}
-              <div className="flex justify-center gap-2">
-                {(integration.status === 'available' || integration.status === 'coming-soon') && (
-                  <button
-                    onClick={() => handleConnect(integration)}
-                    className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                      integration.status === 'available'
-                        ? 'bg-[#2A8B8A] text-white hover:bg-[#238080]'
-                        : 'bg-gray-400 text-white cursor-not-allowed'
-                    }`}
-                    disabled={integration.status !== 'available'}
+        <div className="rounded-xl border overflow-hidden" 
+             style={{ 
+               backgroundColor: colors.background,
+               borderColor: colors.border
+             }}>
+          
+          {filteredIntegrations.length > 0 ? (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredIntegrations.map((integration) => (
+                  <div
+                    key={integration.id}
+                    className="group p-6 rounded-xl border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer relative overflow-hidden"
+                    style={{
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#2A8B8A';
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(42, 139, 138, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = colors.border;
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   >
-                    {integration.status === 'available' ? 'Connect' : 'Coming Soon'}
-                  </button>
-                )}
-                {integration.status === 'connected' && (
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                      Connected
-                    </span>
-                    {integration.id === 'shopify' && (
-                      <button
-                        onClick={() => handleDisconnect(integration)}
-                        className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs font-medium"
-                      >
-                        Disconnect
-                      </button>
+                    {/* Status indicator overlay */}
+                    {integration.status === 'connected' && (
+                      <div className="absolute top-0 right-0 w-0 h-0 border-l-[30px] border-l-transparent border-t-[30px] border-t-green-500">
+                        <div className="absolute -top-7 -right-1 text-white text-xs font-bold transform rotate-45">
+                          ✓
+                        </div>
+                      </div>
                     )}
-                    {integration.id === 'woocommerce' && (
-                      <button
-                        onClick={() => handleDisconnect(integration)}
-                        className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs font-medium"
-                      >
-                        Disconnect
-                      </button>
+
+                    {/* Integration Image */}
+                    <div className="flex items-center justify-center mb-6">
+                      <div className={`w-16 h-16 ${integration.color} rounded-xl flex items-center justify-center relative shadow-lg border-2`}
+                           style={{ borderColor: colors.border }}>
+                        <span className="text-white font-bold text-xl">
+                          {integration.name.charAt(0)}
+                        </span>
+                        {/* Connected indicator */}
+                        {integration.status === 'connected' && (
+                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Integration Name */}
+                    <h3 className="text-xl font-bold text-center mb-3 group-hover:text-[#2A8B8A] transition-colors" 
+                        style={{ color: colors.text }}>
+                      {integration.name}
+                    </h3>
+
+                    {/* Integration Description */}
+                    <p className="text-sm text-center mb-6 line-clamp-3 leading-relaxed" 
+                       style={{ color: colors.textMuted }}>
+                      {integration.description}
+                    </p>
+
+                    {/* Connected Details for Shopify */}
+                    {integration.id === 'shopify' && integration.status === 'connected' && shopifyDetails && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm">
+                        <div className="text-xs text-green-700 space-y-2">
+                          {shopifyDetails.shop_domain && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="font-medium">{shopifyDetails.shop_domain}</span>
+                            </div>
+                          )}
+                          {shopifyDetails.connected_at && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Connected {new Date(shopifyDetails.connected_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
+
+                    {/* Connected Details for WooCommerce */}
+                    {integration.id === 'woocommerce' && integration.status === 'connected' && wooCommerceDetails && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm">
+                        <div className="text-xs text-green-700 space-y-2">
+                          {wooCommerceDetails.store_url && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
+                              </svg>
+                              <span className="font-medium">{wooCommerceDetails.store_url}</span>
+                            </div>
+                          )}
+                          {wooCommerceDetails.connected_at && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Connected {new Date(wooCommerceDetails.connected_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                          {wooCommerceDetails.webhook_id && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                              <span>Webhook ID: {wooCommerceDetails.webhook_id}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Category Badge and Action Button */}
+                    <div className="flex items-center justify-between pt-4 border-t" 
+                         style={{ borderColor: colors.border }}>
+                      <span className="px-3 py-2 text-xs rounded-lg font-medium"
+                            style={{
+                              backgroundColor: colors.hover,
+                              color: colors.textSecondary
+                            }}>
+                        {integration.category}
+                      </span>
+
+                      {/* Action Button */}
+                      <div className="flex flex-col items-center gap-2">
+                        {(integration.status === 'available' || integration.status === 'coming-soon') && (
+                          <button
+                            onClick={() => handleConnect(integration)}
+                            className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-bold hover:scale-105 shadow-sm border-2 ${
+                              integration.status === 'available'
+                                ? 'bg-[#2A8B8A] text-white border-[#2A8B8A] hover:bg-[#238080]'
+                                : 'bg-gray-400 text-white border-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={integration.status !== 'available'}
+                          >
+                            {integration.status === 'available' ? 'Connect' : 'Coming Soon'}
+                          </button>
+                        )}
+                        {integration.status === 'connected' && (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-bold border-2 border-green-200 shadow-sm">
+                              Connected
+                            </span>
+                            {(integration.id === 'shopify' || integration.id === 'woocommerce') && (
+                              <button
+                                onClick={() => handleDisconnect(integration)}
+                                className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs font-medium hover:scale-105 shadow-sm"
+                              >
+                                Disconnect
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
-          ))}
+          ) : (
+            /* No Results */
+            <div className="text-center py-20 px-6">
+              <div className="mx-auto w-32 h-32 mb-8 rounded-2xl flex items-center justify-center shadow-lg"
+                   style={{ backgroundColor: colors.backgroundSecondary }}>
+                <svg className="w-16 h-16" style={{ color: colors.textMuted }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold mb-4" style={{ color: colors.text }}>
+                {isSearchActive && searchTerm 
+                  ? `No integrations found` 
+                  : `No ${selectedCategory} integrations available`
+                }
+              </h3>
+              <p className="text-lg mb-8 max-w-md mx-auto leading-relaxed" style={{ color: colors.textMuted }}>
+                {isSearchActive && searchTerm 
+                  ? `We couldn't find any integrations matching "${searchTerm}". Try different keywords or browse our categories.` 
+                  : 'Explore other categories or search for specific integrations to find what you need.'
+                }
+              </p>
+              {(isSearchActive || selectedCategory !== 'all') && (
+                <div className="flex gap-4 justify-center">
+                  {isSearchActive && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setShowSearchBar(false);
+                      }}
+                      className="px-8 py-4 rounded-xl border-2 transition-all font-bold hover:scale-105 shadow-sm"
+                      style={{
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        color: colors.textSecondary
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.hover;
+                        e.currentTarget.style.borderColor = '#2A8B8A';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.background;
+                        e.currentTarget.style.borderColor = colors.border;
+                      }}
+                    >
+                      Clear search
+                    </button>
+                  )}
+                  {selectedCategory !== 'all' && (
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#2A8B8A] to-[#1e6b6b] text-white transition-all font-bold hover:scale-105 shadow-lg hover:shadow-xl"
+                    >
+                      View all categories
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* No Results */}
-        {filteredIntegrations.length === 0 && (
-          <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
-            <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No integrations found</h3>
-            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-          </div>
-        )}
-
         {/* Footer Note */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="rounded-lg p-4 border"
+             style={{
+               backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.1)' : '#dbeafe',
+               borderColor: darkMode ? 'rgba(59, 130, 246, 0.2)' : '#bfdbfe'
+             }}>
           <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mt-0.5" 
+                 style={{ color: darkMode ? '#60a5fa' : '#3b82f6' }} 
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <h4 className="text-sm font-medium text-blue-900 mb-1">Need a custom integration?</h4>
-              <p className="text-sm text-blue-700">
+              <h4 className="text-sm font-medium mb-1" 
+                  style={{ color: darkMode ? '#93c5fd' : '#1e40af' }}>
+                Need a custom integration?
+              </h4>
+              <p className="text-sm" 
+                 style={{ color: darkMode ? '#60a5fa' : '#1d4ed8' }}>
                 Contact our support team or use our REST API and webhooks to build custom integrations for your specific needs.
               </p>
             </div>

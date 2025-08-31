@@ -52,8 +52,8 @@ const AiSupportChat: React.FC<AiSupportChatProps> = ({ onClose }) => {
 
         const systemPrompt = "You are 'Stitch,' a friendly and highly capable AI support agent for Stitchbyte. Your tone is empathetic, professional, and slightly enthusiastic. You are an expert on the Stitchbyte platform. Keep your answers concise and helpful. If a user asks about something you don't know, politely state that it's outside your expertise but you're happy to help with any Stitchbyte-related questions.";
         const userQuery = input;
-        const apiKey = ""; // The environment will provide the key
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const apiKey = "AIzaSyAQYZH3OOGzJ0TrIjTlIV_6aKvZRYYAvjQ"; // Replace with your actual key or environment variable
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
         try {
             const response = await fetch(apiUrl, {
@@ -89,7 +89,8 @@ const AiSupportChat: React.FC<AiSupportChatProps> = ({ onClose }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="absolute bottom-20 right-0 w-[24rem] h-[28rem] flex flex-col bg-white/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl"
+            // --- CHANGE: Reduced height from h-[28rem] to h-[26rem] ---
+            className="absolute bottom-20 right-0 w-[24rem] h-[26rem] flex flex-col bg-white/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl"
         >
             <div className="flex-shrink-0 p-4 border-b border-white/30 flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -154,6 +155,8 @@ const AiSupportChat: React.FC<AiSupportChatProps> = ({ onClose }) => {
 
 // --- Main QuickActions Component (TSX) ---
 
+// --- Main QuickActions Component (TSX) ---
+
 export default function QuickActions() {
   const router = useRouter();
   const { isAuthenticated } = useUser();
@@ -191,13 +194,15 @@ export default function QuickActions() {
     open: { y: 0, opacity: 1 },
   };
 
-const handleActionClick = async (action: QuickAction) => {
+  const handleActionClick = (action: QuickAction) => {
     if (action.route) {
-        await router.push(action.route); // Navigate to the specified route
+        router.push(action.route);
     } else if (action.onClick) {
-        action.onClick(); // Execute the custom onClick handler
+        action.onClick();
     }
-};  const handleButtonClick = () => {
+  };
+  
+  const handleButtonClick = () => {
       if(showSupport) {
           setShowSupport(false);
       } else {
@@ -206,7 +211,7 @@ const handleActionClick = async (action: QuickAction) => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 z-50">
         <AnimatePresence>
           {isExpanded && (
             <motion.div
@@ -215,17 +220,18 @@ const handleActionClick = async (action: QuickAction) => {
               animate="open"
               exit="closed"
               variants={containerVariants}
-              className="absolute bottom-20 right-0 w-[17rem] p-2 bg-white/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl"
+              className="absolute bottom-20 right-0 w-[17rem] p-1.5 bg-white/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-2xl"
             >
-              <h3 className="font-bold text-gray-800 text-base mb-2 px-1">Quick Actions</h3>
+              <h3 className="font-bold text-gray-800 text-base mb-2 px-1.5">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-0.5">
                 {quickActions.map((action) => (
                   <motion.div key={action.title} variants={itemVariants}>
                     <button
                       onClick={() => handleActionClick(action)}
-                      className="flex flex-col items-center justify-center gap-1 w-full aspect-square rounded-xl transition-all duration-200 hover:bg-white/60"
+                      // --- CHANGE: Removed 'aspect-square' and added 'py-3' for less vertical space ---
+                      className="flex flex-col items-center justify-center gap-1 w-full py-3 rounded-xl transition-all duration-200 hover:bg-white/60"
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br ${action.color} shadow-lg`}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br ${action.color} shadow-lg`}>
                         {cloneElement(action.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5 text-white' })}
                       </div>
                       <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{action.title}</span>

@@ -134,7 +134,7 @@ export const BalanceProvider: React.FC<BalanceProviderProps> = ({ children }) =>
   };
 
   const addBalance = async (amount: number, description: string = "Balance added"): Promise<boolean> => {
-    const userId = user?.user_id || user?.id;
+    const userId = (user as any)?.user_id || (user as any)?.id;
     if (!userId) {
       console.warn('No user ID available for adding balance');
       return false;
@@ -163,16 +163,23 @@ export const BalanceProvider: React.FC<BalanceProviderProps> = ({ children }) =>
   };
 
   const loadTransactions = async () => {
-    const userId = user?.id;
-    if (!userId) {
-      console.warn('No user ID available for loading transactions');
+    // Check if user is logged in - we still need this for basic validation
+    if (!user) {
+      console.warn('No user available for loading transactions');
       return;
     }
 
     try {
-      const response = await apiService.getOptional(`/user/transactions/${userId}`);
+      // Use the new endpoint that doesn't require user ID in URL
+      // The JWT token will identify the user on the backend
+      const response = await apiService.getOptional('/plans/user/transactions');
+      console.log('📊 Transactions API response:', response);
+      
       if (response?.success && response.data) {
         setTransactions(response.data || []);
+      } else if (response && Array.isArray(response)) {
+        // Handle direct array response
+        setTransactions(response);
       } else {
         setTransactions([]);
       }
@@ -183,20 +190,19 @@ export const BalanceProvider: React.FC<BalanceProviderProps> = ({ children }) =>
       } else if (error.message?.includes('Failed to get subscription')) {
         message = 'No subscription found. Please select a plan.';
       }
-      alert(message);
       console.error("Error loading transactions:", error);
       setTransactions([]);
+      // Removed alert to avoid annoying users, just log the error
     }
   };
 
   useEffect(() => {
     // Only fetch balance and transactions when user is available
-    const userId = (user as any)?.user_id || (user as any)?.id;
-    if (userId) {
+    if (user) {
       refreshBalance();
       loadTransactions();
     }
-  }, [ (user as any)?.user_id, (user as any)?.id ]); // Re-run when user changes
+  }, [user]); // Re-run when user changes
 
   const value: BalanceContextType = {
     balance,
