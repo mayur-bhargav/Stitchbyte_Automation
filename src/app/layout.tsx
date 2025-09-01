@@ -4,6 +4,7 @@ import "./globals.css";
 import ClientLayout from "./components/ClientLayout";
 import QuickActions from "./components/QuickActions";
 import { UserProvider } from "./contexts/UserContext";
+import { ChatProvider } from "./contexts/ChatContext";
 import SubscriptionGuard from "./components/SubscriptionGuard";
 
 const geistSans = Geist({
@@ -62,12 +63,14 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <UserProvider>
-          <SubscriptionGuard>
-            <ClientLayout>
-              {children}
-              <QuickActions />
-            </ClientLayout>
-          </SubscriptionGuard>
+          <ChatProvider>
+            <SubscriptionGuard>
+              <ClientLayout>
+                {children}
+                <QuickActions />
+              </ClientLayout>
+            </SubscriptionGuard>
+          </ChatProvider>
         </UserProvider>
       </body>
     </html>

@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useChatContext } from "../contexts/ChatContext";
+import { useRealTimeChat } from "../hooks/useRealTimeChat";
 
 type Contact = {
   phone: string;
@@ -18,12 +20,23 @@ export default function ChatContacts() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const { unreadCounts, initializeCounts } = useChatContext();
+
+  // Use real-time chat hook for live updates
+  useRealTimeChat({
+    pollingInterval: 5000, // Check every 5 seconds
+    onNewMessage: (message) => {
+      console.log('New message received:', message);
+      // The hook automatically updates unread counts via ChatContext
+    }
+  });
 
   useEffect(() => {
     fetchContacts();
     
-    // Auto-refresh contacts every 10 seconds
-    const interval = setInterval(fetchContacts, 10000);
+    // Reduced polling interval since we're mainly fetching contact metadata now
+    // Real-time messages are handled by useRealTimeChat hook
+    const interval = setInterval(fetchContacts, 30000); // Every 30 seconds instead of 10
     return () => clearInterval(interval);
   }, []);
 
@@ -42,33 +55,42 @@ export default function ChatContacts() {
           if (existingIndex >= 0) {
             // Merge with existing contact - keep the one with more recent message
             const existing = acc[existingIndex];
-            const currentTime = new Date(current.last_message_time);
-            const existingTime = new Date(existing.last_message_time);
+            const currentTime = current.last_message_time ? new Date(current.last_message_time) : new Date(0);
+            const existingTime = existing.last_message_time ? new Date(existing.last_message_time) : new Date(0);
             
             if (currentTime > existingTime) {
               acc[existingIndex] = {
                 ...existing,
                 ...current,
-                // Merge unread counts
-                unread_count: Math.max(existing.unread_count || 0, current.unread_count || 0),
+                // Don't use backend unread count anymore - it's managed by ChatContext
+                unread_count: 0,
                 // Prefer non-empty name
                 name: current.name || existing.name
               };
             } else {
-              // Keep existing but update unread count
-              acc[existingIndex].unread_count = Math.max(
-                existing.unread_count || 0, 
-                current.unread_count || 0
-              );
+              // Keep existing but reset unread count
+              acc[existingIndex].unread_count = 0;
             }
           } else {
-            acc.push(current);
+            // Reset unread count for new contacts - managed by ChatContext
+            acc.push({
+              ...current,
+              unread_count: 0
+            });
           }
           
           return acc;
         }, []);
       
       setContacts(validContacts);
+      
+      // Initialize chat context with the contacts (one-time sync for any existing unread counts)
+      if (validContacts.length > 0) {
+        const contactsForInit = data.contacts?.filter((c: Contact) => c.phone && c.unread_count && c.unread_count > 0) || [];
+        if (contactsForInit.length > 0) {
+          initializeCounts(contactsForInit);
+        }
+      }
     } catch (error) {
       console.error('Error fetching contacts:', error);
       setContacts([]); // Set empty array on error
@@ -245,9 +267,9 @@ export default function ChatContacts() {
                         {contact.last_message || 'Click to start messaging'}
                       </p>
                     </div>
-                    {(contact.unread_count || 0) > 0 && (
+                    {(unreadCounts[contact.phone] || 0) > 0 && (
                       <span className="bg-[#00A884] text-white text-xs font-medium px-2 py-0.5 rounded-full min-w-[18px] text-center ml-2 flex-shrink-0">
-                        {contact.unread_count > 99 ? '99+' : contact.unread_count}
+                        {(unreadCounts[contact.phone] || 0) > 99 ? '99+' : unreadCounts[contact.phone]}
                       </span>
                     )}
                   </div>

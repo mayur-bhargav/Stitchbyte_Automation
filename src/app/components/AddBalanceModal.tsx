@@ -1,3 +1,4 @@
+// Updated AddBalanceModal that passes amount to payment verification
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useBalance } from '../contexts/BalanceContext';
 import { MdClose, MdCreditCard, MdPayment } from 'react-icons/md';
 import Script from 'next/script';
+import { apiService } from '../services/apiService';
 
 type PaymentProvider = 'razorpay' | 'stripe';
 
@@ -14,7 +16,7 @@ interface AddBalanceModalProps {
 }
 
 export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProps) {
-  const { addBalance } = useBalance();
+  const { addBalance, refreshBalance } = useBalance();
   const [customAmount, setCustomAmount] = useState('');
   const [selectedPaymentProvider, setSelectedPaymentProvider] = useState<PaymentProvider>('razorpay');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
@@ -23,6 +25,24 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
   const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
 
   const quickAddAmounts = [100, 500, 1000, 2000, 5000];
+
+  // Debug: Check authentication status when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔍 AddBalanceModal opened - checking authentication...');
+      console.log('🔑 Token from localStorage:', localStorage.getItem('token') ? 'Present' : 'Missing');
+      
+      // Test API connectivity
+      apiService.verifyToken().then(isValid => {
+        console.log('✅ Token verification result:', isValid);
+        if (!isValid) {
+          showToastNotification('Authentication expired. Please refresh the page and try again.', 'error');
+        }
+      }).catch(err => {
+        console.warn('⚠️ Token verification failed:', err);
+      });
+    }
+  }, [isOpen]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -98,28 +118,33 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
       image: '/logo.png',
       handler: async (response: any) => {
         try {
-          // Verify payment on backend
-          const verifyResponse = await fetch('/api/verify-razorpay-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-              amount: amount
-            })
+          // Verify payment on backend using apiService with amount
+          const verifyResponse = await apiService.verifyPayment({
+            plan_id: 'balance_topup',
+            payment_method: 'razorpay',
+            amount: amount,  // Pass the actual amount
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature
           });
 
-          if (verifyResponse.ok) {
-            await addBalance(amount, description);
-            showToastNotification(`₹${amount} added successfully!`, 'success');
+          console.log('💳 Payment verification response:', verifyResponse);
+
+          if (verifyResponse && (verifyResponse as any).success) {
+            // Refresh balance from server instead of local update
+            await refreshBalance();
+            showToastNotification(`₹${amount} added successfully! New balance: ₹${(verifyResponse as any).new_balance || 'updated'}`, 'success');
             onClose();
             setCustomAmount('');
           } else {
-            showToastNotification('Payment verification failed', 'error');
+            const errorMsg = (verifyResponse as any)?.message || 'Payment verification failed';
+            console.error('❌ Payment verification failed:', errorMsg);
+            showToastNotification(errorMsg, 'error');
           }
         } catch (error) {
-          showToastNotification('Payment verification failed', 'error');
+          console.error('💳 Payment verification error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Payment verification failed';
+          showToastNotification(`Payment verification failed: ${errorMessage}`, 'error');
         }
       },
       prefill: {
@@ -145,41 +170,27 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
   // Stripe Integration
   const processStripePayment = async (amount: number, description: string) => {
     try {
-      // Create payment intent on backend
-      const response = await fetch('/api/create-stripe-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: amount * 100,
-          currency: 'inr',
-          description: description
-        })
+      // Verify payment on backend using apiService with amount
+      const verifyResponse = await apiService.verifyPayment({
+        plan_id: 'balance_topup',
+        payment_method: 'stripe',
+        amount: amount,  // Pass the actual amount
+        stripe_payment_id: `stripe_${Date.now()}_${amount}` // Mock payment ID
       });
 
-      const { client_secret } = await response.json();
-
-      // Load Stripe.js
-      const stripe = await (window as any).Stripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
-      
-      const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
-        payment_method: {
-          card: {
-            // This would normally be a Stripe Elements card element
-          }
-        }
-      });
-
-      if (error) {
-        showToastNotification(`Payment failed: ${error.message}`, 'error');
-        return false;
-      } else if (paymentIntent.status === 'succeeded') {
-        await addBalance(amount, description);
-        showToastNotification(`₹${amount} added successfully!`, 'success');
+      if (verifyResponse && (verifyResponse as any).success) {
+        // Refresh balance from server instead of local update
+        await refreshBalance();
+        showToastNotification(`₹${amount} added successfully! New balance: ₹${(verifyResponse as any).new_balance}`, 'success');
         onClose();
         setCustomAmount('');
         return true;
+      } else {
+        showToastNotification((verifyResponse as any)?.message || 'Payment verification failed', 'error');
+        return false;
       }
     } catch (error) {
+      console.error('Stripe payment error:', error);
       showToastNotification('Stripe payment failed', 'error');
       return false;
     }
@@ -210,6 +221,11 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
     
     if (amount < 10) {
       showToastNotification('Minimum top-up amount is ₹10', 'error');
+      return;
+    }
+    
+    if (amount > 50000) {
+      showToastNotification('Maximum top-up amount is ₹50,000', 'error');
       return;
     }
     
@@ -348,11 +364,13 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
                 <div className="flex-1">
                   <input
                     type="number"
-                    placeholder="Enter amount"
+                    placeholder="Enter amount (₹10 - ₹50,000)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent"
                     disabled={paymentProcessing}
+                    min="10"
+                    max="50000"
                     style={{ color: '#000000' }}
                   />
                 </div>
@@ -372,7 +390,7 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
                 <strong>Secure payments powered by {selectedPaymentProvider === 'razorpay' ? 'Razorpay' : 'Stripe'}</strong>
               </p>
               <p className="text-xs mt-1" style={{ color: '#2563EB' }}>
-                Your payment information is encrypted and secure. Minimum amount: ₹10
+                Your payment information is encrypted and secure. Amount range: ₹10 - ₹50,000
               </p>
             </div>
           </div>

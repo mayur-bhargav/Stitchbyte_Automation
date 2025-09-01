@@ -573,7 +573,7 @@ function TemplatesPage() {
 
   // --- UI ---
   return (
-    <section className="min-h-screen" style={{ fontFamily: FONT_FAMILY, backgroundColor: '#F0F6FF' }}>
+    <section className="min-h-screen" style={{ fontFamily: FONT_FAMILY }}>
       <button
         className="fixed bottom-8 right-8 z-40 md:hidden bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white rounded-full shadow-xl p-4 transition-all duration-200"
         onClick={() => router.push("/templates/create")}

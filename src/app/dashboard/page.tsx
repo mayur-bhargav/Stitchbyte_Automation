@@ -257,7 +257,31 @@ export default function Dashboard() {
 
   const getUnreadChatsCount = (chatContacts: any) => {
     if (!chatContacts?.contacts) return 0;
-    return chatContacts.contacts.filter((contact: any) => contact.unreadCount > 0).length;
+    
+    const uniqueContacts = deduplicateContacts(chatContacts.contacts);
+    return uniqueContacts.filter((contact: any) => contact.unreadCount > 0).length;
+  };
+
+  // Helper function to deduplicate contacts by phone number
+  const deduplicateContacts = (contacts: any[]) => {
+    return contacts.reduce((acc: any[], contact: any) => {
+      const existingIndex = acc.findIndex(c => c.phone === contact.phone);
+      if (existingIndex >= 0) {
+        // Keep the contact with more recent message or higher unread count
+        const existing = acc[existingIndex];
+        const currentTime = contact.last_message_time ? new Date(contact.last_message_time) : new Date(0);
+        const existingTime = existing.last_message_time ? new Date(existing.last_message_time) : new Date(0);
+        const currentUnread = contact.unreadCount || 0;
+        const existingUnread = existing.unreadCount || 0;
+        
+        if (currentTime > existingTime || (currentTime.getTime() === existingTime.getTime() && currentUnread > existingUnread)) {
+          acc[existingIndex] = contact;
+        }
+      } else {
+        acc.push(contact);
+      }
+      return acc;
+    }, []);
   };
 
   // ============================================================================
@@ -383,7 +407,7 @@ export default function Dashboard() {
           activeCampaigns: campaignsData?.campaigns?.filter((c: any) => c.status === 'active').length || 0,
           totalCampaigns: campaignsData?.campaigns?.length || 0,
           broadcasts: broadcastsData?.broadcasts?.length || 0,
-          chatConversations: chatContactsData?.contacts?.length || 0,
+          chatConversations: chatContactsData?.contacts ? deduplicateContacts(chatContactsData.contacts).length : 0,
           unreadChats: getUnreadChatsCount(chatContactsData),
           successfulMessages: messageUsageData?.successful_messages || 0,
           failedMessages: messageUsageData?.failed_messages || 0,
@@ -843,30 +867,30 @@ export default function Dashboard() {
               >
                 {(dashboardData.chatContacts as any)?.contacts?.length > 0 ? (
                   <ul className="divide-y divide-slate-100">
-                    {(dashboardData.chatContacts as any).contacts.slice(0, 5).map((contact: any, index: number) => (
-                      <li key={contact.phone || `contact-${index}`} className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-sm font-semibold">
-                            {contact.name ? (
-                              contact.name.charAt(0).toUpperCase()
-                            ) : (
-                              <LuUser size={16} className="text-slate-400" />
+                    {deduplicateContacts((dashboardData.chatContacts as any).contacts).slice(0, 5).map((contact: any, index: number) => (
+                      <li key={`${contact.phone}-${index}`} className="flex items-center justify-between py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                              {contact.name ? (
+                                contact.name.charAt(0).toUpperCase()
+                              ) : (
+                                <LuUser size={16} className="text-slate-400" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{contact.name || contact.phone}</p>
+                              <p className="text-xs text-slate-500 truncate max-w-xs">{contact.lastMessage || 'No recent messages'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {contact.unreadCount > 0 && (
+                              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-500 rounded-full">{contact.unreadCount}</span>
                             )}
+                            <LuClock size={14} className="text-slate-400" />
+                            <span className="text-xs text-slate-500">{formatTimeAgo(contact.lastMessageTime || contact.last_message_time)}</span>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">{contact.name || contact.phone}</p>
-                            <p className="text-xs text-slate-500 truncate max-w-xs">{contact.lastMessage || 'No recent messages'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {contact.unreadCount > 0 && (
-                            <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-500 rounded-full">{contact.unreadCount}</span>
-                          )}
-                          <LuClock size={14} className="text-slate-400" />
-                          <span className="text-xs text-slate-500">{formatTimeAgo(contact.lastMessageTime || contact.last_message_time)}</span>
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      ))}
                   </ul>
                 ) : (
                   <div className="text-center py-6">

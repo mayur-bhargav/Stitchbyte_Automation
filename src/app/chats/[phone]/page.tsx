@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useChatContext } from "../../contexts/ChatContext";
+import { useRealTimeChat } from "../../hooks/useRealTimeChat";
 
 type Message = {
   id: string;
@@ -29,6 +31,18 @@ export default function ChatConversation() {
   const params = useParams();
   const router = useRouter();
   const phone = decodeURIComponent(params.phone as string);
+  const { markAsRead } = useChatContext();
+  
+  // Use real-time chat hook for this specific conversation
+  useRealTimeChat({
+    pollingInterval: 3000, // Check every 3 seconds for this conversation
+    onNewMessage: (contact) => {
+      // If it's a message for this conversation, reload messages
+      if (contact.phone === phone) {
+        loadMessages();
+      }
+    }
+  });
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [contact, setContact] = useState<Contact | null>(null);
@@ -61,6 +75,11 @@ export default function ChatConversation() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Mark this chat as read when user enters the conversation
+  useEffect(() => {
+    markAsRead(phone);
+  }, [phone, markAsRead]);
 
   // Define functions before useEffect hooks
   const scrollToBottom = () => {
@@ -1700,9 +1719,7 @@ export default function ChatConversation() {
       </div>
 
       {/* Notification Sound */}
-      <audio ref={audioRef} preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBjiS1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMb" type="audio/wav" />
-      </audio>
+      <audio ref={audioRef} src="/notification.wav" preload="auto" />
     </div>
   );
 }

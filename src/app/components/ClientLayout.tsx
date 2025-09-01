@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { BalanceProvider, useBalance } from "../contexts/BalanceContext";
 import { useUser } from "../contexts/UserContext";
+import { useChatContext } from "../contexts/ChatContext";
 import { apiService } from "../services/apiService";
 import AddBalanceModal from "./AddBalanceModal";
 import { useThemeToggle, useThemeWatcher, getThemeColors } from "../hooks/useThemeToggle";
@@ -110,7 +111,7 @@ const NavItem = ({ href, icon, label, isActive, notificationCount }: { href: str
       <span className="flex-1">{label}</span>
       {notificationCount && notificationCount > 0 && (
         <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-          {notificationCount > 9 ? '9+' : notificationCount}
+          {notificationCount > 99 ? '99+' : notificationCount}
         </span>
       )}
     </Link>
@@ -150,12 +151,12 @@ const BalanceHeader = ({ onTopUpClick }: { onTopUpClick: () => void }) => {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [showAddBalanceModal, setShowAddBalanceModal] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useUser();
+  const { totalUnreadCount } = useChatContext();
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const { darkMode } = useThemeWatcher();
   const colors = getThemeColors(darkMode);
@@ -168,36 +169,29 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     setIsHydrated(true);
   }, []);
   
-  // Notifications polling effect
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    if (user && isAuthenticated && !isPublicRoute) {
-      const fetchUnreadCount = async () => {
-        try {
-          const response = await apiService.get('/api/chats/unread-count');
-          if (response.success) {
-            const newCount = response.data.count || 0;
-            if (newCount > unreadCount && unreadCount > 0) {
-              audioRef.current?.play().catch(() => {});
-            }
-            setUnreadCount(newCount);
-          }
-        } catch (error) {
-          console.error('Failed to fetch unread count:', error);
-        }
-      };
+  // Play notification sound when unread count increases (with cooldown)
+  const prevUnreadCountRef = useRef(totalUnreadCount);
+  const lastSoundTimeRef = useRef(0);
+  const SOUND_COOLDOWN = 2000; // 2 seconds cooldown between sounds
 
-      fetchUnreadCount();
-      intervalId = setInterval(fetchUnreadCount, 30000);
+  useEffect(() => {
+    const now = Date.now();
+    const timeSinceLastSound = now - lastSoundTimeRef.current;
+    
+    // Only play sound if:
+    // 1. Count actually increased
+    // 2. Previous count was not 0 (avoid playing on initial load)
+    // 3. Enough time has passed since last sound (cooldown)
+    if (totalUnreadCount > prevUnreadCountRef.current && 
+        prevUnreadCountRef.current > 0 && 
+        timeSinceLastSound > SOUND_COOLDOWN) {
+      
+      audioRef.current?.play().catch(() => {});
+      lastSoundTimeRef.current = now;
     }
     
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [user, isAuthenticated, isPublicRoute, unreadCount]);
+    prevUnreadCountRef.current = totalUnreadCount;
+  }, [totalUnreadCount]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -264,7 +258,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                    {group.title}
                  </h3>
                  <div className="space-y-1">
-                   {group.items.map((item) => <NavItem key={item.href} {...item} isActive={isActiveRoute(item.href)} notificationCount={item.notificationKey === 'unreadChats' ? unreadCount : undefined} />)}
+                   {group.items.map((item) => <NavItem key={item.href} {...item} isActive={isActiveRoute(item.href)} notificationCount={item.notificationKey === 'unreadChats' ? totalUnreadCount : undefined} />)}
                  </div>
                </div>
              ))}

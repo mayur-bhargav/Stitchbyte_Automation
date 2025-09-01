@@ -252,11 +252,8 @@ export default function SignIn() {
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
           <div className="text-center">
-            <div className="mb-8">
-              <MdLogin className="w-20 h-20 text-[#2A8B8A] mx-auto mb-6" />
-            </div>
-            
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 flex items-center justify-center gap-4">
+              <MdLogin className="w-16 h-16 md:w-20 md:h-20 text-[#2A8B8A]" />
               <span className="bg-gradient-to-r from-gray-900 via-[#2A8B8A] to-[#238080] bg-clip-text text-transparent">
                 Welcome Back
               </span>

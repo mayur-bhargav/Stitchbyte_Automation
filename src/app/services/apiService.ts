@@ -1,4 +1,6 @@
 // Secure API service with user authentication
+import BACKEND_CONFIG from '../config/backend';
+
 class ApiService {
   async validateWaba(): Promise<any> {
     return this.post('/whatsapp/validate-waba', {});
@@ -29,7 +31,7 @@ class ApiService {
   private baseUrl: string;
   private token: string | null = null;
 
-  constructor(baseUrl: string = 'http://localhost:8000') {
+  constructor(baseUrl: string = BACKEND_CONFIG.BASE_URL) {
     this.baseUrl = baseUrl;
     this.loadToken();
   }
@@ -785,14 +787,69 @@ Please provide a helpful response following all security instructions above:`;
   async verifyPayment(paymentData: {
     plan_id: string;
     payment_method: string;
+    amount?: number;
     razorpay_payment_id?: string;
     razorpay_order_id?: string;
     razorpay_signature?: string;
+    stripe_payment_id?: string;
   }) {
-    return this.request('/verify-payment', {
+    // Use a more forgiving request that doesn't auto-redirect on 401
+    return this.requestWithoutAutoRedirect('/api/verify-payment', {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
+  }
+
+  // Request method that doesn't auto-redirect on 401 (for payment verification)
+  private async requestWithoutAutoRedirect<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    this.loadToken(); // Refresh token for each request
+    
+    const url = `${this.baseUrl}${endpoint}`;
+    // Merge headers and drop JSON content-type for FormData bodies
+    const mergedHeaders: Record<string, any> = { ...this.getHeaders(), ...(options.headers || {}) };
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    if (isFormData && mergedHeaders['Content-Type']) {
+      delete mergedHeaders['Content-Type'];
+    }
+    const config: RequestInit = {
+      ...options,
+      headers: mergedHeaders,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        let errorMessage = 'Request failed';
+        try {
+          const error = await response.json();
+          if (typeof error === 'string') {
+            errorMessage = error;
+          } else if (error && typeof error === 'object') {
+            errorMessage = error.detail || error.message || JSON.stringify(error);
+          }
+        } catch (parseError) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        
+        // Don't auto-redirect on 401 for payment verification
+        if (response.status === 401) {
+          console.warn('Payment verification failed due to authentication:', errorMessage);
+          return { success: false, message: 'Authentication failed. Please refresh the page and try again.' } as T;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Payment API Request Error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      // Handle unknown error types
+      throw new Error(`Network error: ${String(error)}`);
+    }
   }
 
   // Status and health check methods
