@@ -292,6 +292,7 @@ export default function Dashboard() {
     try {
       setDashboardData(prev => ({ ...prev, isLoading: true }));
       const companyId = (user as any)?.companyId;
+      
       const [
         whatsappConfigResponse, usageResponse, verificationResponse, phoneStatusResponse,
         contactsResponse, templatesResponse, automationsResponse, campaignsResponse,
@@ -416,7 +417,6 @@ export default function Dashboard() {
         isLoading: false
       }));
     } catch (error) {
-      console.error('Dashboard: Data fetch error:', error);
       setDashboardData(prev => ({ ...prev, isLoading: false }));
     }
   };
@@ -435,7 +435,6 @@ export default function Dashboard() {
     // First try to disconnect any existing connection to ensure clean reconnection
     try {
       await apiService.deleteWhatsAppConfig();
-      console.log('Cleaned up existing connection');
     } catch (cleanupError) {
       console.warn('Cleanup warning (non-critical):', cleanupError);
     }
@@ -462,12 +461,6 @@ export default function Dashboard() {
       setHasPermissionError(false);
     } catch (e: any) {
       console.error('WhatsApp profile update error:', e);
-      console.log('Full error details:', {
-        message: e?.message,
-        response: e?.response?.data,
-        status: e?.response?.status,
-        stack: e?.stack
-      });
       
       // Handle specific error types
       if (e?.message?.includes('Permissions error') || e?.message?.includes('#200')) {

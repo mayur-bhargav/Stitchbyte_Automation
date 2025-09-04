@@ -7,8 +7,13 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import IntegrationModal from '../components/IntegrationModal';
+import IntegrationDetailsModal from '../components/IntegrationDetailsModal';
 import ShopifyIntegration from '../components/ShopifyIntegration';
 import WooCommerceIntegration from '../components/WooCommerceIntegration';
+import MagentoIntegration from '../components/MagentoIntegration';
+import ExcelIntegration from '../components/ExcelIntegration';
+import GoogleSheetsIntegration from '../components/GoogleSheetsIntegration';
+import NotionIntegration from '../components/NotionIntegration';
 import DisconnectModal from '../components/DisconnectModal';
 import { apiService } from '../services/apiService';
 
@@ -146,6 +151,15 @@ const integrations: Integration[] = [
     color: 'bg-green-700'
   },
   {
+    id: 'notion',
+    name: 'Notion',
+    description: 'Sync contacts and projects with Notion databases for better organization and collaboration.',
+    image: '/integrations/notion.svg',
+    category: 'Productivity',
+    status: 'available',
+    color: 'bg-gray-900'
+  },
+  {
     id: 'sheets',
     name: 'Google Sheets',
     description: 'Sync contact data with Google Sheets for easy management and updates.',
@@ -163,15 +177,7 @@ const integrations: Integration[] = [
     status: 'available',
     color: 'bg-orange-500'
   },
-  {
-    id: 'notion',
-    name: 'Notion',
-    description: 'Integrate Notion databases for organized contact and project management.',
-    image: '/integrations/notion.svg',
-    category: 'Productivity',
-    status: 'available',
-    color: 'bg-gray-800'
-  },
+
   {
     id: 'trello',
     name: 'Trello',
@@ -502,10 +508,20 @@ export default function IntegrationsPage() {
   const [showSearchBar, setShowSearchBar] = useState<boolean>(false);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedIntegrationForDetails, setSelectedIntegrationForDetails] = useState<Integration | null>(null);
   const [shopifyConnected, setShopifyConnected] = useState(false);
   const [shopifyDetails, setShopifyDetails] = useState<{shop_domain?: string; connected_at?: string} | null>(null);
   const [wooCommerceConnected, setWooCommerceConnected] = useState(false);
   const [wooCommerceDetails, setWooCommerceDetails] = useState<{store_url?: string; connected_at?: string; webhook_id?: string} | null>(null);
+  const [magentoConnected, setMagentoConnected] = useState(false);
+  const [magentoDetails, setMagentoDetails] = useState<{store_url?: string; connected_at?: string} | null>(null);
+  const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
+  const [googleSheetsDetails, setGoogleSheetsDetails] = useState<{spreadsheet_title?: string; connected_at?: string; last_sync?: string} | null>(null);
+  const [notionConnected, setNotionConnected] = useState(false);
+  const [notionDetails, setNotionDetails] = useState<{workspace_name?: string; connected_at?: string; databases?: any[]} | null>(null);
+  const [excelConnected, setExcelConnected] = useState(false);
+  const [excelDetails, setExcelDetails] = useState<{file_name?: string; connected_at?: string; last_sync?: string} | null>(null);
   const [integrationsList, setIntegrationsList] = useState<Integration[]>(integrations);
   const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
   const [disconnectingIntegration, setDisconnectingIntegration] = useState<Integration | null>(null);
@@ -538,10 +554,18 @@ export default function IntegrationsPage() {
   // Check Shopify and WooCommerce status on page load
   useEffect(() => {
     const checkIntegrationsStatus = async () => {
+      // Declare status variables at function level
+      let shopifyIsConnected = false;
+      let wooCommerceIsConnected = false;
+      let magentoIsConnected = false;
+      let googleSheetsIsConnected = false;
+      let notionIsConnected = false;
+      let excelIsConnected = false;
+
+      // Check Shopify status
       try {
-        // Check Shopify status
         const shopifyResponse = await apiService.get('/connectors/shopify/status');
-        const shopifyIsConnected = shopifyResponse.connected || false;
+        shopifyIsConnected = shopifyResponse.connected || false;
         setShopifyConnected(shopifyIsConnected);
 
         if (shopifyIsConnected) {
@@ -552,38 +576,145 @@ export default function IntegrationsPage() {
         } else {
           setShopifyDetails(null);
         }
+      } catch (error) {
+        console.error('Failed to check Shopify status:', error);
+      }
 
         // Check WooCommerce status
-        const wooCommerceResponse = await apiService.get('/connectors/woocommerce/status');
-        const wooCommerceIsConnected = wooCommerceResponse.connected || false;
-        setWooCommerceConnected(wooCommerceIsConnected);
+        try {
+          const wooCommerceResponse = await apiService.get('/connectors/woocommerce/status');
+          wooCommerceIsConnected = wooCommerceResponse.connected || false;
+          setWooCommerceConnected(wooCommerceIsConnected);
 
-        if (wooCommerceIsConnected) {
-          setWooCommerceDetails({
-            store_url: wooCommerceResponse.store_url,
-            connected_at: wooCommerceResponse.connected_at,
-            webhook_id: wooCommerceResponse.webhook_id
-          });
-        } else {
-          setWooCommerceDetails(null);
+          if (wooCommerceIsConnected) {
+            setWooCommerceDetails({
+              store_url: wooCommerceResponse.store_url,
+              connected_at: wooCommerceResponse.connected_at,
+              webhook_id: wooCommerceResponse.webhook_id
+            });
+          } else {
+            setWooCommerceDetails(null);
+          }
+        } catch (error) {
+          console.error('Failed to check WooCommerce status:', error);
+        }
+
+        // Check Magento status
+        try {
+          const magentoResponse = await apiService.get('/connectors/magento/status');
+          magentoIsConnected = magentoResponse.connected || false;
+          setMagentoConnected(magentoIsConnected);
+
+          if (magentoIsConnected) {
+            setMagentoDetails({
+              store_url: magentoResponse.store_url,
+              connected_at: magentoResponse.connected_at
+            });
+          } else {
+            setMagentoDetails(null);
+          }
+        } catch (error) {
+          console.error('Failed to check Magento status:', error);
+        }
+
+        // Check Google Sheets status
+        try {
+          const googleSheetsResponse = await apiService.get('/google-sheets/status');
+          googleSheetsIsConnected = googleSheetsResponse.connected || false;
+          setGoogleSheetsConnected(googleSheetsIsConnected);
+
+          if (googleSheetsIsConnected) {
+            setGoogleSheetsDetails({
+              spreadsheet_title: googleSheetsResponse.spreadsheet_title,
+              connected_at: googleSheetsResponse.created_at,
+              last_sync: googleSheetsResponse.last_sync
+            });
+          } else {
+            setGoogleSheetsDetails(null);
+          }
+        } catch (error) {
+          console.error('Failed to check Google Sheets status:', error);
+        }
+
+        // Check Notion status
+        try {
+          console.log('🔍 Checking Notion status...');
+          const notionResponse = await apiService.get('/notion/status');
+          console.log('🔍 Notion API response:', notionResponse);
+          notionIsConnected = notionResponse.connected || false;
+          console.log('🔍 Notion connected status:', notionIsConnected);
+          setNotionConnected(notionIsConnected);
+
+          if (notionIsConnected) {
+            setNotionDetails({
+              workspace_name: notionResponse.workspace_name,
+              connected_at: notionResponse.connected_at,
+              databases: notionResponse.databases
+            });
+            console.log('🔍 Notion details set:', {
+              workspace_name: notionResponse.workspace_name,
+              connected_at: notionResponse.connected_at,
+              databases: notionResponse.databases
+            });
+          } else {
+            setNotionDetails(null);
+            console.log('🔍 Notion details cleared');
+          }
+        } catch (error) {
+          console.error('Failed to check Notion status:', error);
+          setNotionConnected(false);
+          setNotionDetails(null);
+        }
+
+        // Check Excel status
+        try {
+          const excelResponse = await apiService.get('/excel/status');
+          const excelIsConnected = excelResponse.connected || false;
+          setExcelConnected(excelIsConnected);
+
+          if (excelIsConnected) {
+            setExcelDetails({
+              file_name: excelResponse.file_name,
+              connected_at: excelResponse.connected_at,
+              last_sync: excelResponse.last_sync
+            });
+          } else {
+            setExcelDetails(null);
+          }
+        } catch (error) {
+          console.error('Failed to check Excel status:', error);
+          setExcelConnected(false);
+          setExcelDetails(null);
         }
 
         // Update the integration status in the list
-        setIntegrationsList(prevIntegrations => 
-          prevIntegrations.map(integration => {
+        setIntegrationsList(prevIntegrations => {
+          const updatedIntegrations = prevIntegrations.map(integration => {
             if (integration.id === 'shopify') {
               return { ...integration, status: shopifyIsConnected ? 'connected' as const : 'available' as const };
             }
             if (integration.id === 'woocommerce') {
               return { ...integration, status: wooCommerceIsConnected ? 'connected' as const : 'available' as const };
             }
+            if (integration.id === 'magento') {
+              return { ...integration, status: magentoIsConnected ? 'connected' as const : 'available' as const };
+            }
+            if (integration.id === 'sheets') {
+              return { ...integration, status: googleSheetsIsConnected ? 'connected' as const : 'available' as const };
+            }
+            if (integration.id === 'notion') {
+              console.log('🔍 Updating Notion status:', notionIsConnected ? 'connected' : 'available');
+              return { ...integration, status: notionIsConnected ? 'connected' as const : 'available' as const };
+            }
+            if (integration.id === 'excel') {
+              console.log('🔍 Updating Excel status:', excelIsConnected ? 'connected' : 'available');
+              return { ...integration, status: excelIsConnected ? 'connected' as const : 'available' as const };
+            }
             return integration;
-          })
-        );
-      } catch (error) {
-        console.error('Failed to check integrations status:', error);
-        // Keep default status as available if status check fails
-      }
+          });
+          console.log('🔍 Updated integrations list:', updatedIntegrations.map(i => ({ id: i.id, status: i.status })));
+          return updatedIntegrations;
+        });
     };
 
     checkIntegrationsStatus();
@@ -599,7 +730,7 @@ export default function IntegrationsPage() {
   });
 
   const handleConnect = (integration: Integration) => {
-    if (integration.id === 'shopify' || integration.id === 'woocommerce') {
+    if (integration.id === 'shopify' || integration.id === 'woocommerce' || integration.id === 'magento' || integration.id === 'excel' || integration.id === 'sheets' || integration.id === 'notion') {
       // Open integration modal
       setSelectedIntegration(integration);
       setIsModalOpen(true);
@@ -612,6 +743,16 @@ export default function IntegrationsPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedIntegration(null);
+  };
+
+  const openDetailsModal = (integration: Integration) => {
+    setSelectedIntegrationForDetails(integration);
+    setDetailsModalOpen(true);
+  };
+
+  const closeDetailsModal = () => {
+    setDetailsModalOpen(false);
+    setSelectedIntegrationForDetails(null);
   };
 
   const handleShopifyStatusChange = (connected: boolean) => {
@@ -681,6 +822,141 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleMagentoStatusChange = (connected: boolean) => {
+    setMagentoConnected(connected);
+    // Update the integration status in the list
+    setIntegrationsList(prevIntegrations => 
+      prevIntegrations.map(integration => 
+        integration.id === 'magento' 
+          ? { ...integration, status: connected ? 'connected' as const : 'available' as const }
+          : integration
+      )
+    );
+    
+    // Update Magento details
+    if (connected) {
+      // Fetch latest status to get updated details
+      const fetchLatestStatus = async () => {
+        try {
+          const response = await apiService.get('/connectors/magento/status');
+          if (response.connected) {
+            setMagentoDetails({
+              store_url: response.store_url,
+              connected_at: response.connected_at
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch latest Magento status:', error);
+        }
+      };
+      fetchLatestStatus();
+    } else {
+      setMagentoDetails(null);
+    }
+  };
+
+  const handleGoogleSheetsStatusChange = (connected: boolean) => {
+    setGoogleSheetsConnected(connected);
+    // Update the integration status in the list
+    setIntegrationsList(prevIntegrations => 
+      prevIntegrations.map(integration => 
+        integration.id === 'sheets' 
+          ? { ...integration, status: connected ? 'connected' as const : 'available' as const }
+          : integration
+      )
+    );
+    
+    // Update Google Sheets details
+    if (connected) {
+      // Fetch latest status to get updated details
+      const fetchLatestStatus = async () => {
+        try {
+          const response = await apiService.get('/google-sheets/status');
+          if (response.connected) {
+            setGoogleSheetsDetails({
+              spreadsheet_title: response.spreadsheet_title,
+              connected_at: response.created_at,
+              last_sync: response.last_sync
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch latest Google Sheets status:', error);
+        }
+      };
+      fetchLatestStatus();
+    } else {
+      setGoogleSheetsDetails(null);
+    }
+  };
+
+  const handleNotionStatusChange = (connected: boolean) => {
+    setNotionConnected(connected);
+    // Update the integration status in the list
+    setIntegrationsList(prevIntegrations => 
+      prevIntegrations.map(integration => 
+        integration.id === 'notion' 
+          ? { ...integration, status: connected ? 'connected' as const : 'available' as const }
+          : integration
+      )
+    );
+    
+    // Update Notion details
+    if (connected) {
+      // Fetch latest status to get updated details
+      const fetchLatestStatus = async () => {
+        try {
+          const response = await apiService.get('/notion/status');
+          if (response.connected) {
+            setNotionDetails({
+              workspace_name: response.workspace_name,
+              connected_at: response.connected_at,
+              databases: response.databases
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch latest Notion status:', error);
+        }
+      };
+      fetchLatestStatus();
+    } else {
+      setNotionDetails(null);
+    }
+  };
+
+  const handleExcelStatusChange = (connected: boolean) => {
+    setExcelConnected(connected);
+    // Update the integration status in the list
+    setIntegrationsList(prevIntegrations => 
+      prevIntegrations.map(integration => 
+        integration.id === 'excel' 
+          ? { ...integration, status: connected ? 'connected' as const : 'available' as const }
+          : integration
+      )
+    );
+    
+    // Update Excel details
+    if (connected) {
+      // Fetch latest status to get updated details
+      const fetchLatestStatus = async () => {
+        try {
+          const response = await apiService.get('/excel/status');
+          if (response.connected) {
+            setExcelDetails({
+              file_name: response.file_name,
+              connected_at: response.connected_at,
+              last_sync: response.last_sync
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch latest Excel status:', error);
+        }
+      };
+      fetchLatestStatus();
+    } else {
+      setExcelDetails(null);
+    }
+  };
+
   const handleDisconnect = (integration: Integration) => {
     setDisconnectingIntegration(integration);
     setDisconnectModalOpen(true);
@@ -700,6 +976,22 @@ export default function IntegrationsPage() {
         await apiService.delete('/connectors/woocommerce/disconnect');
         handleWooCommerceStatusChange(false);
         showInfo('WooCommerce integration disconnected successfully');
+      } else if (disconnectingIntegration.id === 'magento') {
+        await apiService.delete('/connectors/magento/disconnect');
+        handleMagentoStatusChange(false);
+        showInfo('Magento integration disconnected successfully');
+      } else if (disconnectingIntegration.id === 'sheets') {
+        await apiService.delete('/google-sheets/disconnect');
+        handleGoogleSheetsStatusChange(false);
+        showInfo('Google Sheets integration disconnected successfully');
+      } else if (disconnectingIntegration.id === 'notion') {
+        await apiService.delete('/notion/disconnect');
+        handleNotionStatusChange(false);
+        showInfo('Notion integration disconnected successfully');
+      } else if (disconnectingIntegration.id === 'excel') {
+        await apiService.delete('/excel/disconnect');
+        handleExcelStatusChange(false);
+        showInfo('Excel integration disconnected successfully');
       }
     } catch (error) {
       console.error('Disconnect failed:', error);
@@ -1053,6 +1345,126 @@ export default function IntegrationsPage() {
                       </div>
                     )}
 
+                    {/* Connected Details for Magento */}
+                    {integration.id === 'magento' && integration.status === 'connected' && magentoDetails && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm">
+                        <div className="text-xs text-green-700 space-y-2">
+                          {magentoDetails.store_url && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
+                              </svg>
+                              <span className="font-medium">{magentoDetails.store_url}</span>
+                            </div>
+                          )}
+                          {magentoDetails.connected_at && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Connected {new Date(magentoDetails.connected_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Connected Details for Google Sheets */}
+                    {integration.id === 'sheets' && integration.status === 'connected' && googleSheetsDetails && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm">
+                        <div className="text-xs text-green-700 space-y-2">
+                          {googleSheetsDetails.spreadsheet_title && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                              </svg>
+                              <span className="font-medium">{googleSheetsDetails.spreadsheet_title}</span>
+                            </div>
+                          )}
+                          {googleSheetsDetails.connected_at && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Connected {new Date(googleSheetsDetails.connected_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                          {googleSheetsDetails.last_sync && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              <span>Last synced {new Date(googleSheetsDetails.last_sync).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Connected Details for Notion */}
+                    {integration.id === 'notion' && integration.status === 'connected' && notionDetails && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm">
+                        <div className="text-xs text-green-700 space-y-2">
+                          {notionDetails.workspace_name && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                              <span className="font-medium">Workspace: {notionDetails.workspace_name}</span>
+                            </div>
+                          )}
+                          {notionDetails.connected_at && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Connected {new Date(notionDetails.connected_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                          {notionDetails.databases && notionDetails.databases.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                              </svg>
+                              <span>Databases: {notionDetails.databases.length}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Connected Details for Excel */}
+                    {integration.id === 'excel' && integration.status === 'connected' && excelDetails && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm">
+                        <div className="text-xs text-green-700 space-y-2">
+                          {excelDetails.file_name && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="font-medium">File: {excelDetails.file_name}</span>
+                            </div>
+                          )}
+                          {excelDetails.connected_at && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Connected {new Date(excelDetails.connected_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                          {excelDetails.last_sync && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              <span>Last sync: {new Date(excelDetails.last_sync).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Category Badge and Action Button */}
                     <div className="flex items-center justify-between pt-4 border-t" 
                          style={{ borderColor: colors.border }}>
@@ -1084,7 +1496,16 @@ export default function IntegrationsPage() {
                             <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-bold border-2 border-green-200 shadow-sm">
                               Connected
                             </span>
-                            {(integration.id === 'shopify' || integration.id === 'woocommerce') && (
+                            <button
+                              onClick={() => openDetailsModal(integration)}
+                              className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium hover:scale-105 shadow-sm flex items-center gap-1"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                              </svg>
+                              View Details
+                            </button>
+                            {(integration.id === 'shopify' || integration.id === 'woocommerce' || integration.id === 'magento' || integration.id === 'sheets' || integration.id === 'notion' || integration.id === 'excel') && (
                               <button
                                 onClick={() => handleDisconnect(integration)}
                                 className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs font-medium hover:scale-105 shadow-sm"
@@ -1216,6 +1637,36 @@ export default function IntegrationsPage() {
             onSuccessMessage={showInfo}
           />
         )}
+        {selectedIntegration?.id === 'magento' && (
+          <MagentoIntegration
+            onStatusChange={handleMagentoStatusChange}
+            onDisconnectRequest={() => handleDisconnect(selectedIntegration)}
+            onSuccessMessage={showInfo}
+          />
+        )}
+        {selectedIntegration?.id === 'excel' && (
+          <ExcelIntegration
+            onStatusChange={handleExcelStatusChange}
+            onDisconnectRequest={() => handleDisconnect(selectedIntegration)}
+            onSuccessMessage={showInfo}
+            initialStatus={excelConnected}
+          />
+        )}
+        {selectedIntegration?.id === 'sheets' && (
+          <GoogleSheetsIntegration
+            onStatusChange={handleGoogleSheetsStatusChange}
+            onDisconnectRequest={() => handleDisconnect(selectedIntegration)}
+            onSuccessMessage={showInfo}
+          />
+        )}
+        {selectedIntegration?.id === 'notion' && (
+          <NotionIntegration
+            onStatusChange={handleNotionStatusChange}
+            onDisconnectRequest={() => handleDisconnect(selectedIntegration)}
+            onSuccessMessage={showInfo}
+            initialStatus={notionConnected}
+          />
+        )}
       </IntegrationModal>
 
       {/* Disconnect Confirmation Modal */}
@@ -1225,6 +1676,13 @@ export default function IntegrationsPage() {
         onConfirm={handleDisconnectConfirm}
         integration={disconnectingIntegration}
         isLoading={disconnectLoading}
+      />
+
+      {/* Integration Details Modal */}
+      <IntegrationDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={closeDetailsModal}
+        integration={selectedIntegrationForDetails}
       />
     </ProtectedRoute>
   );

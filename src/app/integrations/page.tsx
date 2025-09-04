@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import ProtectedRoute from "../components/ProtectedRoute";
 import { 
   MdArrowBack, 
  MdIntegrationInstructions,
