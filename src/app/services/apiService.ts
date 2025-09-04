@@ -331,8 +331,9 @@ class ApiService {
   }
 
   // Optional GET request that doesn't throw errors for 404s
+  // Optional GET request that doesn't show errors for missing/forbidden endpoints
   async getOptional<T = any>(endpoint: string): Promise<T | null> {
-    this.loadToken(); // Refresh token for each request
+    this.loadToken();
     
     const url = `${this.baseUrl}${endpoint}`;
     const config: RequestInit = {
@@ -345,7 +346,6 @@ class ApiService {
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Unauthorized - redirect to login
           this.logout();
           if (typeof window !== 'undefined') {
             window.location.href = '/auth/signin';
@@ -353,13 +353,10 @@ class ApiService {
           return null;
         }
         
-        if (response.status === 404) {
-          // Not found - return null for optional endpoints
-          console.log(`Optional endpoint ${endpoint} not found (404), returning null`);
+        if (response.status === 403 || response.status === 404) {
           return null;
         }
         
-        // For other errors, still throw
         let errorMessage = 'Request failed';
         try {
           const error = await response.json();
@@ -377,8 +374,10 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      console.log(`Optional endpoint ${endpoint} failed, returning null:`, error);
-      return null;
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return null;
+      }
+      throw error;
     }
   }
 
