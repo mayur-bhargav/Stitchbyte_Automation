@@ -31,7 +31,8 @@ import {
   LuPuzzle,
   LuMegaphone,
   LuWallet,
-  LuPlus
+  LuPlus,
+  LuClock
 } from "react-icons/lu";
 
 // ============================================================================
@@ -44,6 +45,7 @@ const navConfig = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: <LuLayoutGrid size={20} /> },
       { href: "/send-message", label: "Send Message", icon: <LuSend size={20} /> },
+      { href: "/scheduled-messages", label: "Scheduled Messages", icon: <LuClock size={20} /> },
       { href: "/campaigns", label: "Campaigns", icon: <LuRocket size={20} /> },
       { href: "/templates", label: "Templates", icon: <LuFileText size={20} /> },
       { href: "/contacts", label: "Contacts", icon: <LuUsers size={20} /> },

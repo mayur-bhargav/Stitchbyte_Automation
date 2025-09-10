@@ -79,6 +79,13 @@ function SendMessage() {
   const [showPreview, setShowPreview] = useState(true);
   const [isScheduling, setIsScheduling] = useState(false);
   
+  // State for dynamic variables
+  const [showVariableDropdown, setShowVariableDropdown] = useState(false);
+  const [activeVariableField, setActiveVariableField] = useState<string | null>(null);
+  const [bodyText, setBodyText] = useState('');
+  const [headerText, setHeaderText] = useState('');
+  const [footerText, setFooterText] = useState('');
+  
   // State for contact selection modal
   const [showContactModal, setShowContactModal] = useState(false);
   const [allContacts, setAllContacts] = useState<any[]>([]);
@@ -97,6 +104,17 @@ function SendMessage() {
   
   // Use global balance context
   const { balance: userBalance, refreshBalance, addBalance: addBalanceContext } = useBalance();
+
+  // Available dynamic variables
+  const DYNAMIC_VARIABLES = [
+    { key: 'name', label: '{{name}}', description: 'Recipient\'s WhatsApp name' },
+    { key: 'phone', label: '{{phone}}', description: 'Recipient\'s phone number' },
+    { key: 'first_name', label: '{{first_name}}', description: 'First name from contact' },
+    { key: 'last_name', label: '{{last_name}}', description: 'Last name from contact' },
+    { key: 'company', label: '{{company}}', description: 'Company name' },
+    { key: 'date', label: '{{date}}', description: 'Current date' },
+    { key: 'time', label: '{{time}}', description: 'Current time' }
+  ];
 
   useEffect(() => {
     if (!user) return;
@@ -147,6 +165,21 @@ function SendMessage() {
     // Load message usage
     loadMessageUsage();
   }, [user]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showVariableDropdown) {
+        setShowVariableDropdown(false);
+        setActiveVariableField(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showVariableDropdown]);
 
   const loadMessageUsage = () => {
     if (!user) return;
@@ -280,6 +313,38 @@ function SendMessage() {
 
   const approvedTemplates = templates.filter(t => t.status === 'APPROVED');
 
+  // Helper function to insert variable at cursor position
+  const insertVariable = (variable: string, fieldType: 'body' | 'header' | 'footer') => {
+    const field = fieldType === 'body' ? bodyText : 
+                  fieldType === 'header' ? headerText : footerText;
+    
+    const setField = fieldType === 'body' ? setBodyText : 
+                     fieldType === 'header' ? setHeaderText : setFooterText;
+    
+    setField(field + variable);
+    setShowVariableDropdown(false);
+    setActiveVariableField(null);
+  };
+
+  // Function to process dynamic variables for each recipient
+  const processDynamicVariables = async (text: string, phoneNumber: string) => {
+    let processedText = text;
+    
+    // Get contact info for this phone number
+    const contact = allContacts.find(c => c.phone === phoneNumber);
+    
+    // Replace dynamic variables
+    processedText = processedText.replace(/\{\{name\}\}/g, contact?.name || phoneNumber);
+    processedText = processedText.replace(/\{\{phone\}\}/g, phoneNumber);
+    processedText = processedText.replace(/\{\{first_name\}\}/g, contact?.first_name || contact?.name?.split(' ')[0] || '');
+    processedText = processedText.replace(/\{\{last_name\}\}/g, contact?.last_name || contact?.name?.split(' ').slice(1).join(' ') || '');
+    processedText = processedText.replace(/\{\{company\}\}/g, contact?.company || '');
+    processedText = processedText.replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
+    processedText = processedText.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
+    
+    return processedText;
+  };
+
   // Helper functions for new features
   const addPhoneNumber = () => {
     if (phone.trim() && !phones.includes(phone.trim())) {
@@ -333,7 +398,21 @@ function SendMessage() {
     
     if (selectedTpl.variables) {
       selectedTpl.variables.forEach(variable => {
-        const value = variableValues[variable] || `{{${variable}}}`;
+        let value = variableValues[variable] || `{{${variable}}}`;
+        
+        // Show preview of dynamic variables for first phone number or sample data
+        const firstPhone = getAllPhoneNumbers()[0];
+        if (firstPhone && value.includes('{{')) {
+          // Replace dynamic variables for preview
+          value = value.replace(/\{\{name\}\}/g, firstPhone || 'John Doe');
+          value = value.replace(/\{\{phone\}\}/g, firstPhone || '+1234567890');
+          value = value.replace(/\{\{first_name\}\}/g, 'John');
+          value = value.replace(/\{\{last_name\}\}/g, 'Doe');
+          value = value.replace(/\{\{company\}\}/g, 'Sample Company');
+          value = value.replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
+          value = value.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
+        }
+        
         preview = preview.replace(new RegExp(`{{${variable}}}`, 'g'), value);
       });
     }
@@ -374,196 +453,203 @@ function SendMessage() {
     setResult(null);
     
     const selectedTpl = approvedTemplates.find(t => t.name === template);
-    let comps = [];
-    if (selectedTpl && selectedTpl.variables && selectedTpl.variables.length > 0) {
-      comps = [
-        {
-          type: "body",
-          parameters: selectedTpl.variables.map((v) => ({ type: "text", text: variableValues[v] || "" }))
-        }
-      ];
-    } else {
-      try {
-        comps = components ? JSON.parse(components) : [];
-      } catch (err) {
-        setResult({ error: "Invalid JSON in components" });
-        setLoading(false);
-        return;
-      }
-    }
 
     try {
-      let successCount = 0;
-      let errorCount = 0;
-      const detailedErrors = []; // Track detailed error messages
-      
-      console.log('📋 Starting message sending process...');
-      console.log('📱 Phone numbers:', phoneNumbers);
-      console.log('📨 Template:', template);
-      console.log('🧩 Components:', comps);
-      console.log('👤 User company ID:', user?.companyId);
-      
-      for (const phoneNumber of phoneNumbers) {
-        try {
-          const selectedTpl = approvedTemplates.find(t => t.name === template);
-          const hasMediaHeader = selectedTpl?.header_type && ['image', 'video', 'document'].includes(selectedTpl.header_type);
-          
-          console.log(`🔄 Processing message for ${phoneNumber}...`);
-          console.log('📋 Template details:', {
-            name: selectedTpl?.name,
-            header_type: selectedTpl?.header_type,
-            hasMediaHeader,
-            variables: selectedTpl?.variables
-          });
-          
-          let response;
-          if (hasMediaHeader) {
-            console.log('🔄 Creating FormData for media message...');
-            const formData = new FormData();
-            formData.append('phone', phoneNumber);
-            formData.append('template', template);
-            formData.append('components', JSON.stringify(comps));
-            formData.append('companyId', user?.companyId || ''); // Add company security
-            
-            // Add media file if selected, otherwise use URL
-            if (mediaFile) {
-              formData.append('media_file', mediaFile);
-              console.log('📎 Uploading media file:', mediaFile.name, 'Size:', mediaFile.size);
-            } else if (mediaUrl) {
-              formData.append('media_url', mediaUrl);
-              console.log('🔗 Using media URL:', mediaUrl);
-            } else {
-              console.log('📱 Using template default media');
-            }
-            
-            if (isScheduled) {
-              formData.append('scheduled_time', scheduledTime);
-            }
+      if (isScheduled) {
+        // Use the new scheduled messaging system
+        const recipients = phoneNumbers.map(phone => {
+          // Find contact info for this phone number
+          const contact = allContacts.find(c => c.phone === phone);
+          const contactId = contact?._id || null;
+          return {
+            phone: phone,
+            name: contact?.name || phone,
+            contact_id: contactId,
+            id: contactId  // ✅ Add this to fix the TypeError
+          };
+        });
 
-            console.log('🚀 Making API call to /messages/send-message-with-file...');
-            console.log('📋 FormData contents:');
-            for (let [key, value] of formData.entries()) {
-              console.log(`  ${key}:`, value);
-            }
-            
-            response = await apiService.post('/messages/send-message-with-file', formData);
-            console.log('✅ Media message API response received:', response);
-          } else {
-            console.log('🚀 Making API call to /messages/send-message (text message)...');
-            const messageData = {
-              phone: phoneNumber,
-              template,
-              components: comps,
-              companyId: user?.companyId, // Add company security
-              ...(isScheduled && { scheduled_time: scheduledTime })
-            };
-            
-            console.log('📋 Message data being sent:', JSON.stringify(messageData, null, 2));
-            
-            response = await apiService.post('/messages/send-message', messageData);
-            console.log('✅ Text message API response received:', response);
-          }
+        const scheduledMessageData = {
+          recipients: recipients,
+          template_id: selectedTpl?.name || template,
+          custom_message: selectedTpl?.content || '',
+          message_type: selectedTpl?.header_type ? 'media' : 'text',
+          schedule_datetime: scheduledTime,
+          timezone: 'Asia/Kolkata',
+          title: `Scheduled Message - ${new Date().toLocaleDateString()}`,
+          variables: selectedTpl?.variables ? 
+            selectedTpl.variables.reduce((acc, variable) => {
+              acc[variable] = variableValues[variable] || '';
+              return acc;
+            }, {} as any) : {}
+        };
+
+        console.log('📅 Creating scheduled message:', scheduledMessageData);
+        const response = await apiService.createScheduledMessage(scheduledMessageData);
+        const typedResponse = response as { success: boolean; data?: { id: string }; message?: string };
+        
+        if (typedResponse && typedResponse.success) {
+          showToastNotification(
+            `Message scheduled successfully for ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}! ID: ${typedResponse.data?.id}`,
+            'success'
+          );
           
-          // Enhanced response validation
-          console.log('🔍 Analyzing response for', phoneNumber);
-          console.log('📄 Full response:', JSON.stringify(response, null, 2));
+          // Reset form on success
+          setPhone('');
+          setPhones([]);
+          setTemplate('');
+          setVariableValues({});
+          setMediaUrl('');
+          setMediaFile(null);
+          setScheduledTime('');
+          setIsScheduling(false);
           
-          if (response && response.success && !response.error) {
-            console.log('✅ Message sent successfully for', phoneNumber);
-            successCount++;
-            // Refresh balance from server to get the latest amount
-            await refreshBalance();
-          } else {
-            console.error('❌ Message failed for', phoneNumber);
-            console.error('📄 Error details:', {
-              success: response?.success,
-              error: response?.error,
-              message: response?.message,
-              status: response?.status,
-              fullResponse: response
-            });
-            
-            errorCount++;
-            const errorDetail = response?.error || response?.message || 'Unknown error';
-            detailedErrors.push(`${phoneNumber}: ${errorDetail}`);
-            
-            // Handle insufficient balance error specifically
-            if (response && response.error && response.error.includes('balance')) {
-              console.error('💰 Insufficient balance detected');
-              setResult({ 
-                error: response.error || "Insufficient balance. Please add funds to continue sending messages." 
-              });
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (error) {
-          console.error('💥 Exception occurred while sending to', phoneNumber, ':', error);
-          console.error('📋 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-          errorCount++;
-          const errorMessage = error instanceof Error ? error.message : 'Network or API error';
-          detailedErrors.push(`${phoneNumber}: ${errorMessage}`);
+          // Reset file input
+          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+          
+        } else {
+          throw new Error(typedResponse?.message || 'Failed to schedule message');
         }
-      }
-      
-      console.log('📊 Final results:', { successCount, errorCount, detailedErrors });
-      
-      if (successCount > 0) {
-        const action = isScheduled ? 'scheduled' : 'sent';
-        const totalCost = successCount * MESSAGE_COST;
-        const successMessage = `Successfully ${action} ${successCount} message${successCount > 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed)` : ''}. Cost: ₹${totalCost.toFixed(2)}. Remaining balance: ₹${userBalance.toFixed(2)}`;
-        
-        // Show success in toast
-        showToastNotification(successMessage, 'success');
-        
-        // Clear any previous error messages
-        setResult(null);
-        
-        // Log any failures for debugging
-        if (errorCount > 0) {
-          console.warn('⚠️ Some messages failed:', detailedErrors);
-        }
-        
-        loadMessageUsage();
-        await refreshBalance(); // Refresh balance from server
-        
-        // Reset form on success
-        setPhone('');
-        setPhones([]);
-        setTemplate('');
-        setVariableValues({});
-        setMediaUrl('');
-        setMediaFile(null);
-        setScheduledTime('');
-        setIsScheduling(false);
-        
-        // Reset file input
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
       } else {
-        console.error('❌ All messages failed!');
-        console.error('📋 Detailed errors:', detailedErrors);
+        // For immediate sending, fall back to the original logic for now
+        // TODO: Consider using scheduled messaging API with immediate delivery
+        let successCount = 0;
+        let errorCount = 0;
+        const detailedErrors = [];
         
-        // Show detailed error information
-        const detailedErrorMessage = detailedErrors.length > 0 
-          ? `Failed to ${isScheduled ? 'schedule' : 'send'} all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}. Errors: ${detailedErrors.join('; ')}`
-          : `Failed to ${isScheduled ? 'schedule' : 'send'} all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}`;
+        console.log('📋 Starting immediate message sending...');
+        console.log('📱 Phone numbers:', phoneNumbers);
+        console.log('📨 Template:', template);
+        console.log('👤 User company ID:', user?.companyId);
         
-        setResult({ error: detailedErrorMessage });
+        for (const phoneNumber of phoneNumbers) {
+          try {
+            let comps = [];
+            if (selectedTpl && selectedTpl.variables && selectedTpl.variables.length > 0) {
+              // Process dynamic variables for this specific phone number
+              let processedVariableValues = { ...variableValues };
+              for (const variable of selectedTpl.variables) {
+                if (variableValues[variable]) {
+                  processedVariableValues[variable] = await processDynamicVariables(variableValues[variable], phoneNumber);
+                }
+              }
+              
+              comps = [
+                {
+                  type: "body",
+                  parameters: selectedTpl.variables.map((v) => ({ 
+                    type: "text", 
+                    text: processedVariableValues[v] || "" 
+                  }))
+                }
+              ];
+            } else {
+              try {
+                comps = components ? JSON.parse(components) : [];
+              } catch (err) {
+                console.error('Error parsing components:', err);
+                comps = [];
+              }
+            }
+            
+            const hasMediaHeader = selectedTpl?.header_type && ['image', 'video', 'document'].includes(selectedTpl.header_type);
+            let response;
+            
+            if (hasMediaHeader) {
+              const formData = new FormData();
+              formData.append('phone', phoneNumber);
+              formData.append('template', template);
+              formData.append('components', JSON.stringify(comps));
+              formData.append('companyId', user?.companyId || '');
+              
+              if (mediaFile) {
+                formData.append('media_file', mediaFile);
+              } else if (mediaUrl) {
+                formData.append('media_url', mediaUrl);
+              }
+              
+              response = await apiService.post('/messages/send-message-with-file', formData);
+            } else {
+              const messageData = {
+                phone: phoneNumber,
+                template,
+                components: comps,
+                companyId: user?.companyId,
+              };
+              
+              response = await apiService.post('/messages/send-message', messageData);
+            }
+            
+            if (response && response.success && !response.error) {
+              successCount++;
+              await refreshBalance();
+            } else {
+              errorCount++;
+              const errorDetail = response?.error || response?.message || 'Unknown error';
+              detailedErrors.push(`${phoneNumber}: ${errorDetail}`);
+              
+              if (response && response.error && response.error.includes('balance')) {
+                setResult({ 
+                  error: response.error || "Insufficient balance. Please add funds to continue sending messages." 
+                });
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('💥 Exception occurred while sending to', phoneNumber, ':', error);
+            errorCount++;
+            const errorMessage = error instanceof Error ? error.message : 'Network or API error';
+            detailedErrors.push(`${phoneNumber}: ${errorMessage}`);
+          }
+        }
+        
+        if (successCount > 0) {
+          const totalCost = successCount * MESSAGE_COST;
+          const successMessage = `Successfully sent ${successCount} message${successCount > 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed)` : ''}. Cost: ₹${totalCost.toFixed(2)}. Remaining balance: ₹${userBalance.toFixed(2)}`;
+          
+          showToastNotification(successMessage, 'success');
+          setResult(null);
+          
+          if (errorCount > 0) {
+            console.warn('⚠️ Some messages failed:', detailedErrors);
+          }
+          
+          loadMessageUsage();
+          await refreshBalance();
+          
+          // Reset form on success
+          setPhone('');
+          setPhones([]);
+          setTemplate('');
+          setVariableValues({});
+          setMediaUrl('');
+          setMediaFile(null);
+          
+          // Reset file input
+          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        } else {
+          const detailedErrorMessage = detailedErrors.length > 0 
+            ? `Failed to send all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}. Errors: ${detailedErrors.join('; ')}`
+            : `Failed to send all ${phoneNumbers.length} message${phoneNumbers.length > 1 ? 's' : ''}`;
+          
+          setResult({ error: detailedErrorMessage });
+        }
       }
       
     } catch (error) {
-      // Enhanced error handling for WABA validation and image template errors
       console.error('Send Message Error:', error);
       let errorMessage = `Failed to ${isScheduled ? 'schedule' : 'send'} message`;
       if (error && typeof error === 'object' && 'message' in error) {
         errorMessage = (error as any).message || errorMessage;
       }
-      // Log full error for image template failures
+      
       if (selectedTpl?.header_type === 'image') {
         console.error('Image template send error:', error);
       }
-      // Check if it's a WABA registration/validation error
+      
       if (
         errorMessage.includes('Account does not exist in Cloud API') ||
         errorMessage.includes('waba_registration_required') ||
@@ -606,20 +692,6 @@ function SendMessage() {
       `}</style>
       
       <div className="space-y-8">
-      {/* Page Header */}
-      <div className="border border-gray-200 p-8 rounded-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-black flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-black">Send WhatsApp Message</h1>
-            <p className="text-gray-600">Send template messages to your customers</p>
-          </div>
-        </div>
-      </div>
 
       {/* Balance and Cost Information */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -782,20 +854,74 @@ function SendMessage() {
               if (selectedTpl && selectedTpl.variables && selectedTpl.variables.length > 0) {
                 return (
                   <div className="md:col-span-2">
-                    <h3 className="text-lg font-medium text-black mb-4">Template Variables</h3>
+                    <h3 className="text-lg font-medium text-black mb-2">Template Variables</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Use dynamic variables like {'{name}'} to automatically personalize messages for each recipient. 
+                      Click the {'{}'} icon to see available options.
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {selectedTpl.variables.map((v, idx) => (
-                        <div key={v}>
+                        <div key={v} className="relative">
                           <label className="block text-sm font-medium text-black mb-2">
                             {v.charAt(0).toUpperCase() + v.slice(1)}
                           </label>
-                          <input
-                            className="w-full border border-gray-300 bg-white text-black p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
-                            placeholder={`Enter value for {{${v}}}`}
-                            value={variableValues[v] || ""}
-                            onChange={e => setVariableValues(vals => ({ ...vals, [v]: e.target.value }))}
-                            required
-                          />
+                          <div className="relative">
+                            <input
+                              className="w-full border border-gray-300 bg-white text-black p-4 pr-12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
+                              placeholder={`Enter value for {{${v}}} or use dynamic variables`}
+                              value={variableValues[v] || ""}
+                              onChange={e => setVariableValues(vals => ({ ...vals, [v]: e.target.value }))}
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#2A8B8A] transition-colors"
+                              onClick={() => {
+                                console.log('Variable dropdown button clicked for:', v);
+                                setActiveVariableField(v);
+                                setShowVariableDropdown(!showVariableDropdown || activeVariableField !== v);
+                              }}
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12H8m0 4h8m-8-8h4" />
+                              </svg>
+                            </button>
+                            
+                            {/* Variable Dropdown */}
+                            {showVariableDropdown && activeVariableField === v && (
+                              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
+                                <div className="py-2">
+                                  <div className="px-4 py-2 text-sm font-medium text-gray-700 border-b border-gray-200">
+                                    Dynamic Variables
+                                  </div>
+                                  {DYNAMIC_VARIABLES.map((variable) => (
+                                    <button
+                                      key={variable.key}
+                                      type="button"
+                                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                                      onClick={() => {
+                                        console.log('Variable selected:', variable.label, 'for field:', v);
+                                        const currentValue = variableValues[v] || "";
+                                        console.log('Current value:', currentValue);
+                                        const newValue = currentValue + variable.label;
+                                        console.log('New value:', newValue);
+                                        setVariableValues(vals => ({ 
+                                          ...vals, 
+                                          [v]: newValue 
+                                        }));
+                                        setShowVariableDropdown(false);
+                                        setActiveVariableField(null);
+                                      }}
+                                    >
+                                      <div className="font-medium text-[#2A8B8A]">{variable.label}</div>
+                                      <div className="text-xs text-gray-500">{variable.description}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

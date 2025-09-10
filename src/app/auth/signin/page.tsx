@@ -352,9 +352,16 @@ export default function SignIn() {
                     </label>
                   </div>
                   
-                  <Link href="#" className="text-sm font-semibold text-[#2A8B8A] hover:text-[#238080] transition-colors">
+                  <button 
+                    type="button"
+                    className="text-sm font-semibold text-[#2A8B8A] hover:text-[#238080] transition-colors bg-transparent border-none cursor-pointer"
+                    onClick={() => {
+                      // Force navigation without any React Router interference
+                      window.location.replace('/auth/forgot-password');
+                    }}
+                  >
                     Forgot password?
-                  </Link>
+                  </button>
                 </div>
 
                 {/* Submit Button */}
@@ -536,7 +543,7 @@ export default function SignIn() {
               </div>
             )}
 
-            {/* Divider - only show for login form */}
+            {/* Divider and links - only show for login form */}
             {!requires2FA && (
               <>
                 <div className="relative my-8">

@@ -232,6 +232,163 @@ class ApiService {
     }
   }
 
+  // Forgot Password methods
+  async forgotPassword(email: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to send reset email';
+        try {
+          const error = await response.json();
+          if (error.detail) {
+            errorMessage = error.detail;
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error.error) {
+            errorMessage = error.error;
+          }
+        } catch (parseError) {
+          errorMessage = `Failed to send reset email: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      if (error instanceof Error && (
+        error.message.includes('Failed to send reset email') || 
+        error.message.includes('No account found with this email address')
+      )) {
+        throw error;
+      }
+      throw new Error('Failed to send reset email: Network error. Please try again.');
+    }
+  }
+
+  async verifyForgotPasswordCode(email: string, code: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/forgot-password/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Invalid or expired verification code';
+        try {
+          const error = await response.json();
+          if (error.detail) {
+            errorMessage = error.detail;
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error.error) {
+            errorMessage = error.error;
+          }
+        } catch (parseError) {
+          errorMessage = `Code verification failed: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Verify forgot password code error:', error);
+      if (error instanceof Error && error.message.includes('verification code')) {
+        throw error;
+      }
+      throw new Error('Code verification failed: Network error. Please try again.');
+    }
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string, confirmPassword: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/forgot-password/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email, 
+          code, 
+          new_password: newPassword, 
+          confirm_password: confirmPassword 
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to reset password';
+        try {
+          const error = await response.json();
+          if (error.detail) {
+            errorMessage = error.detail;
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error.error) {
+            errorMessage = error.error;
+          }
+        } catch (parseError) {
+          errorMessage = `Password reset failed: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Reset password error:', error);
+      if (error instanceof Error && (
+        error.message.includes('reset password') ||
+        error.message.includes('same password') ||
+        error.message.includes('current password')
+      )) {
+        throw error;
+      }
+      throw new Error('Password reset failed: Network error. Please try again.');
+    }
+  }
+
+  async resendForgotPasswordCode(email: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/forgot-password/resend-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to resend verification code';
+        try {
+          const error = await response.json();
+          if (error.detail) {
+            errorMessage = error.detail;
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error.error) {
+            errorMessage = error.error;
+          }
+        } catch (parseError) {
+          errorMessage = `Failed to resend code: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Resend forgot password code error:', error);
+      if (error instanceof Error && error.message.includes('Failed to resend')) {
+        throw error;
+      }
+      throw new Error('Failed to resend verification code: Network error. Please try again.');
+    }
+  }
+
   async getCurrentUser() {
     this.loadToken();
     if (!this.token) {
@@ -331,9 +488,8 @@ class ApiService {
   }
 
   // Optional GET request that doesn't throw errors for 404s
-  // Optional GET request that doesn't show errors for missing/forbidden endpoints
   async getOptional<T = any>(endpoint: string): Promise<T | null> {
-    this.loadToken();
+    this.loadToken(); // Refresh token for each request
     
     const url = `${this.baseUrl}${endpoint}`;
     const config: RequestInit = {
@@ -346,6 +502,7 @@ class ApiService {
       
       if (!response.ok) {
         if (response.status === 401) {
+          // Unauthorized - redirect to login
           this.logout();
           if (typeof window !== 'undefined') {
             window.location.href = '/auth/signin';
@@ -353,10 +510,13 @@ class ApiService {
           return null;
         }
         
-        if (response.status === 403 || response.status === 404) {
+        if (response.status === 404) {
+          // Not found - return null for optional endpoints
+          console.log(`Optional endpoint ${endpoint} not found (404), returning null`);
           return null;
         }
         
+        // For other errors, still throw
         let errorMessage = 'Request failed';
         try {
           const error = await response.json();
@@ -374,10 +534,8 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        return null;
-      }
-      throw error;
+      console.log(`Optional endpoint ${endpoint} failed, returning null:`, error);
+      return null;
     }
   }
 
@@ -386,6 +544,13 @@ class ApiService {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
+    });
+  }
+
+  async postFormData<T = any>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: formData,
     });
   }
 
@@ -478,6 +643,40 @@ class ApiService {
 
   async getMessageLogs() {
     return this.request('/logs');
+  }
+
+  // Scheduled Messages methods
+  async createScheduledMessage(messageData: any) {
+    return this.request('/scheduled-messages/create', {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    });
+  }
+
+  async getScheduledMessages() {
+    return this.request('/scheduled-messages/list');
+  }
+
+  async getScheduledMessageStatus(messageId: string) {
+    return this.request(`/scheduled-messages/status/${messageId}`);
+  }
+
+  async cancelScheduledMessage(messageId: string) {
+    return this.request(`/scheduled-messages/cancel/${messageId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getScheduledMessageContacts() {
+    return this.request('/scheduled-messages/recipients/contacts');
+  }
+
+  async getScheduledMessageTemplates() {
+    return this.request('/scheduled-messages/templates');
+  }
+
+  async getScheduledMessageStats() {
+    return this.request('/scheduled-messages/stats');
   }
 
   // Broadcasts methods

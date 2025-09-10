@@ -80,14 +80,40 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
 
   // Get header media information - check multiple possible field names
   const headerVarType = template.headerVarType || template.header_var_type || template.headerType || 'none';
-  const hasHeaderMedia = headerVarType && headerVarType !== 'none';
   
-  // Check for header media URL from backend
-  const headerMediaUrl = template.headerMediaUrl || template.header_media_url || template.headerUrl || template.media_url;
+  // Check for header media URL from backend - support various field names including header_media.handle
+  let headerMediaUrl = template.header_media?.handle || template.headerMediaUrl || template.header_media_url || template.headerUrl || template.media_url || template.header;
   
+  // Check if header contains "Image: <url>" format
+  const isImageHeader = typeof template.header === 'string' && template.header.toLowerCase().startsWith('image:');
+  if (isImageHeader) {
+    headerMediaUrl = template.header.substring(6).trim(); // Remove "Image:" and trim
+  }
+  
+  // Auto-detect media type from URL if not explicitly set
+  let detectedMediaType = template.header_media?.type || headerVarType;
+  if (headerMediaUrl && detectedMediaType === 'none') {
+    const url = headerMediaUrl.toLowerCase();
+    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+      detectedMediaType = 'image';
+    } else if (url.includes('.mp4') || url.includes('.mov') || url.includes('.avi') || url.includes('.webm')) {
+      detectedMediaType = 'video';
+    } else if (url.includes('.pdf') || url.includes('.doc') || url.includes('.docx') || url.includes('.txt')) {
+      detectedMediaType = 'document';
+    }
+  }
+  
+  const hasHeaderMedia = (detectedMediaType && detectedMediaType !== 'none') || headerMediaUrl || isImageHeader || template.header_media?.handle;
+  
+  console.log('Template data structure:', template);
+  console.log('Header media object:', template.header_media);
   console.log('Header var type:', headerVarType);
+  console.log('Detected media type:', detectedMediaType);
   console.log('Header media URL:', headerMediaUrl);
-  console.log('Buttons:', buttons);
+  console.log('Is image header:', isImageHeader);
+  console.log('Buttons array:', buttons);
+  console.log('Buttons length:', buttons.length);
+  console.log('Raw buttons from template:', template.buttons);
   
   // Sample media URLs for preview (you can replace these with actual media URLs)
   const getSampleMediaUrl = (type: string): string => {
@@ -177,76 +203,127 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
               <div className="max-w-[70%]">
                 <div className="rounded-bl-2xl rounded-tl-2xl rounded-tr-md bg-[#dcf8c6] text-[#222] px-4 py-3 text-[15px] shadow" style={{borderBottomRightRadius: 8}}>
                   {/* Header Media */}
-                  {(hasHeaderMedia || headerMediaUrl) && (
+                  {hasHeaderMedia && (
                     <div className="mb-3 -mx-4 -mt-3">
-                      {(headerVarType === 'image' || (!headerVarType && headerMediaUrl && (headerMediaUrl.includes('.jpg') || headerMediaUrl.includes('.jpeg') || headerMediaUrl.includes('.png') || headerMediaUrl.includes('.gif')))) && (
-                        <img 
-                          src={getSampleMediaUrl('image')} 
-                          alt="Header Image" 
-                          className="w-full h-32 object-cover rounded-t-2xl"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/globe.svg';
-                          }}
-                        />
+                      {/* Image Media */}
+                      {(detectedMediaType === 'image' || isImageHeader || (!detectedMediaType && headerMediaUrl && (headerMediaUrl.toLowerCase().includes('.jpg') || headerMediaUrl.toLowerCase().includes('.jpeg') || headerMediaUrl.toLowerCase().includes('.png') || headerMediaUrl.toLowerCase().includes('.gif') || headerMediaUrl.toLowerCase().includes('.webp')))) && (
+                        <div className="relative">
+                          <img 
+                            src={headerMediaUrl || getSampleMediaUrl('image')} 
+                            alt="Header Image" 
+                            className="w-full h-40 object-cover rounded-t-xl"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://via.placeholder.com/300x200/f0f0f0/888888?text=Image+Not+Found';
+                            }}
+                          />
+                          {/* WhatsApp-style image overlay */}
+                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>Image</span>
+                          </div>
+                        </div>
                       )}
-                      {(headerVarType === 'video' || (!headerVarType && headerMediaUrl && (headerMediaUrl.includes('.mp4') || headerMediaUrl.includes('.mov') || headerMediaUrl.includes('.avi')))) && (
-                        <div className="relative w-full h-32 bg-gray-200 rounded-t-2xl flex items-center justify-center">
+                      
+                      {/* Video Media */}
+                      {(detectedMediaType === 'video' || (!detectedMediaType && headerMediaUrl && (headerMediaUrl.toLowerCase().includes('.mp4') || headerMediaUrl.toLowerCase().includes('.mov') || headerMediaUrl.toLowerCase().includes('.avi') || headerMediaUrl.toLowerCase().includes('.webm')))) && (
+                        <div className="relative w-full h-40 bg-gray-900 rounded-t-xl flex items-center justify-center overflow-hidden">
                           {headerMediaUrl ? (
                             <video 
                               src={headerMediaUrl} 
-                              className="w-full h-32 object-cover rounded-t-2xl"
+                              className="w-full h-40 object-cover"
                               controls={false}
                               muted
+                              poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect width='100%25' height='100%25' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white'%3EVideo%3C/text%3E%3C/svg%3E"
                             />
                           ) : (
-                            <svg width="40" height="40" fill="#075e54" viewBox="0 0 24 24">
+                            <svg width="60" height="60" fill="white" viewBox="0 0 24 24">
                               <path d="M8 5v14l11-7z"/>
                             </svg>
                           )}
-                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                          {/* Video duration overlay */}
+                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                             0:30
                           </div>
-                        </div>
-                      )}
-                      {(headerVarType === 'document' || (!headerVarType && headerMediaUrl && (headerMediaUrl.includes('.pdf') || headerMediaUrl.includes('.doc') || headerMediaUrl.includes('.txt')))) && (
-                        <div className="w-full h-24 bg-gray-100 rounded-t-2xl flex items-center justify-center px-4">
-                          <svg width="24" height="24" fill="#075e54" viewBox="0 0 24 24" className="mr-2">
-                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                          </svg>
-                          <div className="text-sm text-gray-700">
-                            <div className="font-medium">
-                              {headerMediaUrl ? headerMediaUrl.split('/').pop() : 'Sample Document.pdf'}
+                          {/* Play button overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-16 h-16 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                              <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                              </svg>
                             </div>
-                            <div className="text-xs text-gray-500">Document</div>
                           </div>
                         </div>
                       )}
-                      {headerVarType === 'location' && (
-                        <div className="w-full h-32 bg-green-100 rounded-t-2xl flex items-center justify-center">
-                          <svg width="32" height="32" fill="#075e54" viewBox="0 0 24 24">
-                            <path d="M12,2C8.13,2 5,5.13 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9C19,5.13 15.87,2 12,2M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5Z"/>
-                          </svg>
+                      
+                      {/* Document Media */}
+                      {(detectedMediaType === 'document' || (!detectedMediaType && headerMediaUrl && (headerMediaUrl.toLowerCase().includes('.pdf') || headerMediaUrl.toLowerCase().includes('.doc') || headerMediaUrl.toLowerCase().includes('.docx') || headerMediaUrl.toLowerCase().includes('.txt')))) && (
+                        <div className="w-full h-20 bg-white rounded-t-xl flex items-center justify-start px-4 border border-gray-200">
+                          <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                            <svg width="24" height="24" fill="#dc2626" viewBox="0 0 24 24">
+                              <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-gray-900 truncate">
+                              {headerMediaUrl ? headerMediaUrl.split('/').pop() || 'Document.pdf' : 'Sample Document.pdf'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {headerMediaUrl && headerMediaUrl.toLowerCase().includes('.pdf') ? 'PDF Document' : 'Document'}
+                            </div>
+                          </div>
+                          <div className="text-gray-400">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Location Media */}
+                      {detectedMediaType === 'location' && (
+                        <div className="w-full h-32 bg-green-50 rounded-t-xl flex items-center justify-center border border-green-200">
+                          <div className="text-center">
+                            <svg width="40" height="40" fill="#059669" viewBox="0 0 24 24" className="mx-auto mb-2">
+                              <path d="M12,2C8.13,2 5,5.13 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9C19,5.13 15.87,2 12,2M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5Z"/>
+                            </svg>
+                            <div className="text-sm text-green-700 font-medium">Live Location</div>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
                   
                   {/* Header Text */}
-                  {template.header && (
+                  {template.header && !isImageHeader && !template.header_media?.handle && (
                     <div className="font-semibold text-[14px] mb-2 text-[#075e54]">
                       {template.header}
                     </div>
                   )}
                   
                   {/* Body */}
-                  <div className="mb-2">
+                  <div className="mb-2 text-[15px] leading-relaxed">
                     {previewBody}
+                  </div>
+                  
+                  {/* Message timestamp and status */}
+                  <div className="flex items-center justify-end gap-1 mt-2 mb-1">
+                    <span className="text-[11px] text-gray-500">
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {/* WhatsApp double checkmark (delivered) */}
+                    <svg width="12" height="12" viewBox="0 0 16 11" fill="none">
+                      <path d="M11.071.99A1 1 0 00 9.657l.707.708zm-.707.708-5.364 5.364-.708-.707 5.364-5.364.708.707zm-6.778 4.95L2.172 5.236a1 1 0 00-1.414 1.414l1.414-1.414zm-.708.708 1.414 1.414a1 1 0 001.414 0l-1.414-1.414zm2.122 1.414L9.657 2.813a1 1 0 00-1.414-1.414L9.657 2.813z" fill="#53bdeb"/>
+                      <path d="M15.071.99a1 1 0 00-1.414 0l.707.708.707-.708zM14.364 1.698l-5.364 5.364-.708-.707 5.364-5.364.708.707zM2.172 5.236l1.414 1.414-.708.708-1.414-1.414.708-.708zm2.122 2.122L13.657 2.813a1 1 0 00-1.414-1.414l-9.363 4.545z" fill="#53bdeb"/>
+                    </svg>
                   </div>
                   
                   {/* Buttons */}
                   {buttons && buttons.length > 0 && (
-                    <div className="mt-3 space-y-1">
+                    <div className="mt-3 -mx-4 -mb-3">
+                      <div className="border-t border-gray-200"></div>
                       {buttons.map((button: any, index: number) => {
                         // Handle different button data structures
                         const buttonText = button.text || button.title || button.display_text || button.name || `Button ${index + 1}`;
@@ -254,39 +331,43 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                         const buttonUrl = button.url || button.link || button.href;
                         const buttonPhone = button.phone_number || button.phone;
                         
+                        const isUrlButton = buttonType.toUpperCase().includes('URL') || buttonType.toUpperCase().includes('LINK') || buttonUrl;
+                        const isPhoneButton = buttonType.toUpperCase().includes('PHONE') || buttonType.toUpperCase().includes('CALL') || buttonPhone;
+                        
                         return (
-                          <button
-                            key={index}
-                            className={`w-full px-3 py-2 rounded-lg text-[12px] font-medium transition border text-center ${
-                              buttonType.toUpperCase().includes('URL') || buttonType.toUpperCase().includes('LINK')
-                                ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' 
-                                : buttonType.toUpperCase().includes('PHONE') || buttonType.toUpperCase().includes('CALL')
-                                ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
-                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                            }`}
-                          >
-                            {(buttonType.toUpperCase().includes('URL') || buttonType.toUpperCase().includes('LINK')) && (
-                              <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24" className="inline mr-1">
-                                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                              </svg>
-                            )}
-                            {(buttonType.toUpperCase().includes('PHONE') || buttonType.toUpperCase().includes('CALL')) && (
-                              <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24" className="inline mr-1">
-                                <path d="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
-                              </svg>
-                            )}
-                            {buttonText}
-                            {buttonUrl && (
-                              <div className="text-[10px] text-gray-500 mt-1 truncate">
-                                {buttonUrl}
+                          <div key={index}>
+                            <button
+                              className="w-full px-4 py-3 text-[13px] font-medium text-center bg-white hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0 flex items-center justify-center gap-2 text-[#075e54]"
+                            >
+                              {isUrlButton && (
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                                </svg>
+                              )}
+                              {isPhoneButton && (
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
+                                </svg>
+                              )}
+                              {!isUrlButton && !isPhoneButton && (
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                              )}
+                              <span className="flex-1 truncate">{buttonText}</span>
+                            </button>
+                            {/* Show URL or phone under button for additional context */}
+                            {(buttonUrl || buttonPhone) && (
+                              <div className="px-4 py-1 text-[10px] text-gray-500 bg-gray-50 text-center border-b border-gray-200 last:border-b-0">
+                                {buttonUrl && (
+                                  <div className="truncate">🔗 {buttonUrl}</div>
+                                )}
+                                {buttonPhone && (
+                                  <div>📞 {buttonPhone}</div>
+                                )}
                               </div>
                             )}
-                            {buttonPhone && (
-                              <div className="text-[10px] text-gray-500 mt-1">
-                                {buttonPhone}
-                              </div>
-                            )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -294,7 +375,7 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                   
                   {/* Footer */}
                   {template.footer && (
-                    <div className="text-[11px] text-gray-500 border-t border-gray-200 pt-2 mt-3">
+                    <div className="text-[11px] text-gray-600 border-t border-gray-200 pt-2 mt-2 -mx-4 px-4 bg-gray-50">
                       {template.footer}
                     </div>
                   )}

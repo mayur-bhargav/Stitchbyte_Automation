@@ -341,9 +341,51 @@ export default function Dashboard() {
       const campaignsData = safeSetData(campaignsResponse);
       const broadcastsData = safeSetData(broadcastsResponse);
       const chatContactsData = safeSetData(chatContactsResponse);
+      const logsData = safeSetData(logsResponse);
+
+      // Calculate today's and yesterday's messages from logs
+      const calculateMessagesFromLogs = (logs: any) => {
+        if (!logs?.logs || !Array.isArray(logs.logs)) {
+          return { todayMessages: 0, yesterdayMessages: 0 };
+        }
+
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        // Set to start of day for accurate comparison
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+        let todayMessages = 0;
+        let yesterdayMessages = 0;
+
+        logs.logs.forEach((log: any) => {
+          if (log.direction === 'outgoing' && log.success && log.sent_at) {
+            const sentDate = new Date(log.sent_at);
+            
+            // Count today's messages
+            if (sentDate >= todayStart && sentDate < tomorrowStart) {
+              todayMessages++;
+            }
+            
+            // Count yesterday's messages
+            if (sentDate >= yesterdayStart && sentDate < todayStart) {
+              yesterdayMessages++;
+            }
+          }
+        });
+
+        return { todayMessages, yesterdayMessages };
+      };
+
+      const { todayMessages, yesterdayMessages } = calculateMessagesFromLogs(logsData);
 
       // Process message history data from API
-      const processMessageHistory = (data: any) => {
+      const processMessageHistory = (data: any, logs: any) => {
+        // First try to use the usage data if it has daily breakdown
         if (data?.daily_usage && Array.isArray(data.daily_usage)) {
           const last7Days = data.daily_usage.slice(-7);
           const labels = last7Days.map((day: any) => {
@@ -368,7 +410,56 @@ export default function Dashboard() {
           };
         }
         
-        // Fallback to show zero data if no usage data
+        // Fallback: Calculate from logs data
+        if (logs?.logs && Array.isArray(logs.logs)) {
+          const last7Days: { date: Date; label: string; messages: number }[] = [];
+          const today = new Date();
+          
+          // Generate last 7 days
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            last7Days.push({
+              date: date,
+              label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+              messages: 0
+            });
+          }
+          
+          // Count messages for each day
+          logs.logs.forEach((log: any) => {
+            if (log.direction === 'outgoing' && log.success && log.sent_at) {
+              const sentDate = new Date(log.sent_at);
+              const dayIndex = last7Days.findIndex(day => {
+                const dayStart = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate());
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + 1);
+                return sentDate >= dayStart && sentDate < dayEnd;
+              });
+              
+              if (dayIndex >= 0) {
+                last7Days[dayIndex].messages++;
+              }
+            }
+          });
+          
+          return {
+            labels: last7Days.map(day => day.label),
+            datasets: [
+              {
+                label: 'Messages Sent',
+                data: last7Days.map(day => day.messages),
+                borderColor: '#2A8B8A',
+                backgroundColor: '#2A8B8A',
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#2A8B8A',
+              },
+            ],
+          };
+        }
+        
+        // Final fallback to show zero data
         return {
           labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
           datasets: [
@@ -397,10 +488,10 @@ export default function Dashboard() {
         chatContacts: chatContactsData,
         recentLogs: safeSetData(logsResponse),
         metaPaymentMethods: safeSetData(metaPaymentResponse),
-        messageHistory: processMessageHistory(messageUsageData),
+        messageHistory: processMessageHistory(messageUsageData, logsData),
         stats: {
-          messagesSent: messageUsageData?.messages_sent_today || 0,
-          messagesSentYesterday: messageUsageData?.messages_sent_yesterday || 0,
+          messagesSent: todayMessages, // Use calculated today's messages from logs
+          messagesSentYesterday: yesterdayMessages, // Use calculated yesterday's messages from logs
           contacts: contactsData?.contacts?.length || 0,
           contactsLastWeek: contactsData?.contacts_last_week || 0,
           templates: templatesData?.templates?.length || 0,
@@ -410,9 +501,9 @@ export default function Dashboard() {
           broadcasts: broadcastsData?.broadcasts?.length || 0,
           chatConversations: chatContactsData?.contacts ? deduplicateContacts(chatContactsData.contacts).length : 0,
           unreadChats: getUnreadChatsCount(chatContactsData),
-          successfulMessages: messageUsageData?.successful_messages || 0,
-          failedMessages: messageUsageData?.failed_messages || 0,
-          totalMessages: (messageUsageData?.successful_messages || 0) + (messageUsageData?.failed_messages || 0)
+          successfulMessages: messageUsageData?.data?.messages_delivered || messageUsageData?.successful_messages || 0,
+          failedMessages: messageUsageData?.data?.messages_failed || messageUsageData?.failed_messages || 0,
+          totalMessages: (messageUsageData?.data?.messages_sent || messageUsageData?.total_messages || 0)
         },
         isLoading: false
       }));
