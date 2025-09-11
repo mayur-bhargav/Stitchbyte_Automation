@@ -212,8 +212,8 @@ export default function SignUp() {
       const errorMessage = getErrorMessage(error);
       
       // Check if this is a network error and offer retry
-      const isNetworkError = error?.code === 'NETWORK_ERROR' || 
-                            error?.name === 'NetworkError' ||
+      const isNetworkError = (error as any)?.code === 'NETWORK_ERROR' || 
+                            (error as any)?.name === 'NetworkError' ||
                             errorMessage.includes('network') ||
                             errorMessage.includes('connection');
       
@@ -247,7 +247,7 @@ export default function SignUp() {
     
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev: any) => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -781,7 +781,7 @@ export default function SignUp() {
 
       {/* Toast Component */}
       <Toast 
-        show={toast.show} 
+        isVisible={toast.isVisible || false} 
         message={toast.message} 
         type={toast.type} 
         onClose={closeToast} 

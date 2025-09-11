@@ -26,9 +26,9 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
       }
 
       if (requiredRole && user && user.role !== requiredRole) {
-        // Check role hierarchy: admin > user > viewer
-        const roleHierarchy = { admin: 3, user: 2, viewer: 1 };
-        const userRoleLevel = roleHierarchy[user.role];
+        // Check role hierarchy: owner > admin > user > viewer
+        const roleHierarchy = { owner: 4, admin: 3, user: 2, viewer: 1 };
+        const userRoleLevel = roleHierarchy[user.role as keyof typeof roleHierarchy];
         const requiredRoleLevel = roleHierarchy[requiredRole];
 
         if (userRoleLevel < requiredRoleLevel) {
@@ -62,8 +62,8 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
 
   // Show unauthorized message if role check fails
   if (requiredRole && user && user.role !== requiredRole) {
-    const roleHierarchy = { admin: 3, user: 2, viewer: 1 };
-    const userRoleLevel = roleHierarchy[user.role];
+    const roleHierarchy = { owner: 4, admin: 3, user: 2, viewer: 1 };
+    const userRoleLevel = roleHierarchy[user.role as keyof typeof roleHierarchy];
     const requiredRoleLevel = roleHierarchy[requiredRole];
 
     if (userRoleLevel < requiredRoleLevel) {

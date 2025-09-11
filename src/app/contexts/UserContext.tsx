@@ -16,6 +16,7 @@ interface User {
     status: string;
     end_date: string;
     trial_end_date?: string;
+    expires_at?: string;
     auto_renew: boolean;
   };
   wallet?: {
@@ -36,9 +37,14 @@ interface UserContextType {
   signup: (data: {
     email: string;
     password: string;
+    confirmPassword: string;
     firstName: string;
     lastName: string;
     companyName: string;
+    companySize: string;
+    industry: string;
+    phone: string;
+    agreeToTerms: boolean;
   }) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -92,9 +98,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
               try {
                 const subscriptionData = await apiService.getSubscription();
                 console.log('UserContext: Subscription data fetch result:', subscriptionData);
-                if (subscriptionData && subscriptionData.subscription) {
-                  console.log('UserContext: Found subscription data:', subscriptionData.subscription);
-                  setUser(prev => prev ? { ...prev, subscription: subscriptionData.subscription } : userData);
+                if (subscriptionData && (subscriptionData as any).subscription) {
+                  console.log('UserContext: Found subscription data:', (subscriptionData as any).subscription);
+                  setUser(prev => prev ? { ...prev, subscription: (subscriptionData as any).subscription } : userData);
                 }
               } catch (subError) {
                 console.log('UserContext: No subscription found during init:', subError);
@@ -124,10 +130,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const checkSubscription = async () => {
     try {
       const subscriptionData = await apiService.getSubscription();
-      if (user && subscriptionData && subscriptionData.subscription) {
+      if (user && subscriptionData && (subscriptionData as any).subscription) {
         setUser({
           ...user,
-          subscription: subscriptionData.subscription
+          subscription: (subscriptionData as any).subscription
         });
       }
     } catch (error) {
@@ -148,9 +154,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           console.log('UserContext: No subscription in user data, checking separately...');
           try {
             const subscriptionData = await apiService.getSubscription();
-            if (subscriptionData && subscriptionData.subscription) {
-              console.log('UserContext: Found subscription data:', subscriptionData.subscription);
-              setUser(prev => prev ? { ...prev, subscription: subscriptionData.subscription } : null);
+            if (subscriptionData && (subscriptionData as any).subscription) {
+              console.log('UserContext: Found subscription data:', (subscriptionData as any).subscription);
+              setUser(prev => prev ? { ...prev, subscription: (subscriptionData as any).subscription } : null);
             }
           } catch (subError) {
             console.log('UserContext: No subscription found:', subError);
@@ -187,9 +193,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         try {
           console.log('UserContext: Fetching subscription data after login...');
           const subscriptionData = await apiService.getSubscription();
-          if (subscriptionData && subscriptionData.subscription) {
-            console.log('UserContext: Found subscription data after login:', subscriptionData.subscription);
-            setUser(prev => prev ? { ...prev, subscription: subscriptionData.subscription } : null);
+          if (subscriptionData && (subscriptionData as any).subscription) {
+            console.log('UserContext: Found subscription data after login:', (subscriptionData as any).subscription);
+            setUser(prev => prev ? { ...prev, subscription: (subscriptionData as any).subscription } : null);
           } else {
             console.log('UserContext: No subscription found after login');
           }
@@ -267,10 +273,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     const endDate = sub.end_date || sub.trial_end_date || sub.expires_at;
     if (isTrial) {
       // Trial is valid if not expired
-      hasValidSubscription = status === 'trial' && endDate && new Date(endDate) > now;
+      hasValidSubscription = !!(status === 'trial' && endDate && new Date(endDate) > now);
     } else {
       // Paid plan is valid if status is active/premium/basic and not expired
-      hasValidSubscription = ['active', 'premium', 'basic'].includes(status) && endDate && new Date(endDate) > now;
+      hasValidSubscription = !!(['active', 'premium', 'basic'].includes(status) && endDate && new Date(endDate) > now);
     }
   }
   // Needs plan selection if not valid or explicitly expired

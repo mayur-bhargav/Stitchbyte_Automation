@@ -205,6 +205,10 @@ export default function LogsPage() {
       const aValue = a[sortField];
       const bValue = b[sortField];
       
+      // Handle undefined/null values
+      if (aValue === undefined || aValue === null) return sortDirection === 'asc' ? -1 : 1;
+      if (bValue === undefined || bValue === null) return sortDirection === 'asc' ? 1 : -1;
+      
       if (sortDirection === 'asc') {
         return aValue > bValue ? 1 : -1;
       } else {

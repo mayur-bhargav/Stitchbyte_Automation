@@ -152,7 +152,7 @@ export default function ContactsPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    if (!validateForm() || !user) return;
     
     try {
       if (editingContact) {
@@ -164,7 +164,7 @@ export default function ContactsPage() {
           email: formData.email?.trim() || undefined,
           notes: formData.notes?.trim() || undefined,
           companyId: user.companyId // Ensure contact belongs to user's company
-        });
+        }) as Contact;
         
         setContacts(prev => prev.map(c => 
           c._id === editingContact._id ? updatedContact : c
@@ -178,7 +178,7 @@ export default function ContactsPage() {
           email: formData.email?.trim() || undefined,
           notes: formData.notes?.trim() || undefined,
           companyId: user.companyId // Ensure contact belongs to user's company
-        });
+        }) as Contact;
         
         setContacts(prev => [newContact, ...prev]);
       }
@@ -218,6 +218,8 @@ export default function ContactsPage() {
   };
 
   const toggleContactStatus = async (contactId: string) => {
+    if (!user) return;
+    
     try {
       const contact = contacts.find(c => c._id === contactId);
       if (!contact) return;
@@ -229,7 +231,7 @@ export default function ContactsPage() {
         ...contact, 
         status: newStatus,
         companyId: user.companyId // Ensure security
-      });
+      }) as Contact;
       
       setContacts(prev => prev.map(c => 
         c._id === contactId ? { ...c, status: newStatus as "active" | "blocked" } : c
@@ -242,14 +244,14 @@ export default function ContactsPage() {
   };
 
   const handleTagsUpdate = async () => {
-    if (!tagsEditingContact) return;
+    if (!tagsEditingContact || !user) return;
     
     try {
       const updatedContact = await apiService.updateContact(tagsEditingContact._id, { 
         ...tagsEditingContact, 
         tags: tagsFormData.selectedTags,
         companyId: user.companyId // Ensure security
-      });
+      }) as Contact;
       
       setContacts(prev => prev.map(c => 
         c._id === tagsEditingContact._id ? updatedContact : c
@@ -311,7 +313,7 @@ export default function ContactsPage() {
   };
 
   const handleFileImport = async () => {
-    if (!importFile) return;
+    if (!importFile || !user) return;
     
     setImporting(true);
     setImportProgress(0);
@@ -363,7 +365,7 @@ export default function ContactsPage() {
             tags: contactData.tags ? contactData.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
             notes: contactData.notes || undefined,
             companyId: user.companyId // Ensure contact belongs to user's company
-          });
+          }) as Contact;
           
           newContacts.push(savedContact);
           
@@ -428,7 +430,7 @@ export default function ContactsPage() {
     setLoading(true);
     try {
       const data = await apiService.getContacts();
-      const contactsData = data.contacts || [];
+      const contactsData = (data as any).contacts || [];
       // Filter contacts by user's company for security
       const userContacts = contactsData.filter((contact: Contact) => 
         contact.companyId === user.companyId || !contact.companyId // Include legacy contacts without companyId

@@ -28,6 +28,7 @@ type Broadcast = {
   target_groups: string[];
   media_url?: string;
   media_type?: string;
+  companyId?: string;
 };
 
 type Contact = {
@@ -35,6 +36,7 @@ type Contact = {
   name?: string;
   tags: string[];
   created_at: string;
+  companyId?: string;
 };
 
 function BroadcastsPage() {
@@ -82,7 +84,7 @@ function BroadcastsPage() {
     
     try {
       const data = await apiService.getBroadcasts();
-      const broadcastsData = data.broadcasts || [];
+      const broadcastsData = (data as any).broadcasts || [];
       // Filter broadcasts by user's company for security
       const userBroadcasts = broadcastsData.filter((broadcast: Broadcast) => 
         broadcast.companyId === user.companyId || !broadcast.companyId
@@ -102,7 +104,7 @@ function BroadcastsPage() {
     
     try {
       const data = await apiService.getContacts();
-      const contactsData = data.contacts || [];
+      const contactsData = (data as any).contacts || [];
       // Filter contacts by user's company for security
       const userContacts = contactsData.filter((contact: Contact) => 
         contact.companyId === user.companyId || !contact.companyId
@@ -126,7 +128,7 @@ function BroadcastsPage() {
     
     try {
       const data = await apiService.getTemplates();
-      const allTemplates = data.templates || data || [];
+      const allTemplates = (data as any).templates || data || [];
       // Filter templates by user's company and approved status
       const approvedTemplates = allTemplates.filter((t: any) => 
         (t.companyId === user.companyId || !t.companyId) &&

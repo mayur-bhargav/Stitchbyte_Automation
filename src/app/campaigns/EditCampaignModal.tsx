@@ -82,7 +82,7 @@ const ContactSelectionModal: React.FC<ContactSelectionModalProps> = ({
       const data = await apiService.getContacts();
       console.log('Contacts API response:', data); // Debug log
       // Backend returns {contacts: [...]}
-      setContacts(data.contacts || []);
+      setContacts((data as any).contacts || []);
     } catch (error) {
       console.error('Error fetching contacts:', error);
     }
@@ -332,7 +332,7 @@ export default function EditCampaignModal({ isOpen, onClose, campaign, onSuccess
       const data = await apiService.getTemplates();
       console.log('Templates API response:', data); // Debug log
       // Backend returns {templates: [...]}
-      setTemplates(data.templates || []);
+      setTemplates((data as any).templates || []);
     } catch (error) {
       console.error('Error fetching templates:', error);
     } finally {

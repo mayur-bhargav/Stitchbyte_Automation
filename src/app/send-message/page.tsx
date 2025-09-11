@@ -15,6 +15,7 @@ type Template = {
   name: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   content: string;
+  body?: string;
   variables?: string[];
   header_type?: string;
   header_media?: {
@@ -73,6 +74,10 @@ function SendMessage() {
   const [limitsLoading, setLimitsLoading] = useState(false);
   const [messageUsage, setMessageUsage] = useState<MessageUsage | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
+  
+  // State for WhatsApp business config
+  const [whatsappConfig, setWhatsappConfig] = useState<any>(null);
+  const [configLoading, setConfigLoading] = useState(false);
   
   // State for enhanced messaging features
   const [scheduledTime, setScheduledTime] = useState('');
@@ -138,7 +143,7 @@ function SendMessage() {
             }
           });
         console.log("Processed templates:", tpls);
-        console.log("Approved templates:", tpls.filter(t => t.status === 'APPROVED'));
+        console.log("Approved templates:", tpls.filter((t: Template) => t.status === 'APPROVED'));
         setTemplates(tpls);
         } else {
           console.log("Templates endpoint not available, showing empty templates");
@@ -164,6 +169,19 @@ function SendMessage() {
 
     // Load message usage
     loadMessageUsage();
+
+    // Load WhatsApp config
+    setConfigLoading(true);
+    fetch("http://localhost:8000/whatsapp/config")
+      .then(res => res.json())
+      .then(data => {
+        setWhatsappConfig(data);
+        setConfigLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching WhatsApp config:", error);
+        setConfigLoading(false);
+      });
   }, [user]);
 
   // Close dropdown when clicking outside
@@ -206,7 +224,7 @@ function SendMessage() {
     setContactsLoading(true);
     try {
       const data = await apiService.getContacts();
-      const contactsData = data.contacts || [];
+      const contactsData = (data as any).contacts || [];
       // Filter contacts by user's company for security
       const userContacts = contactsData.filter((contact: any) => 
         contact.companyId === user.companyId || !contact.companyId
@@ -821,7 +839,7 @@ function SendMessage() {
               </div>
               
               <p className="text-sm text-gray-600 mt-2">
-                Total recipients: {getAllPhoneNumbers().length > 0 ? getAllPhoneNumbers().length : "StitchByte"}
+                Total recipients: {getAllPhoneNumbers().length}
               </p>
             </div>
 
@@ -982,7 +1000,7 @@ function SendMessage() {
                             type="radio"
                             id="upload-file"
                             name="media-option"
-                            checked={!mediaUrl || mediaFile}
+                            checked={(!mediaUrl && !mediaFile) || !!mediaFile}
                             onChange={() => {
                               setMediaUrl('');
                             }}
@@ -1234,7 +1252,7 @@ function SendMessage() {
                   <div className="flex-1">
                     <div className="font-medium text-sm">
                       {getAllPhoneNumbers().length === 0 
-                        ? "StitchByte" 
+                        ? (whatsappConfig?.selected_phone?.verified_name || "Business Name") 
                         : getAllPhoneNumbers().length === 1 
                           ? getAllPhoneNumbers()[0] 
                           : `${getAllPhoneNumbers().length} recipients`
@@ -1274,7 +1292,10 @@ function SendMessage() {
                                       className="w-full h-32 object-cover"
                                       onError={(e) => {
                                         e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                                        const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                        if (nextElement) {
+                                          nextElement.style.display = 'flex';
+                                        }
                                       }}
                                     />
                                   ) : selectedTpl.header_media?.handle ? (
@@ -1284,7 +1305,10 @@ function SendMessage() {
                                       className="w-full h-32 object-cover"
                                       onError={(e) => {
                                         e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                                        const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                        if (nextElement) {
+                                          nextElement.style.display = 'flex';
+                                        }
                                       }}
                                     />
                                   ) : null}
@@ -1314,7 +1338,10 @@ function SendMessage() {
                                       controls
                                       onError={(e) => {
                                         e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                                        const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                        if (nextElement) {
+                                          nextElement.style.display = 'flex';
+                                        }
                                       }}
                                     />
                                   ) : selectedTpl.header_media?.handle ? (
@@ -1324,7 +1351,10 @@ function SendMessage() {
                                       controls
                                       onError={(e) => {
                                         e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                                        const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                        if (nextElement) {
+                                          nextElement.style.display = 'flex';
+                                        }
                                       }}
                                     />
                                   ) : null}
@@ -1669,7 +1699,7 @@ function SendMessage() {
 
                           {contact.tags && contact.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {contact.tags.slice(0, 3).map((tag, index) => (
+                              {contact.tags.slice(0, 3).map((tag: string, index: number) => (
                                 <span
                                   key={index}
                                   className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full"

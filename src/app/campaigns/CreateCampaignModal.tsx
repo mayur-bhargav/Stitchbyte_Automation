@@ -6,7 +6,7 @@ import apiService from "../services/apiService";
 
 type Template = {
   name: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'APPROVED';
   content: string;
   variables?: string[];
   header_type?: string;
@@ -130,7 +130,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
     setContactsLoading(true);
     try {
       const data = await apiService.getContacts();
-      const contactsData = data.contacts || [];
+      const contactsData = (data as any).contacts || [];
       setAllContacts(contactsData);
     } catch (error) {
       console.error('Error fetching contacts:', error);
@@ -416,10 +416,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
       }
 
       // Use apiService which handles authentication automatically
-      const data = await apiService.request('/campaigns', {
-        method: 'POST',
-        body: formDataToSend
-      });
+      const data = await apiService.post('/campaigns', formDataToSend) as any;
 
       if (data.success) {
         onCampaignCreated();
@@ -613,7 +610,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
                           type="radio"
                           id="upload-file"
                           name="media-option"
-                          checked={!mediaUrl || mediaFile}
+                          checked={!mediaUrl || !!mediaFile}
                           onChange={() => {
                             setMediaUrl('');
                           }}
@@ -1112,7 +1109,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
 
                           {contact.tags && contact.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {contact.tags.slice(0, 3).map((tag, index) => (
+                              {contact.tags.slice(0, 3).map((tag: string, index: number) => (
                                 <span
                                   key={index}
                                   className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full"
@@ -1187,7 +1184,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onCampaignCreated
                   </button>
                   <button
                     onClick={applySelectedContacts}
-                    disabled={selectedContacts.size === 0 || (formData.budget && parseFloat(formData.budget) > 0 && 
+                    disabled={selectedContacts.size === 0 || !!(formData.budget && parseFloat(formData.budget) > 0 && 
                       ((formData.recipients.length + selectedContacts.size) * MESSAGE_COST + CAMPAIGN_STARTUP_FEE) > parseFloat(formData.budget))}
                     className="px-6 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >

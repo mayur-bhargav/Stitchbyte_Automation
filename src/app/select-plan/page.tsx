@@ -56,7 +56,7 @@ export default function SelectPlanPage() {
     try {
       const subscription = await apiService.getSubscription();
       // If user has an expired trial or active subscription, don't show trial option
-      if (subscription.subscription) {
+      if ((subscription as any).subscription) {
         setShowTrialOption(false);
       }
     } catch (error: any) {
@@ -89,7 +89,7 @@ export default function SelectPlanPage() {
     try {
       const response = await apiService.getPlans();
       // Filter out trial plans since trial is automatic on signup
-      const nonTrialPlans = response.plans.filter(plan => plan.id !== 'trial');
+      const nonTrialPlans = (response as any).plans.filter((plan: any) => plan.id !== 'trial');
       setPlans(nonTrialPlans);
     } catch (error) {
       console.error('Error fetching plans:', error);
@@ -141,10 +141,10 @@ export default function SelectPlanPage() {
       if (!window.Razorpay) {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = () => initiatePayment(orderResponse, planId);
+        script.onload = () => initiatePayment(orderResponse as PaymentData, planId);
         document.head.appendChild(script);
       } else {
-        initiatePayment(orderResponse, planId);
+        initiatePayment(orderResponse as PaymentData, planId);
       }
     } catch (error: any) {
       console.error('Error creating payment order:', error);

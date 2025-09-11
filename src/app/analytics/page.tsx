@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
 
       // Try to get basic metrics from contacts
       if (contactsResponse.status === 'fulfilled' && contactsResponse.value) {
-        const contactsData = contactsResponse.value;
+        const contactsData = contactsResponse.value as any;
         console.log('Contacts data received:', contactsData);
         
         const contacts = contactsData?.contacts || contactsData || [];

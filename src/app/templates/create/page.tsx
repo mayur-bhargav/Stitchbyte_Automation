@@ -2,6 +2,33 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 
+// Type definitions
+interface Button {
+  type: 'QUICK_REPLY' | 'URL';
+  text: string;
+  url?: string;
+}
+
+interface FormData {
+  name: string;
+  category: string;
+  type: string;
+  language: string;
+  header: string;
+  headerVarType: string;
+  body: string;
+  footer: string;
+  samples: string[];
+  buttons: Button[];
+  variableType: string;
+}
+
+interface FormErrors {
+  name?: string;
+  body?: string;
+  headerFile?: string;
+}
+
 const CATEGORY_OPTIONS = [
   { value: "MARKETING", label: "Marketing" },
   { value: "UTILITY", label: "Utility" },
@@ -16,7 +43,7 @@ const HEADER_VARIABLE_TYPES = [
   { value: "document", label: "Document" },
 ];
 
-const TYPE_OPTIONS = {
+const TYPE_OPTIONS: Record<string, Array<{ value: string; label: string; desc: string }>> = {
   MARKETING: [
     { value: "custom", label: "Custom", desc: "General marketing template" },
     { value: "promotional", label: "Promotional", desc: "Promotional message" },
@@ -33,7 +60,7 @@ const TYPE_OPTIONS = {
 
 export default function CreateTemplatePage() {
   const router = useRouter();
-  const [form, setForm] = React.useState({
+  const [form, setForm] = React.useState<FormData>({
     name: "",
     category: "MARKETING",
     type: "custom",
@@ -46,15 +73,15 @@ export default function CreateTemplatePage() {
     buttons: [],
     variableType: "none",
   });
-  const [headerFile, setHeaderFile] = React.useState(null);
-  const [formErrors, setFormErrors] = React.useState({});
+  const [headerFile, setHeaderFile] = React.useState<File | null>(null);
+  const [formErrors, setFormErrors] = React.useState<FormErrors>({});
   const [submitLoading, setSubmitLoading] = React.useState(false);
   const [successMsg, setSuccessMsg] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState("");
   const [step, setStep] = React.useState(1);
 
   // Function to sanitize template name (same logic as backend)
-  const sanitizeTemplateName = (name) => {
+  const sanitizeTemplateName = (name: string): string => {
     if (!name) return "";
     let sanitized = name.toLowerCase().trim();
     sanitized = sanitized.replace(/[^a-z0-9_]/g, '_');
@@ -73,14 +100,14 @@ export default function CreateTemplatePage() {
     }
   };
 
-  const removeButton = (index) => {
+  const removeButton = (index: number) => {
     setForm(prev => ({
       ...prev,
       buttons: prev.buttons.filter((_, i) => i !== index)
     }));
   };
 
-  const updateButton = (index, field, value) => {
+  const updateButton = (index: number, field: keyof Button, value: any) => {
     setForm(prev => ({
       ...prev,
       buttons: prev.buttons.map((btn, i) => 
@@ -105,7 +132,7 @@ export default function CreateTemplatePage() {
     }
   }, [form.body]);
 
-  const handleFormChange = (e) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     if (type === 'radio' && name === 'variableType') {
       setForm(prev => ({
@@ -120,7 +147,7 @@ export default function CreateTemplatePage() {
     }
   };
 
-  const handleSampleChange = (idx, value) => {
+  const handleSampleChange = (idx: number, value: string) => {
     setForm((prev) => {
       const samples = [...(prev.samples || [])];
       samples[idx] = value;
@@ -128,14 +155,14 @@ export default function CreateTemplatePage() {
     });
   };
 
-  const handleHeaderVarTypeChange = (e) => {
+  const handleHeaderVarTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, headerVarType: e.target.value }));
     // Clear file when changing header type
     setHeaderFile(null);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       setHeaderFile(file);
     }
@@ -146,7 +173,7 @@ export default function CreateTemplatePage() {
     setSuccessMsg("");
     setErrorMsg("");
     
-    let errors = {};
+    let errors: FormErrors = {};
     if (!form.name) errors.name = "Name is required";
     if (!form.body) errors.body = "Body is required";
     

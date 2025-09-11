@@ -1,12 +1,36 @@
 import React, { useState } from "react";
 
+// Type definitions
+interface FormData {
+  name: string;
+  category: string;
+  type: string;
+  language: string;
+  header: string;
+  body: string;
+  footer: string;
+  variables: string[];
+  buttons: string[];
+  validityPeriod: boolean;
+}
+
+interface FormErrors {
+  name?: string;
+  body?: string;
+}
+
+interface Props {
+  onClose: () => void;
+  onSubmit?: (formData: FormData) => void;
+}
+
 const CATEGORY_OPTIONS = [
   { value: "MARKETING", label: "Marketing" },
   { value: "UTILITY", label: "Utility" },
   { value: "AUTHENTICATION", label: "Authentication" },
 ];
 
-const TYPE_OPTIONS = {
+const TYPE_OPTIONS: Record<string, Array<{ value: string; label: string; desc: string }>> = {
   MARKETING: [
     { value: "custom", label: "Custom", desc: "Send promotions or announcements to increase awareness and engagement." },
     { value: "catalogue", label: "Catalogue", desc: "Send messages about your entire catalogue or multiple products from it." },
@@ -30,7 +54,7 @@ const LANGUAGES = [
   // Add more as needed
 ];
 
-const initialForm = {
+const initialForm: FormData = {
   name: "",
   category: "MARKETING",
   type: "custom",
@@ -43,18 +67,18 @@ const initialForm = {
   validityPeriod: false,
 };
 
-export default function CreateTemplateModal({ onClose, onSubmit }) {
+export default function CreateTemplateModal({ onClose, onSubmit }: Props) {
   const [step, setStep] = useState(0); // 0: setup, 1: edit, 2: review
-  const [form, setForm] = useState(initialForm);
-  const [formErrors, setFormErrors] = useState({});
+  const [form, setForm] = useState<FormData>(initialForm);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [buttonText, setButtonText] = useState("");
 
   // Stepper navigation
   const steps = ["Set up template", "Edit template", "Submit for Review"];
 
   // Handlers
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type, checked } = e.target as HTMLInputElement;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -68,12 +92,12 @@ export default function CreateTemplateModal({ onClose, onSubmit }) {
       setButtonText("");
     }
   };
-  const handleRemoveButton = (idx) => {
+  const handleRemoveButton = (idx: number) => {
     setForm((prev) => ({ ...prev, buttons: prev.buttons.filter((_, i) => i !== idx) }));
   };
 
   const validateStep = () => {
-    let errors = {};
+    let errors: FormErrors = {};
     if (step === 0) {
       if (!form.name) errors.name = "You need to enter a name for your template.";
     }
@@ -89,7 +113,7 @@ export default function CreateTemplateModal({ onClose, onSubmit }) {
   };
   const handlePrev = () => setStep((s) => s - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateStep()) {
       if (onSubmit) onSubmit(form);
