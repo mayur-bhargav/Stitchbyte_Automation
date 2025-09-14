@@ -66,13 +66,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addNewMessage = useCallback((message: ChatMessage) => {
     // Only increment count for incoming messages that are not read
     if (message.direction === 'incoming' && !message.read) {
-      console.log('📨 New incoming message detected, incrementing count for:', message.phone);
+      // console.log('📨 New incoming message detected, incrementing count for:', message.phone);
       setUnreadCounts(prev => ({
         ...prev,
         [message.phone]: (prev[message.phone] || 0) + 1
       }));
     } else {
-      console.log('📤 Outgoing message or read message, not incrementing count for:', message.phone, 'Direction:', message.direction);
+      // console.log('📤 Outgoing message or read message, not incrementing count for:', message.phone, 'Direction:', message.direction);
     }
   }, []);
 

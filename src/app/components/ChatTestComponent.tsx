@@ -36,9 +36,8 @@ export const ChatTestComponent = () => {
     // Test the notification sound
     try {
       const audio = new Audio('/notification.wav');
-      audio.play().catch(e => console.log('Could not play notification sound:', e));
+      audio.play().catch(e => {});
     } catch (e) {
-      console.log('Could not create audio for notification:', e);
     }
   };
 

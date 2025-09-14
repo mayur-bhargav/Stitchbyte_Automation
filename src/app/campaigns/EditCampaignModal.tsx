@@ -80,7 +80,7 @@ const ContactSelectionModal: React.FC<ContactSelectionModalProps> = ({
   const fetchContacts = async () => {
     try {
       const data = await apiService.getContacts();
-      console.log('Contacts API response:', data); // Debug log
+      // console.log('Contacts API response:', data); // Debug log
       // Backend returns {contacts: [...]}
       setContacts((data as any).contacts || []);
     } catch (error) {
@@ -247,7 +247,7 @@ export default function EditCampaignModal({ isOpen, onClose, campaign, onSuccess
   // Load campaign data when modal opens
   useEffect(() => {
     if (isOpen && campaign) {
-      console.log('Loading campaign data:', campaign); // Debug log
+      // console.log('Loading campaign data:', campaign); // Debug log
       fetchCampaignDetails();
     }
   }, [isOpen, campaign]);
@@ -270,7 +270,7 @@ export default function EditCampaignModal({ isOpen, onClose, campaign, onSuccess
       
       if (data.success && data.campaign) {
         const fullCampaign = data.campaign;
-        console.log('Full campaign data:', fullCampaign); // Debug log
+        // console.log('Full campaign data:', fullCampaign); // Debug log
         
         // Handle recipients - could be array or comma-separated string
         let recipients: string[] = [];
@@ -302,12 +302,12 @@ export default function EditCampaignModal({ isOpen, onClose, campaign, onSuccess
           variable_values: fullCampaign.template_variables || fullCampaign.variable_values || {}
         });
         
-        console.log('Set form data:', { // Debug log
-          name: fullCampaign.name,
-          template: fullCampaign.template,
-          recipients: recipients,
-          tags: tags
-        });
+        // console.log('Set form data:', { // Debug log
+        //   name: fullCampaign.name,
+        //   template: fullCampaign.template,
+        //   recipients: recipients,
+        //   tags: tags
+        // });
       } else {
         setError('Failed to load campaign details');
       }
@@ -330,7 +330,7 @@ export default function EditCampaignModal({ isOpen, onClose, campaign, onSuccess
     setTemplatesLoading(true);
     try {
       const data = await apiService.getTemplates();
-      console.log('Templates API response:', data); // Debug log
+      // console.log('Templates API response:', data); // Debug log
       // Backend returns {templates: [...]}
       setTemplates((data as any).templates || []);
     } catch (error) {

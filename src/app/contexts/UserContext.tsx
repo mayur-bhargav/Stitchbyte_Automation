@@ -83,35 +83,26 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       try {
 
         const token = localStorage.getItem('token');
-        console.log('UserContext: Token check result:', { hasToken: !!token });
         
         if (token) {
-          console.log('UserContext: Found token, getting user data...');
           const userData = await apiService.getCurrentUser();
           if (userData) {
-            console.log('UserContext: User data loaded:', userData);
             setUser(userData);
             
             // If user data doesn't include subscription, try to fetch it separately
             if (!userData.subscription) {
-              console.log('UserContext: No subscription in user data, checking separately...');
               try {
                 const subscriptionData = await apiService.getSubscription();
-                console.log('UserContext: Subscription data fetch result:', subscriptionData);
                 if (subscriptionData && (subscriptionData as any).subscription) {
-                  console.log('UserContext: Found subscription data:', (subscriptionData as any).subscription);
                   setUser(prev => prev ? { ...prev, subscription: (subscriptionData as any).subscription } : userData);
                 }
               } catch (subError) {
-                console.log('UserContext: No subscription found during init:', subError);
               }
             }
           } else {
-            console.log('UserContext: No user data returned, removing token');
             localStorage.removeItem('token');
           }
         } else {
-          console.log('UserContext: No token found - this is normal for first-time visitors');
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
@@ -119,7 +110,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           localStorage.removeItem('token');
         }
       } finally {
-        console.log('UserContext: Setting isLoading to false');
+
         setIsLoading(false);
       }
     };
@@ -143,27 +134,22 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const refreshUser = async () => {
     try {
-      console.log('UserContext: Refreshing user data...');
+
       const userData = await apiService.getCurrentUser();
       if (userData) {
-        console.log('UserContext: Received user data:', userData);
         setUser(userData);
         
         // Also check subscription status separately if user data doesn't include it
         if (!userData.subscription) {
-          console.log('UserContext: No subscription in user data, checking separately...');
           try {
             const subscriptionData = await apiService.getSubscription();
             if (subscriptionData && (subscriptionData as any).subscription) {
-              console.log('UserContext: Found subscription data:', (subscriptionData as any).subscription);
               setUser(prev => prev ? { ...prev, subscription: (subscriptionData as any).subscription } : null);
             }
           } catch (subError) {
-            console.log('UserContext: No subscription found:', subError);
           }
         }
       } else {
-        console.log('UserContext: No user data received');
       }
     } catch (error) {
       console.error('Error refreshing user data:', error);
@@ -191,16 +177,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         
         // Immediately fetch subscription data after login to ensure proper redirect
         try {
-          console.log('UserContext: Fetching subscription data after login...');
           const subscriptionData = await apiService.getSubscription();
           if (subscriptionData && (subscriptionData as any).subscription) {
-            console.log('UserContext: Found subscription data after login:', (subscriptionData as any).subscription);
             setUser(prev => prev ? { ...prev, subscription: (subscriptionData as any).subscription } : null);
           } else {
-            console.log('UserContext: No subscription found after login');
           }
         } catch (subError) {
-          console.log('UserContext: Error fetching subscription after login:', subError);
         }
         
         return response;
@@ -284,13 +266,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   // Debug logging for subscription status
   if (isAuthenticated) {
-    console.log('UserContext Debug:', {
-      hasSubscription: !!user?.subscription,
-      subscriptionStatus: user?.subscription?.status,
-      subscriptionEndDate: user?.subscription?.end_date,
-      hasValidSubscription,
-      needsPlanSelection
-    });
+    // console.log('UserContext Debug:', {
+    //   hasSubscription: !!user?.subscription,
+    //   subscriptionStatus: user?.subscription?.status,
+    //   subscriptionEndDate: user?.subscription?.end_date,
+    //   hasValidSubscription,
+    //   needsPlanSelection
+    // });
   }
 
   const clearBackupCodeFlag = () => {

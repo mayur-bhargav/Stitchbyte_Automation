@@ -33,7 +33,7 @@ export class PaymentService {
           name: userDetails.name || ''
         },
         handler: async (response: any) => {
-          console.log('Razorpay Payment Success:', response);
+          // console.log('Razorpay Payment Success:', response);
           
           // Send payment data to backend
           try {
@@ -96,7 +96,7 @@ export class PaymentService {
     try {
       // Note: This is a simplified Stripe integration
       // In a real implementation, you would use Stripe Elements or Checkout
-      console.log('Stripe payment integration would be implemented here');
+      // console.log('Stripe payment integration would be implemented here');
       
       // For now, return a mock success response
       await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing time

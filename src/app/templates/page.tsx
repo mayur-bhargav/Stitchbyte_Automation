@@ -7,7 +7,7 @@ import { apiService } from '../services/apiService';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`${type.toUpperCase()}: ${message}`);
+  // console.log(`${type.toUpperCase()}: ${message}`);
 };
 
 // --- Branding ---
@@ -58,7 +58,7 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
   if (!template) return null;
   
   // Debug: Log template structure to understand the data format
-  console.log('Template data structure:', template);
+  // console.log('Template data structure:', template);
   
   const previewBody = (template.body || template.content || "").replace(/{{\s*(\d+)\s*}}/g, (_: string, idx: string) =>
     (template.samples && template.samples[parseInt(idx) - 1]) || ""
@@ -71,7 +71,7 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
       try {
         buttons = JSON.parse(template.buttons);
       } catch (e) {
-        console.log('Failed to parse buttons JSON:', e);
+        // console.log('Failed to parse buttons JSON:', e);
       }
     } else if (Array.isArray(template.buttons)) {
       buttons = template.buttons;
@@ -105,15 +105,15 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
   
   const hasHeaderMedia = (detectedMediaType && detectedMediaType !== 'none') || headerMediaUrl || isImageHeader || template.header_media?.handle;
   
-  console.log('Template data structure:', template);
-  console.log('Header media object:', template.header_media);
-  console.log('Header var type:', headerVarType);
-  console.log('Detected media type:', detectedMediaType);
-  console.log('Header media URL:', headerMediaUrl);
-  console.log('Is image header:', isImageHeader);
-  console.log('Buttons array:', buttons);
-  console.log('Buttons length:', buttons.length);
-  console.log('Raw buttons from template:', template.buttons);
+  // console.log('Template data structure:', template);
+  // console.log('Header media object:', template.header_media);
+  // console.log('Header var type:', headerVarType);
+  // console.log('Detected media type:', detectedMediaType);
+  // console.log('Header media URL:', headerMediaUrl);
+  // console.log('Is image header:', isImageHeader);
+  // console.log('Buttons array:', buttons);
+  // console.log('Buttons length:', buttons.length);
+  // console.log('Raw buttons from template:', template.buttons);
   
   // Sample media URLs for preview (you can replace these with actual media URLs)
   const getSampleMediaUrl = (type: string): string => {
@@ -636,11 +636,11 @@ function TemplatesPage() {
         setTemplates(userTemplates);
       } else {
         // Templates endpoint not available
-        console.log('Templates endpoint not available, showing empty templates');
+        // console.log('Templates endpoint not available, showing empty templates');
         setTemplates([]);
       }
     } catch (error) {
-      console.log('Templates endpoint failed, showing empty templates:', error);
+      // console.log('Templates endpoint failed, showing empty templates:', error);
       setTemplates([]);
     } finally {
       setTemplatesLoading(false);

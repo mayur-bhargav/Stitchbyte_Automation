@@ -8,7 +8,7 @@ import { apiService } from '../services/apiService';
 
 // Toast notification function
 const showToastConsole = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`${type.toUpperCase()}: ${message}`);
+  // console.log(`${type.toUpperCase()}: ${message}`);
 };
 
 type Template = {
@@ -128,7 +128,7 @@ function SendMessage() {
     apiService.getOptional('/templates')
       .then(data => {
         if (data) {
-        console.log("Templates API response:", data);
+        // console.log("Templates API response:", data);
         let tpls = (data.templates || data || [])
           .filter((t: any) => t.companyId === user.companyId || !t.companyId) // Filter by company
           .map((t: any) => {
@@ -142,11 +142,11 @@ function SendMessage() {
               };
             }
           });
-        console.log("Processed templates:", tpls);
-        console.log("Approved templates:", tpls.filter((t: Template) => t.status === 'APPROVED'));
+        // console.log("Processed templates:", tpls);
+        // console.log("Approved templates:", tpls.filter((t: Template) => t.status === 'APPROVED'));
         setTemplates(tpls);
         } else {
-          console.log("Templates endpoint not available, showing empty templates");
+          // console.log("Templates endpoint not available, showing empty templates");
           setTemplates([]);
         }
         setTemplatesLoading(false);
@@ -502,7 +502,7 @@ function SendMessage() {
             }, {} as any) : {}
         };
 
-        console.log('📅 Creating scheduled message:', scheduledMessageData);
+        // console.log('📅 Creating scheduled message:', scheduledMessageData);
         const response = await apiService.createScheduledMessage(scheduledMessageData);
         const typedResponse = response as { success: boolean; data?: { id: string }; message?: string };
         
@@ -536,10 +536,10 @@ function SendMessage() {
         let errorCount = 0;
         const detailedErrors = [];
         
-        console.log('📋 Starting immediate message sending...');
-        console.log('📱 Phone numbers:', phoneNumbers);
-        console.log('📨 Template:', template);
-        console.log('👤 User company ID:', user?.companyId);
+        // console.log('📋 Starting immediate message sending...');
+        // console.log('📱 Phone numbers:', phoneNumbers);
+        // console.log('📨 Template:', template);
+        // console.log('👤 User company ID:', user?.companyId);
         
         for (const phoneNumber of phoneNumbers) {
           try {
@@ -852,7 +852,7 @@ function SendMessage() {
                 className="w-full border border-gray-300 bg-white text-black p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
                 value={template}
                 onChange={e => {
-                  console.log("Selected template:", e.target.value);
+                  // console.log("Selected template:", e.target.value);
                   setTemplate(e.target.value);
                   setVariableValues({});
                 }}
@@ -895,7 +895,7 @@ function SendMessage() {
                               type="button"
                               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#2A8B8A] transition-colors"
                               onClick={() => {
-                                console.log('Variable dropdown button clicked for:', v);
+                                // console.log('Variable dropdown button clicked for:', v);
                                 setActiveVariableField(v);
                                 setShowVariableDropdown(!showVariableDropdown || activeVariableField !== v);
                               }}
@@ -919,11 +919,11 @@ function SendMessage() {
                                       type="button"
                                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
                                       onClick={() => {
-                                        console.log('Variable selected:', variable.label, 'for field:', v);
+                                        // console.log('Variable selected:', variable.label, 'for field:', v);
                                         const currentValue = variableValues[v] || "";
-                                        console.log('Current value:', currentValue);
+                                        // console.log('Current value:', currentValue);
                                         const newValue = currentValue + variable.label;
-                                        console.log('New value:', newValue);
+                                        // console.log('New value:', newValue);
                                         setVariableValues(vals => ({ 
                                           ...vals, 
                                           [v]: newValue 
@@ -956,16 +956,16 @@ function SendMessage() {
               const hasExistingMedia = selectedTpl?.header_media?.handle;
               
               // Debug info - remove this after testing
-              console.log('Template media debug:', {
-                template,
-                selectedTpl: selectedTpl ? {
-                  name: selectedTpl.name,
-                  header_type: selectedTpl.header_type,
-                  header_media: selectedTpl.header_media
-                } : null,
-                hasMediaHeader,
-                hasExistingMedia
-              });
+              //  console.log('Template media debug:', {
+              //   template,
+              //   selectedTpl: selectedTpl ? {
+              //     name: selectedTpl.name,
+              //     header_type: selectedTpl.header_type,
+              //     header_media: selectedTpl.header_media
+              //   } : null,
+              //   hasMediaHeader,
+              //   hasExistingMedia
+              // });
               
               if (hasMediaHeader) {
                 return (

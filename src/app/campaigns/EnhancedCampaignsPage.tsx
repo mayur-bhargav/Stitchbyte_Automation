@@ -6,6 +6,7 @@ import SegmentManager, { Segment } from "./components/SegmentManager";
 import { ABTestBuilder, ABTestMonitor, ABTestConfig, ABTestResults } from "./components/ABTestFramework";
 import AnalyticsDashboard, { CampaignAnalytics, TimeSeriesData, SegmentPerformance } from "./components/AnalyticsDashboard";
 import { SegmentConfig } from "./components/SegmentBuilder";
+import CreateAdvancedCampaignModal from './CreateAdvancedCampaignModal';
 import {
   LuUsers,
   LuTrendingUp,
@@ -24,6 +25,10 @@ function EnhancedCampaignsPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>('campaigns');
   const [loading, setLoading] = useState(false);
+
+  // Campaign Creation State
+  const [showCreateCampaignModal, setShowCreateCampaignModal] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]); // For advanced modal
 
   // Segments State
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -142,6 +147,45 @@ function EnhancedCampaignsPage() {
       }
     ]);
 
+    // Mock templates
+    setTemplates([
+      {
+        id: 'template1',
+        name: 'order_update',
+        content: 'Hi {{1}},\nyour order has been shipped',
+        status: 'APPROVED',
+        category: 'UTILITY',
+        language: 'en_US',
+        header_type: 'image',
+        header_media: {
+          type: 'image',
+          handle: 'https://scontent.whatsapp.net/v/t61.29466-34/491869189_1917542885761479_4528812218016217200_n.png?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=uo7ZoHBUQOcQ7kNvwHlrRxR&_nc_oc=AdmgsXt6V-jc_qU3IkXbJhDmf7SDMhYNgpHopZbEcHCNvrHAE_3XqEsPNfVkOdFWfdwdZRhN1NNzHIyfujAuCzJJ&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=Z_xGj4xt54AHKCCec-Bdig&oh=01_Q5Aa2gEVgmksLqhUKTuxOYZ-8CsgiVH5Hd5A5UVmH2k4ZTqApg&oe=68EBF294'
+        },
+        footer: 'Thanks for shopping with stitchbyte'
+      },
+      {
+        id: 'template2',
+        name: 'hello_world',
+        content: 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.',
+        status: 'APPROVED',
+        category: 'UTILITY',
+        language: 'en_US',
+        header_type: 'text',
+        header: 'Hello World',
+        footer: 'WhatsApp Business Platform sample message'
+      },
+      {
+        id: 'template3',
+        name: 'welcome_message',
+        content: 'Hello {{1}}, welcome to our service! We are excited to have you on board.',
+        status: 'APPROVED',
+        category: 'MARKETING',
+        language: 'en_US',
+        header_type: 'text',
+        header: 'Welcome!'
+      }
+    ]);
+
     // Mock time series data
     setTimeSeriesData([
       { date: '2024-01-14', sent: 450, delivered: 441, read: 335, clicked: 89, replied: 12, converted: 8, cost: 67.50 },
@@ -213,7 +257,7 @@ function EnhancedCampaignsPage() {
   // Segment Management Functions
   const handleCreateSegment = async (segmentConfig: SegmentConfig) => {
     // API call to create segment
-    console.log('Creating segment:', segmentConfig);
+    // console.log('Creating segment:', segmentConfig);
     // Mock implementation
     const newSegment: Segment = {
       id: `seg${Date.now()}`,
@@ -230,7 +274,7 @@ function EnhancedCampaignsPage() {
   };
 
   const handleUpdateSegment = async (segmentId: string, segmentConfig: SegmentConfig) => {
-    console.log('Updating segment:', segmentId, segmentConfig);
+    // console.log('Updating segment:', segmentId, segmentConfig);
     setSegments(prev => prev.map(seg => 
       seg.id === segmentId 
         ? { ...seg, ...segmentConfig, updatedAt: new Date().toISOString() }
@@ -239,12 +283,12 @@ function EnhancedCampaignsPage() {
   };
 
   const handleDeleteSegment = async (segmentId: string) => {
-    console.log('Deleting segment:', segmentId);
+    // console.log('Deleting segment:', segmentId);
     setSegments(prev => prev.filter(seg => seg.id !== segmentId));
   };
 
   const handleDuplicateSegment = async (segmentId: string) => {
-    console.log('Duplicating segment:', segmentId);
+    // console.log('Duplicating segment:', segmentId);
     const originalSegment = segments.find(seg => seg.id === segmentId);
     if (originalSegment) {
       const duplicatedSegment: Segment = {
@@ -259,7 +303,7 @@ function EnhancedCampaignsPage() {
   };
 
   const handleRefreshSegment = async (segmentId: string) => {
-    console.log('Refreshing segment:', segmentId);
+    // console.log('Refreshing segment:', segmentId);
     setSegments(prev => prev.map(seg => 
       seg.id === segmentId 
         ? { 
@@ -273,13 +317,13 @@ function EnhancedCampaignsPage() {
   };
 
   const handleExportSegment = async (segmentId: string, format: 'csv' | 'xlsx') => {
-    console.log('Exporting segment:', segmentId, format);
+    // console.log('Exporting segment:', segmentId, format);
     // Mock export functionality
     alert(`Exporting segment in ${format.toUpperCase()} format...`);
   };
 
   const handleToggleSegmentActive = async (segmentId: string, isActive: boolean) => {
-    console.log('Toggling segment active:', segmentId, isActive);
+    // console.log('Toggling segment active:', segmentId, isActive);
     setSegments(prev => prev.map(seg => 
       seg.id === segmentId ? { ...seg, isActive } : seg
     ));
@@ -287,18 +331,18 @@ function EnhancedCampaignsPage() {
 
   // A/B Test Functions
   const handleCreateABTest = async (testConfig: ABTestConfig) => {
-    console.log('Creating A/B test:', testConfig);
+    // console.log('Creating A/B test:', testConfig);
     // Mock implementation - in real app, this would start the test
     alert('A/B Test created and started successfully!');
     setShowABTestBuilder(false);
   };
 
   const handleStartABTest = async (testId: string) => {
-    console.log('Starting A/B test:', testId);
+    // console.log('Starting A/B test:', testId);
   };
 
   const handleDeclareWinner = async (testId: string, variationId: string) => {
-    console.log('Declaring winner:', testId, variationId);
+    // console.log('Declaring winner:', testId, variationId);
     setAbTests(prev => prev.map(test => 
       test.testId === testId 
         ? { 
@@ -316,7 +360,7 @@ function EnhancedCampaignsPage() {
   };
 
   const handleStopABTest = async (testId: string) => {
-    console.log('Stopping A/B test:', testId);
+    // console.log('Stopping A/B test:', testId);
     setAbTests(prev => prev.map(test => 
       test.testId === testId 
         ? { ...test, status: 'paused' }
@@ -324,9 +368,17 @@ function EnhancedCampaignsPage() {
     ));
   };
 
+  // Campaign Functions
+  const handleCreateCampaign = async (campaignData: any) => {
+    // console.log('Creating campaign:', campaignData);
+    // Mock implementation - in real app, this would call the API
+    alert('Campaign created successfully!');
+    setShowCreateCampaignModal(false);
+  };
+
   // Analytics Functions
   const handleRefreshAnalytics = async () => {
-    console.log('Refreshing analytics...');
+    // console.log('Refreshing analytics...');
     setLoading(true);
     // Mock refresh
     setTimeout(() => {
@@ -336,7 +388,7 @@ function EnhancedCampaignsPage() {
   };
 
   const handleExportAnalytics = async (format: 'csv' | 'pdf', data: any) => {
-    console.log('Exporting analytics:', format, data);
+    // console.log('Exporting analytics:', format, data);
     alert(`Exporting analytics in ${format.toUpperCase()} format...`);
   };
 
@@ -474,12 +526,76 @@ function EnhancedCampaignsPage() {
       
       default:
         return (
-          <div className="text-center py-12">
-            <LuRocket className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">Basic Campaigns</h3>
-            <p className="text-slate-500">
-              The original campaigns functionality will be integrated here.
-            </p>
+          <div className="space-y-6">
+            {/* Campaigns Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Campaigns</h1>
+                <p className="text-slate-600 mt-1">
+                  Create and manage your WhatsApp marketing campaigns
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateCampaignModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#2A8B8A] hover:bg-[#2A8B8A]/90 text-white rounded-lg transition-colors"
+              >
+                <LuPlus className="w-4 h-4" />
+                Create Campaign
+              </button>
+            </div>
+
+            {/* Campaign List */}
+            <div className="bg-white rounded-lg border border-slate-200">
+              <div className="p-6 border-b border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900">Recent Campaigns</h3>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {campaigns.map((campaign) => (
+                  <div key={campaign.id} className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-slate-900">{campaign.name}</h4>
+                        <p className="text-sm text-slate-500 mt-1">
+                          Status: <span className={`capitalize ${
+                            campaign.status === 'completed' ? 'text-green-600' : 
+                            campaign.status === 'active' ? 'text-blue-600' : 'text-gray-600'
+                          }`}>{campaign.status}</span> | 
+                          Segment: {campaign.segmentName} | 
+                          Sent: {campaign.metrics.sent} messages
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-slate-900">
+                            ₹{campaign.metrics.totalCost.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {campaign.metrics.ctr}% CTR
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {campaigns.length === 0 && (
+                <div className="text-center py-12">
+                  <LuRocket className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No campaigns yet</h3>
+                  <p className="text-slate-500 mb-4">
+                    Create your first campaign to start engaging with your audience.
+                  </p>
+                  <button
+                    onClick={() => setShowCreateCampaignModal(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#2A8B8A] hover:bg-[#2A8B8A]/90 text-white rounded-lg transition-colors"
+                  >
+                    <LuPlus className="w-4 h-4" />
+                    Create Campaign
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         );
     }
@@ -521,6 +637,23 @@ function EnhancedCampaignsPage() {
           <div className="min-h-[600px]">
             {renderTabContent()}
           </div>
+
+          {/* Create Campaign Modal */}
+          <CreateAdvancedCampaignModal
+            isOpen={showCreateCampaignModal}
+            onClose={() => setShowCreateCampaignModal(false)}
+            onCreateCampaign={handleCreateCampaign}
+            segments={segments.map(seg => ({
+              id: seg.id,
+              name: seg.name,
+              contactCount: seg.contactCount
+            }))}
+            templates={templates}
+            onRefreshSegments={async () => {
+              // Mock refresh - in real app, this would reload segments
+              // console.log('Refreshing segments...');
+            }}
+          />
         </div>
       </div>
     </ProtectedRoute>

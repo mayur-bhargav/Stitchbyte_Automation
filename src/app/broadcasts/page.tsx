@@ -7,7 +7,7 @@ import { apiService } from '../services/apiService';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`${type.toUpperCase()}: ${message}`);
+  // console.log(`${type.toUpperCase()}: ${message}`);
 };
 
 type Broadcast = {

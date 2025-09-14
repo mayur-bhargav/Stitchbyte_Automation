@@ -130,7 +130,7 @@ const ShopifyIntegration: React.FC<ShopifyIntegrationProps> = ({
       } else {
         alert('Connection test successful! Check the console for webhook details.');
       }
-      console.log('Shopify test response:', response);
+      // console.log('Shopify test response:', response);
     } catch (error: any) {
       console.error('Test failed:', error);
       setError('Connection test failed. Please check your integration.');

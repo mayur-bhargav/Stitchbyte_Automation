@@ -78,7 +78,7 @@ export default function SignIn() {
       
       // Check if 2FA is required
       if (response && response.requires2FA) {
-        console.log('2FA required. Response:', response);
+        // console.log('2FA required. Response:', response);
         setRequires2FA(true);
         setTwoFactorType(response.twoFactorType || 'authenticator');
         setPendingLoginData(response);
@@ -86,23 +86,23 @@ export default function SignIn() {
         // Handle different 2FA configurations
         if (response.twoFactorType === 'email') {
           // User has only email OTP - auto send and show email verification
-          console.log('Email 2FA detected, setting method to email and sending OTP');
+          // console.log('Email 2FA detected, setting method to email and sending OTP');
           setSelectedMethod('email');
           await handleResendCode();
           showToastNotification('OTP sent to your email. Please enter the code.', 'success');
         } else if (response.twoFactorType === 'authenticator') {
           // User has only authenticator - show authenticator verification
-          console.log('Authenticator 2FA detected');
+          // console.log('Authenticator 2FA detected');
           setSelectedMethod('authenticator');
           showToastNotification('Please enter your authenticator code', 'success');
         } else if (response.twoFactorType === 'both') {
           // User has both methods - show selection with authenticator as default
-          console.log('Dual 2FA detected');
+          // console.log('Dual 2FA detected');
           setSelectedMethod('authenticator');
           showToastNotification('Please enter your authenticator code or choose email OTP', 'success');
         } else {
           // Fallback to authenticator
-          console.log('Unknown 2FA type, defaulting to authenticator');
+          // console.log('Unknown 2FA type, defaulting to authenticator');
           setSelectedMethod('authenticator');
           showToastNotification('Please enter your 2FA verification code', 'success');
         }
@@ -161,20 +161,20 @@ export default function SignIn() {
   };
 
   const handleResendCode = async () => {
-    console.log('handleResendCode called. twoFactorType:', twoFactorType, 'selectedMethod:', selectedMethod);
+    // console.log('handleResendCode called. twoFactorType:', twoFactorType, 'selectedMethod:', selectedMethod);
     
     // Only allow resending for email OTP users
     if (twoFactorType !== 'email' && !(twoFactorType === 'both' && selectedMethod === 'email')) {
-      console.log('Resend not allowed for this 2FA configuration');
+      // console.log('Resend not allowed for this 2FA configuration');
       return;
     }
     
-    console.log('Attempting to resend email OTP to:', formData.email);
+    // console.log('Attempting to resend email OTP to:', formData.email);
     setResendLoading(true);
     try {
       // Use apiService to resend email OTP
       await apiService.resend2FACode(formData.email);
-      console.log('OTP resend successful');
+      // console.log('OTP resend successful');
       showToastNotification('New verification code sent to your email', 'success');
     } catch (error: any) {
       console.error('Resend code error:', error);

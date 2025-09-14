@@ -2,6 +2,158 @@
 import BACKEND_CONFIG from '../config/backend';
 
 class ApiService {
+  // --- Advanced Campaign Management ---
+  async getCampaigns(params?: { page?: number; limit?: number; status?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    
+    const endpoint = `/campaigns/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return this.request(endpoint);
+  }
+
+  async createCampaign(data: any) {
+    return this.request('/campaigns/', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getCampaignDetails(campaignId: string) {
+    return this.request(`/campaigns/${campaignId}`);
+  }
+
+  async updateCampaign(id: string, updates: any) {
+    return this.request(`/campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async deleteCampaign(id: string) {
+    return this.request(`/campaigns/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Campaign control actions
+  async startCampaign(campaignId: string) {
+    return this.request(`/campaigns/${campaignId}/start`, {
+      method: 'POST'
+    });
+  }
+
+  async pauseCampaign(campaignId: string) {
+    return this.request(`/campaigns/${campaignId}/pause`, {
+      method: 'POST'
+    });
+  }
+
+  async resumeCampaign(campaignId: string) {
+    return this.request(`/campaigns/${campaignId}/resume`, {
+      method: 'POST'
+    });
+  }
+
+  async cancelCampaign(campaignId: string) {
+    return this.request(`/campaigns/${campaignId}/cancel`, {
+      method: 'POST'
+    });
+  }
+
+  // --- Segment Management ---
+  async getSegments(params?: { page?: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const endpoint = `/campaigns/segments${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return this.request(endpoint);
+  }
+
+  async getSegmentsWithTagGroups(params?: { page?: number; limit?: number; includeTagGroups?: boolean }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.includeTagGroups !== undefined) queryParams.append('includeTagGroups', params.includeTagGroups.toString());
+    
+    const endpoint = `/campaigns/segments/with-tag-groups${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return this.request(endpoint);
+  }
+
+  async createSegmentFromTag(tagName: string, segmentName?: string) {
+    return this.request('/campaigns/segments/from-tag', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        tagName, 
+        segmentName: segmentName || `${tagName} Users` 
+      })
+    });
+  }
+
+  async autoCreateSegmentsFromTags() {
+    return this.request('/campaigns/segments/auto-create-from-tags', {
+      method: 'POST'
+    });
+  }
+
+  async createSegment(data: any) {
+    return this.request('/campaigns/segments', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteSegment(id: string) {
+    return this.request(`/campaigns/segments/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async previewSegmentContacts(segmentId: string, limit: number = 10) {
+    return this.request(`/campaigns/segments/${segmentId}/preview?limit=${limit}`);
+  }
+
+  async getSegmentContacts(segmentId: string, params?: { page?: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const endpoint = `/campaigns/segments/${segmentId}/contacts${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return this.request(endpoint);
+  }
+
+  // --- A/B Testing ---
+  async getABTests(params?: { page?: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const endpoint = `/campaigns/ab-tests${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return this.request(endpoint);
+  }
+
+  // --- Analytics ---
+  async getCampaignAnalytics(campaignId?: string) {
+    if (campaignId) {
+      return this.request(`/campaigns/${campaignId}/analytics`);
+    }
+    return this.request('/campaigns/dashboard/stats');
+  }
+
+  // --- Bulk Actions ---
+  async bulkCampaignAction(action: string, campaignIds: string[]) {
+    return this.request('/campaigns/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ action, campaign_ids: campaignIds })
+    });
+  }
+
+  // --- Utility Methods ---
+  async getCampaignTemplates() {
+    return this.request('/campaigns/templates/list');
+  }
   async validateWaba(): Promise<any> {
     return this.post('/whatsapp/validate-waba', {});
   }
@@ -21,7 +173,7 @@ class ApiService {
   public static decodeToken(token: string) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log('Decoded JWT payload:', payload);
+      // console.log('Decoded JWT payload:', payload);
       return payload;
     } catch (e) {
       console.error('Failed to decode token:', e);
@@ -512,7 +664,7 @@ class ApiService {
         
         if (response.status === 404) {
           // Not found - return null for optional endpoints
-          console.log(`Optional endpoint ${endpoint} not found (404), returning null`);
+          // console.log(`Optional endpoint ${endpoint} not found (404), returning null`);
           return null;
         }
         
@@ -534,7 +686,7 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      console.log(`Optional endpoint ${endpoint} failed, returning null:`, error);
+      // console.log(`Optional endpoint ${endpoint} failed, returning null:`, error);
       return null;
     }
   }
@@ -597,6 +749,32 @@ class ApiService {
   // Contacts methods
   async getContacts() {
     return this.request('/contacts');
+  }
+
+  async getContactsGroupedByTags() {
+    return this.request('/contacts/grouped-by-tags');
+  }
+
+  async getContactsByTag(tag: string) {
+    return this.request(`/contacts/by-tag/${encodeURIComponent(tag)}`);
+  }
+
+  async getUntaggedContacts() {
+    return this.request('/contacts/untagged');
+  }
+
+  async getContactTagsSummary() {
+    return this.request('/contacts/tags-summary');
+  }
+
+  async createSegmentsFromContactTags() {
+    return this.request('/contacts/create-segments-from-tags', {
+      method: 'POST'
+    });
+  }
+
+  async getContactsWithTagInfo() {
+    return this.request('/contacts/with-tag-info');
   }
 
   async createContact(contactData: any) {
@@ -1137,12 +1315,12 @@ Please provide a helpful response following all security instructions above:`;
   // WhatsApp configuration methods
   async getWhatsAppConfig(companyId?: string) {
     const endpoint = companyId ? `/whatsapp/config?companyId=${companyId}` : '/whatsapp/config';
-    console.log(`🔍 Fetching WhatsApp config from: ${this.baseUrl}${endpoint}`);
-    console.log(`🔑 Token available: ${!!this.token}`);
-    console.log(`📧 Company ID: ${companyId}`);
+    // console.log(`🔍 Fetching WhatsApp config from: ${this.baseUrl}${endpoint}`);
+    // console.log(`🔑 Token available: ${!!this.token}`);
+    // console.log(`📧 Company ID: ${companyId}`);
     
     const result = await this.getOptional(endpoint);
-    console.log(`📋 WhatsApp config result:`, result);
+    // console.log(`📋 WhatsApp config result:`, result);
     return result;
   }
 

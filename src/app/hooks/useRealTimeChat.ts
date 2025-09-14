@@ -69,7 +69,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
     const minInterval = 3000; // Minimum 3 seconds between processing
     
     if (timeSinceLastProcess < minInterval) {
-      console.log('Throttling: Too soon since last check, skipping');
+      // console.log('Throttling: Too soon since last check, skipping');
       return;
     }
     
@@ -95,7 +95,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
       const data = await response.json();
       const currentContacts = data.contacts || [];
 
-      console.log('Checking for new messages. Current contacts:', currentContacts.length);
+      // console.log('Checking for new messages. Current contacts:', currentContacts.length);
 
       // Compare with previous contacts to detect new messages
       if (lastContactsRef.current.length > 0) {
@@ -116,13 +116,13 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
               const messageId = `${currentContact.phone}-${messageTimestamp}-${messageContent.replace(/[^a-zA-Z0-9]/g, '_')}`;
               
               if (processedMessagesRef.current.has(messageId)) {
-                console.log('Message already processed:', messageId);
+                // console.log('Message already processed:', messageId);
                 return; // Skip if already processed
               }
 
               // Mark as being processed immediately to prevent duplicates
               processedMessagesRef.current.add(messageId);
-              console.log('Processing new message:', messageId);
+              // console.log('Processing new message:', messageId);
 
               // Fetch the latest message for this contact to check direction
               const checkMessageDirection = async () => {
@@ -140,7 +140,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
                     
                     // Only increment count for incoming messages
                     if (latestMessage && latestMessage.direction === 'incoming') {
-                      console.log('Adding new incoming message from:', currentContact.phone);
+                      // console.log('Adding new incoming message from:', currentContact.phone);
                       
                       addNewMessage({
                         id: latestMessage.id || `${currentContact.phone}-${currentContact.last_message_time}`,
@@ -155,7 +155,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
                         onNewMessage(currentContact);
                       }
                     } else {
-                      console.log('Message from', currentContact.phone, 'is outgoing, not counting');
+                      // console.log('Message from', currentContact.phone, 'is outgoing, not counting');
                     }
                   }
                 } catch (error) {
@@ -174,13 +174,13 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
             const messageId = `${currentContact.phone}-${messageTimestamp}-${messageContent.replace(/[^a-zA-Z0-9]/g, '_')}`;
             
             if (processedMessagesRef.current.has(messageId)) {
-              console.log('New contact message already processed:', messageId);
+              // console.log('New contact message already processed:', messageId);
               return; // Skip if already processed
             }
 
             // Mark as being processed immediately to prevent duplicates
             processedMessagesRef.current.add(messageId);
-            console.log('Processing new contact message:', messageId);
+            // console.log('Processing new contact message:', messageId);
 
             const checkNewContactMessage = async () => {
               try {
@@ -197,7 +197,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
                   
                   // Only increment count for incoming messages from new contacts
                   if (latestMessage && latestMessage.direction === 'incoming') {
-                    console.log('Adding new incoming message from new contact:', currentContact.phone);
+                    // console.log('Adding new incoming message from new contact:', currentContact.phone);
                     
                     addNewMessage({
                       id: latestMessage.id || `${currentContact.phone}-${currentContact.last_message_time}`,
@@ -211,7 +211,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
                       onNewMessage(currentContact);
                     }
                   } else {
-                    console.log('Message from new contact', currentContact.phone, 'is outgoing, not counting');
+                    // console.log('Message from new contact', currentContact.phone, 'is outgoing, not counting');
                   }
                 }
               } catch (error) {

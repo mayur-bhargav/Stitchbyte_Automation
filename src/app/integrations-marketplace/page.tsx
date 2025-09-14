@@ -638,11 +638,11 @@ export default function IntegrationsPage() {
 
         // Check Notion status
         try {
-          console.log('🔍 Checking Notion status...');
+          // console.log('🔍 Checking Notion status...');
           const notionResponse = await apiService.get('/notion/status');
-          console.log('🔍 Notion API response:', notionResponse);
+          // console.log('🔍 Notion API response:', notionResponse);
           notionIsConnected = notionResponse.connected || false;
-          console.log('🔍 Notion connected status:', notionIsConnected);
+          // console.log('🔍 Notion connected status:', notionIsConnected);
           setNotionConnected(notionIsConnected);
 
           if (notionIsConnected) {
@@ -651,14 +651,14 @@ export default function IntegrationsPage() {
               connected_at: notionResponse.connected_at,
               databases: notionResponse.databases
             });
-            console.log('🔍 Notion details set:', {
-              workspace_name: notionResponse.workspace_name,
-              connected_at: notionResponse.connected_at,
-              databases: notionResponse.databases
-            });
+            // console.log('🔍 Notion details set:', {
+            //   workspace_name: notionResponse.workspace_name,
+            //   connected_at: notionResponse.connected_at,
+            //   databases: notionResponse.databases
+            // });
           } else {
             setNotionDetails(null);
-            console.log('🔍 Notion details cleared');
+            // console.log('🔍 Notion details cleared');
           }
         } catch (error) {
           console.error('Failed to check Notion status:', error);
@@ -703,16 +703,16 @@ export default function IntegrationsPage() {
               return { ...integration, status: googleSheetsIsConnected ? 'connected' as const : 'available' as const };
             }
             if (integration.id === 'notion') {
-              console.log('🔍 Updating Notion status:', notionIsConnected ? 'connected' : 'available');
+              // console.log('🔍 Updating Notion status:', notionIsConnected ? 'connected' : 'available');
               return { ...integration, status: notionIsConnected ? 'connected' as const : 'available' as const };
             }
             if (integration.id === 'excel') {
-              console.log('🔍 Updating Excel status:', excelIsConnected ? 'connected' : 'available');
+              // console.log('🔍 Updating Excel status:', excelIsConnected ? 'connected' : 'available');
               return { ...integration, status: excelIsConnected ? 'connected' as const : 'available' as const };
             }
             return integration;
           });
-          console.log('🔍 Updated integrations list:', updatedIntegrations.map(i => ({ id: i.id, status: i.status })));
+          // console.log('🔍 Updated integrations list:', updatedIntegrations.map(i => ({ id: i.id, status: i.status })));
           return updatedIntegrations;
         });
     };

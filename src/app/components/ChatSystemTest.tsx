@@ -11,7 +11,7 @@ export default function ChatSystemTest() {
     enabled: true,
     pollingInterval: 5000,
     onNewMessage: (contact) => {
-      console.log('New message received from:', contact.phone);
+      // console.log('New message received from:', contact.phone);
     }
   });
 
@@ -25,7 +25,7 @@ export default function ChatSystemTest() {
     };
     
     addNewMessage(testMessage);
-    console.log('Simulated incoming message:', testMessage);
+    // console.log('Simulated incoming message:', testMessage);
   };
 
   const simulateOutgoingMessage = () => {
@@ -38,12 +38,12 @@ export default function ChatSystemTest() {
     };
     
     addNewMessage(testMessage);
-    console.log('Simulated outgoing message (should not increase count):', testMessage);
+    // console.log('Simulated outgoing message (should not increase count):', testMessage);
   };
 
   const markTestAsRead = () => {
     markAsRead('918619365849');
-    console.log('Marked 918619365849 as read');
+    // console.log('Marked 918619365849 as read');
   };
 
   return (

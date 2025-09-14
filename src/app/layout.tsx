@@ -54,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
                     }
                   }
                 } catch (e) {
-                  console.log('Theme initialization error:', e);
+                  // console.log('Theme initialization error:', e);
                 }
               })();
             `,

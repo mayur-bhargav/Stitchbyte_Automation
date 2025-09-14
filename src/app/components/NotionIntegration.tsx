@@ -173,7 +173,7 @@ export default function NotionIntegration({ onSuccessMessage, onDisconnectReques
     if (err.message.includes('Not Found') || err.message.includes('404')) {
         setStatus(fallbackState);
         onStatusChange?.(fallbackState.connected || false);
-        console.log('Notion backend endpoints not yet implemented');
+        // console.log('Notion backend endpoints not yet implemented');
         setError(`Feature not available: The backend for this action is still under development.`);
     } else {
         setError(`Failed to ${context}: ${err.message}`);

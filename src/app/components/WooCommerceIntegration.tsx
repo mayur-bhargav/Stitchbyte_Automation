@@ -147,7 +147,7 @@ const WooCommerceIntegration: React.FC<WooCommerceIntegrationProps> = ({
       } else {
         alert('Connection test successful! Check the console for webhook details.');
       }
-      console.log('WooCommerce test response:', response);
+      // console.log('WooCommerce test response:', response);
     } catch (error: any) {
       console.error('Test failed:', error);
       setError('Connection test failed. Please check your integration.');

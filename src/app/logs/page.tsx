@@ -274,7 +274,7 @@ export default function LogsPage() {
     
     try {
       // Implement bulk delete API call here
-      console.log('Deleting logs:', Array.from(selectedLogs));
+      // console.log('Deleting logs:', Array.from(selectedLogs));
       // await fetch('/api/logs/bulk-delete', { method: 'POST', body: JSON.stringify([...selectedLogs]) });
       
       // For now, just remove from local state

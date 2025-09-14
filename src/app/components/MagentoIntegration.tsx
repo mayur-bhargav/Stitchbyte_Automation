@@ -72,9 +72,9 @@ export default function MagentoIntegration({
       setIsLoading(true);
       setError(null);
       
-      console.log('Attempting to connect to Magento store:', storeUrl);
+      // console.log('Attempting to connect to Magento store:', storeUrl);
       const response = await apiService.get(`/connectors/magento/connect?store_url=${encodeURIComponent(storeUrl)}`);
-      console.log('Magento connect response:', response);
+      // console.log('Magento connect response:', response);
       
       if (response.authorization_url) {
         // Open OAuth URL in a new window
@@ -121,13 +121,13 @@ export default function MagentoIntegration({
       }
     } catch (error: any) {
       console.error('Failed to initiate Magento connection:', error);
-      console.log('Error details:', {
-        status: error?.response?.status,
-        statusText: error?.response?.statusText,
-        data: error?.response?.data,
-        url: error?.config?.url,
-        method: error?.config?.method
-      });
+      // console.log('Error details:', {
+      //   status: error?.response?.status,
+      //   statusText: error?.response?.statusText,
+      //   data: error?.response?.data,
+      //   url: error?.config?.url,
+      //   method: error?.config?.method
+      // });
       
       let errorMessage = 'Failed to connect to Magento';
       

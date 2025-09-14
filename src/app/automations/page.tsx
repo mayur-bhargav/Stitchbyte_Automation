@@ -57,7 +57,7 @@ import {
 const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   // You can implement a proper toast system later
   if (type === 'success') {
-    console.log('✅ ' + message);
+    // console.log('✅ ' + message);
   } else {
     console.error('❌ ' + message);
   }
@@ -183,18 +183,18 @@ function AutomationsPage() {
           });
           setAutomations(normalized);
         } else {
-          console.log('No automations found in response:', response);
+          // console.log('No automations found in response:', response);
           setAutomations([]);
         }
       } else {
         // Automations endpoint not available
-        console.log('Automations endpoint not available, showing empty automations');
+        // console.log('Automations endpoint not available, showing empty automations');
         setAutomations([]);
       }
       
       setLoading(false);
     } catch (error) {
-      console.log('Failed to load automations, showing empty automations:', error);
+      // console.log('Failed to load automations, showing empty automations:', error);
       setAutomations([]);
       setLoading(false);
     }
@@ -256,7 +256,7 @@ function AutomationsPage() {
 
     try {
       const newStatus = currentStatus === 'active' ? 'paused' : 'active';
-      console.log(`Toggling automation ${automationId} from ${currentStatus} to ${newStatus}`);
+      // console.log(`Toggling automation ${automationId} from ${currentStatus} to ${newStatus}`);
 
       // Use patch method for partial updates
       try {
@@ -312,7 +312,7 @@ function AutomationsPage() {
     }
 
     try {
-      console.log(`Deleting automation ${automationId}`);
+      // console.log(`Deleting automation ${automationId}`);
       await apiService.deleteAutomation(automationId);
 
       // Remove from local state
@@ -336,7 +336,7 @@ function AutomationsPage() {
 
     setIsTesting(true);
     try {
-      console.log(`Testing automation ${testAutomationId} with phone ${testPhoneNumber}`);
+      // console.log(`Testing automation ${testAutomationId} with phone ${testPhoneNumber}`);
       
       // Call test API endpoint
       const response = await fetch(`${apiService.baseURL}/automations/${testAutomationId}/test`, {
@@ -356,7 +356,7 @@ function AutomationsPage() {
       }
 
       const result = await response.json();
-      console.log('Test result:', result);
+      // console.log('Test result:', result);
       
       showToast('Test message sent successfully!', 'success');
       setShowTestModal(false);

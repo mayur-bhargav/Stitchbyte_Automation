@@ -168,16 +168,16 @@ export default function BillingPage() {
       
       // If context doesn't have transactions and we have a user, try direct API call
       if (transactions.length === 0 && user) {
-        console.log('🔄 Context has no transactions, trying direct API call...');
+        // console.log('🔄 Context has no transactions, trying direct API call...');
         const response = await apiService.getUserTransactions();
-        console.log('📊 Direct API response:', response);
+        // console.log('📊 Direct API response:', response);
         
         if (response?.success && response.data) {
-          console.log('✅ Got transactions from direct API:', response.data);
+          // console.log('✅ Got transactions from direct API:', response.data);
           // We can't set context transactions directly, but we can log them
           // The formatted transactions will pick up from context when it updates
         } else if (response && Array.isArray(response)) {
-          console.log('✅ Got transactions array from direct API:', response);
+          // console.log('✅ Got transactions array from direct API:', response);
         }
       }
     } catch (err) {
@@ -204,14 +204,14 @@ export default function BillingPage() {
   useEffect(() => {
     // This is where you would fetch initial data for the page,
     // like transactions, payment methods, and stats.
-    console.log('🔍 Billing page loading, current transactions:', transactions);
-    console.log('👤 Current user:', user);
+    // console.log('🔍 Billing page loading, current transactions:', transactions);
+    // console.log('👤 Current user:', user);
     handleRefreshTransactions();
   }, []);
 
   useEffect(() => {
-    console.log('📊 Transactions updated:', transactions);
-    console.log('📊 Formatted transactions:', formattedTransactions);
+    // console.log('📊 Transactions updated:', transactions);
+    // console.log('📊 Formatted transactions:', formattedTransactions);
   }, [transactions, formattedTransactions]);
 
   return (

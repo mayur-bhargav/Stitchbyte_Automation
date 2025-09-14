@@ -86,7 +86,7 @@ function ScheduledMessages() {
       
       if (typedMessagesResponse && typedMessagesResponse.success) {
         const messages = typedMessagesResponse.data || [];
-        console.log('Loaded scheduled messages:', messages.length);
+        // console.log('Loaded scheduled messages:', messages.length);
         setMessages(messages);
       } else {
         console.warn('Failed to load messages:', typedMessagesResponse);

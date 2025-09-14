@@ -64,7 +64,7 @@ export default function ChatConversation() {
         }
       });
       const data = await response.json();
-      console.log('Loading messages for', phone, ':', data.messages?.length || 0, 'messages');
+      // console.log('Loading messages for', phone, ':', data.messages?.length || 0, 'messages');
       setMessages(data.messages || []);
     } catch (error) { console.error("Failed to load messages:", error); } 
     finally { setLoading(false); }
@@ -87,9 +87,9 @@ export default function ChatConversation() {
   useRealTimeChat({
     pollingInterval: 3000,
     onNewMessage: (msgContact) => {
-      console.log('Real-time new message detected for:', msgContact.phone, 'current phone:', phone);
+      // console.log('Real-time new message detected for:', msgContact.phone, 'current phone:', phone);
       if (msgContact.phone === phone) {
-        console.log('Reloading messages for current chat');
+        // console.log('Reloading messages for current chat');
         loadMessages();
       }
     }
@@ -103,7 +103,7 @@ export default function ChatConversation() {
 
   useEffect(() => {
     const interval = setInterval(() => { 
-      console.log('Auto-refreshing messages every 10 seconds...');
+      // console.log('Auto-refreshing messages every 10 seconds...');
       loadMessages(); 
     }, 10000); // Check for new messages every 10 seconds
     return () => clearInterval(interval);
@@ -121,7 +121,7 @@ export default function ChatConversation() {
   
   useEffect(() => {
     if (messages.length > 0) {
-      console.log('Messages updated, scrolling to bottom. Total messages:', messages.length);
+      // console.log('Messages updated, scrolling to bottom. Total messages:', messages.length);
       scrollToBottom('auto');
     }
   }, [messages.length]);
@@ -165,14 +165,14 @@ export default function ChatConversation() {
 
     try {
         const response = await fetch(endpoint, { method: "POST", headers, body });
-        console.log('Send message response:', response.status, response.statusText);
+        // console.log('Send message response:', response.status, response.statusText);
         if (response.ok) {
             const responseData = await response.json();
-            console.log('Message sent successfully:', responseData);
+            // console.log('Message sent successfully:', responseData);
             setNewMessage("");
             setMediaFile(null);
             setReplyTo(null);
-            console.log('Reloading messages after send...');
+            // console.log('Reloading messages after send...');
             loadMessages();
             playNotificationSound();
             setTimeout(() => scrollToBottom('smooth'), 100);

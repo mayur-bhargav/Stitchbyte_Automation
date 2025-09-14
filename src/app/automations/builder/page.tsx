@@ -158,12 +158,12 @@ export default function AutomationBuilderPage() {
 
   // Debug connections changes
   useEffect(() => {
-    console.log('Connections state changed:', connections);
+    // console.log('Connections state changed:', connections);
   }, [connections]);
 
   // Debug connection state changes
   useEffect(() => {
-    console.log('Connection state changed - isConnecting:', isConnecting, 'connectingFrom:', connectingFrom);
+    // console.log('Connection state changed - isConnecting:', isConnecting, 'connectingFrom:', connectingFrom);
   }, [isConnecting, connectingFrom]);
 
   // Load existing automation if editing
@@ -183,7 +183,7 @@ export default function AutomationBuilderPage() {
   const loadAutomation = async (id: string) => {
     try {
       // TODO: Load automation from backend
-      console.log('Loading automation:', id);
+      // console.log('Loading automation:', id);
     } catch (error) {
       console.error('Error loading automation:', error);
     }
@@ -191,13 +191,13 @@ export default function AutomationBuilderPage() {
   
   const loadTemplate = async (templateId: string) => {
     try {
-      console.log('Loading template:', templateId);
+      // console.log('Loading template:', templateId);
       
       // Check if it's an integration template
       const integrationTemplate = integrationTemplates.find(t => t.id === templateId);
       
       if (integrationTemplate) {
-        console.log('Loading integration template:', integrationTemplate);
+        // console.log('Loading integration template:', integrationTemplate);
         
         // Set automation name and description from template
         setFormData({
@@ -220,7 +220,7 @@ export default function AutomationBuilderPage() {
         }
       } else {
         // Handle regular templates here
-        console.log('Regular template handling not implemented yet');
+        // console.log('Regular template handling not implemented yet');
       }
     } catch (error) {
       console.error('Error loading template:', error);
@@ -698,18 +698,18 @@ export default function AutomationBuilderPage() {
   };
   
   const startConnection = (fromStepId: string, fromButtonIndex?: number) => {
-    console.log('startConnection called with:', fromStepId, 'button:', fromButtonIndex);
-    console.log('Before setting state - isConnecting:', isConnecting, 'connectingFrom:', connectingFrom);
+    // console.log('startConnection called with:', fromStepId, 'button:', fromButtonIndex);
+    // console.log('Before setting state - isConnecting:', isConnecting, 'connectingFrom:', connectingFrom);
     setIsConnecting(true);
     setConnectingFrom(fromStepId);
     setConnectingFromButton(fromButtonIndex !== undefined ? fromButtonIndex : null);
-    console.log('After setting state - should be true and', fromStepId, 'button:', fromButtonIndex);
+    // console.log('After setting state - should be true and', fromStepId, 'button:', fromButtonIndex);
   };
   
   const completeConnection = (toStepId: string) => {
-    console.log('Completing connection to:', toStepId, 'from:', connectingFrom, 'button:', connectingFromButton);
-    console.log('Current connections:', connections);
-    console.log('Current flow steps:', flowSteps);
+    // console.log('Completing connection to:', toStepId, 'from:', connectingFrom, 'button:', connectingFromButton);
+    // console.log('Current connections:', connections);
+    // console.log('Current flow steps:', flowSteps);
     
     if (connectingFrom && connectingFrom !== toStepId) {
       // Check if connection already exists
@@ -725,9 +725,9 @@ export default function AutomationBuilderPage() {
           to: toStepId,
           fromButton: connectingFromButton !== null ? connectingFromButton : undefined
         };
-        console.log('Creating new connection:', newConnection);
+        // console.log('Creating new connection:', newConnection);
         const newConnections = [...connections, newConnection];
-        console.log('Setting connections to:', newConnections);
+        // console.log('Setting connections to:', newConnections);
         setConnections(newConnections);
         
         // Update source step connections or button connections
@@ -752,9 +752,9 @@ export default function AutomationBuilderPage() {
             });
           }
         }
-        console.log('Connection created successfully:', newConnection);
+        // console.log('Connection created successfully:', newConnection);
       } else {
-        console.log('Connection already exists');
+        // console.log('Connection already exists');
       }
     }
     
@@ -829,10 +829,10 @@ export default function AutomationBuilderPage() {
     const hasCTAButtons = urlButtons.length > 0 || phoneButtons.length > 0;
     const violatesConstraint = hasAutomationButtons && hasCTAButtons;
     
-    console.log('🔍 Rendering WhatsApp preview:', { 
-      message, buttons, attachments, 
-      hasAutomationButtons, hasCTAButtons, violatesConstraint 
-    });
+    // console.log('🔍 Rendering WhatsApp preview:', { 
+    //   message, buttons, attachments, 
+    //   hasAutomationButtons, hasCTAButtons, violatesConstraint 
+    // });
     
     return (
       <div className="space-y-2">
@@ -880,7 +880,7 @@ export default function AutomationBuilderPage() {
                   <div className="absolute -left-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-green-500 rounded-full border border-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Connect button input:', button.text);
+                      // console.log('Connect button input:', button.text);
                     }}
                     title="Connect input to this button"
                   />
@@ -888,7 +888,7 @@ export default function AutomationBuilderPage() {
                   <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-blue-500 rounded-full border border-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Starting connection from automation button', index, 'of step', step.id);
+                      // console.log('Starting connection from automation button', index, 'of step', step.id);
                       startConnection(step.id, index);
                     }}
                     title="Connect output from this button"
@@ -1035,19 +1035,12 @@ export default function AutomationBuilderPage() {
           <div
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Left dot clicked!', {
-                stepId: step.id,
-                isConnecting,
-                connectingFrom,
-                connectingFromButton,
-                canConnect: connectingFrom && connectingFrom !== step.id
-              });
               // Use connectingFrom instead of isConnecting for more reliable check
               if (connectingFrom && connectingFrom !== step.id) {
-                console.log('Attempting to complete connection to:', step.id);
+                // console.log('Attempting to complete connection to:', step.id);
                 completeConnection(step.id);
               } else {
-                console.log('Cannot connect - conditions not met');
+                // console.log('Cannot connect - conditions not met');
               }
             }}
             className={`absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 cursor-pointer z-20 transition-all ${
@@ -1062,18 +1055,18 @@ export default function AutomationBuilderPage() {
           <div
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Right dot clicked!', {
-                stepId: step.id,
-                isConnecting,
-                connectingFrom,
-                connectingFromButton
-              });
+              //  console.log('Right dot clicked!', {
+              //   stepId: step.id,
+              //   isConnecting,
+              //   connectingFrom,
+              //   connectingFromButton
+              // });
               if (!isConnecting) {
-                console.log('Starting connection from step:', step.id);
+                // console.log('Starting connection from step:', step.id);
                 startConnection(step.id);
               } else if (connectingFrom === step.id && connectingFromButton === null) {
                 // Cancel connection if clicking on same step (and not from a button)
-                console.log('Cancelling connection');
+                // console.log('Cancelling connection');
                 setIsConnecting(false);
                 setConnectingFrom(null);
                 setConnectingFromButton(null);
@@ -1258,7 +1251,7 @@ export default function AutomationBuilderPage() {
   
   const renderStepConfigForm = (step: FlowStep) => {
     const updateConfig = (newConfig: any) => {
-      console.log('Updating config for step:', step.id, 'with:', newConfig);
+      // console.log('Updating config for step:', step.id, 'with:', newConfig);
       updateStep(step.id, { config: newConfig });
     };
 
@@ -1967,7 +1960,7 @@ export default function AutomationBuilderPage() {
                   defaultValue={Array.isArray(step.config.keywords) ? step.config.keywords.join(', ') : ''}
                   onBlur={(e) => {
                     const value = e.target.value;
-                    console.log('Keywords input changed on blur:', value);
+                    // console.log('Keywords input changed on blur:', value);
                     
                     // Handle empty string
                     if (!value.trim()) {
@@ -1983,7 +1976,7 @@ export default function AutomationBuilderPage() {
                       .map((k: string) => k.trim())
                       .filter((k: string) => k.length > 0);
                     
-                    console.log('Parsed keywords on blur:', keywords);
+                    // console.log('Parsed keywords on blur:', keywords);
                     
                     updateConfig({ 
                       ...step.config, 
@@ -2090,7 +2083,7 @@ export default function AutomationBuilderPage() {
                               const file = e.target.files?.[0];
                               if (file) {
                                 // Upload to Cloudinary placeholder
-                                console.log('Uploading file:', file);
+                                // console.log('Uploading file:', file);
                                 const formData = new FormData();
                                 formData.append('file', file);
                                 formData.append('type', attachment.type);
@@ -2885,11 +2878,11 @@ export default function AutomationBuilderPage() {
         updated_at: new Date().toISOString()
       };
       
-      console.log('Saving automation:', automationData);
+      // console.log('Saving automation:', automationData);
       
       // Save to backend via apiService
       const result = await apiService.createAutomation(automationData);
-      console.log('Automation saved successfully:', result);
+      // console.log('Automation saved successfully:', result);
       
       // Show success message and redirect
       alert('Automation saved successfully!');

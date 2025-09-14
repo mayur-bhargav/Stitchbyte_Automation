@@ -53,7 +53,7 @@ export default function ChatContacts() {
   useRealTimeChat({
     pollingInterval: 5000,
     onNewMessage: (message) => {
-      console.log('New message received:', message);
+      // console.log('New message received:', message);
     }
   });
   */
@@ -86,7 +86,7 @@ export default function ChatContacts() {
       //     return c.phone && c.phone.trim() !== '';
       //   })
       //   .map((contact: Contact) => ({ ...contact, unread_count: 0 }));
-      console.log('Fetched contacts:', data|| 0);
+      // console.log('Fetched contacts:', data|| 0);
       setContacts(data.contacts || []);
       
       if (data.contacts.length > 0) {

@@ -44,7 +44,7 @@ export default function AnalyticsPage() {
       // Process dashboard stats if available
       if (dashboardResponse.status === 'fulfilled' && dashboardResponse.value) {
         const dashboardData = dashboardResponse.value;
-        console.log('Dashboard data received:', dashboardData);
+        // console.log('Dashboard data received:', dashboardData);
         
         // Extract analytics from dashboard data
         setAnalytics({
@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
       // Try to get basic metrics from contacts
       if (contactsResponse.status === 'fulfilled' && contactsResponse.value) {
         const contactsData = contactsResponse.value as any;
-        console.log('Contacts data received:', contactsData);
+        // console.log('Contacts data received:', contactsData);
         
         const contacts = contactsData?.contacts || contactsData || [];
         if (Array.isArray(contacts) && contacts.length > 0) {

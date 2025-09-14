@@ -29,12 +29,12 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
   // Debug: Check authentication status when modal opens
   useEffect(() => {
     if (isOpen) {
-      console.log('🔍 AddBalanceModal opened - checking authentication...');
-      console.log('🔑 Token from localStorage:', localStorage.getItem('token') ? 'Present' : 'Missing');
+      // console.log('🔍 AddBalanceModal opened - checking authentication...');
+      // console.log('🔑 Token from localStorage:', localStorage.getItem('token') ? 'Present' : 'Missing');
       
       // Test API connectivity
       apiService.verifyToken().then(isValid => {
-        console.log('✅ Token verification result:', isValid);
+        // console.log('✅ Token verification result:', isValid);
         if (!isValid) {
           showToastNotification('Authentication expired. Please refresh the page and try again.', 'error');
         }
@@ -128,7 +128,7 @@ export default function AddBalanceModal({ isOpen, onClose }: AddBalanceModalProp
             razorpay_signature: response.razorpay_signature
           });
 
-          console.log('💳 Payment verification response:', verifyResponse);
+          // console.log('💳 Payment verification response:', verifyResponse);
 
           if (verifyResponse && (verifyResponse as any).success) {
             // Refresh balance from server instead of local update

@@ -193,13 +193,13 @@ export default function DynamicAutomationBuilder({ template, onClose, onSave }: 
   };
   
   const startConnection = (fromStepId: string) => {
-    console.log('Starting connection from:', fromStepId);
+    // console.log('Starting connection from:', fromStepId);
     setIsConnecting(true);
     setConnectingFrom(fromStepId);
   };
   
   const completeConnection = (toStepId: string) => {
-    console.log('Completing connection to:', toStepId, 'from:', connectingFrom);
+    // console.log('Completing connection to:', toStepId, 'from:', connectingFrom);
     if (connectingFrom && connectingFrom !== toStepId) {
       // Check if connection already exists
       const existingConnection = connections.find(conn => 
@@ -220,9 +220,9 @@ export default function DynamicAutomationBuilder({ template, onClose, onSave }: 
             connections: [...(sourceStep.connections || []), toStepId]
           });
         }
-        console.log('Connection created:', newConnection);
+        // console.log('Connection created:', newConnection);
       } else {
-        console.log('Connection already exists');
+        // console.log('Connection already exists');
       }
     }
     
@@ -406,7 +406,7 @@ export default function DynamicAutomationBuilder({ template, onClose, onSave }: 
     const buttons = step.config.buttons || [];
     const attachments = step.config.attachments || [];
     
-    console.log('🔍 Rendering WhatsApp preview:', { message, buttons, attachments });
+    // console.log('🔍 Rendering WhatsApp preview:', { message, buttons, attachments });
     
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-3 max-w-xs">
@@ -445,7 +445,7 @@ export default function DynamicAutomationBuilder({ template, onClose, onSave }: 
                   onClick={(e) => {
                     e.stopPropagation();
                     // Handle button input connection
-                    console.log('Connect button input:', button.text);
+                    // console.log('Connect button input:', button.text);
                   }}
                   title="Connect input to this button"
                 ></div>
@@ -1129,7 +1129,7 @@ export default function DynamicAutomationBuilder({ template, onClose, onSave }: 
       created_at: new Date().toISOString()
     };
     
-    console.log('Saving automation:', automationData);
+    // console.log('Saving automation:', automationData);
     onSave(automationData);
   };
 

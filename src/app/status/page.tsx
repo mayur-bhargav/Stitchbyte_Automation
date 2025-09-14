@@ -191,7 +191,7 @@ export default function StatusPage() {
         
         setSystemStatus(data);
       } catch (sysErr) {
-        console.log('System status endpoint not available, using health data only');
+        // console.log('System status endpoint not available, using health data only');
       }
       
       setError(null);
@@ -209,7 +209,7 @@ export default function StatusPage() {
         ? 'http://localhost:8000/status/recent-events' 
         : `http://localhost:8000/status/recent-events/${filterType}`;
       
-      console.log('Fetching events from:', endpoint);
+      // console.log('Fetching events from:', endpoint);
       const response = await fetch(endpoint);
       
       if (!response.ok) {
@@ -218,7 +218,7 @@ export default function StatusPage() {
       }
       
       const data = await response.json();
-      console.log('Events API response:', data);
+      // console.log('Events API response:', data);
       
       // Check if data.events exists and is an array
       if (!data || !data.events || !Array.isArray(data.events)) {
@@ -269,7 +269,7 @@ export default function StatusPage() {
         ] : []
       }));
       
-      console.log('Transformed incidents:', transformedIncidents);
+      // console.log('Transformed incidents:', transformedIncidents);
       setIncidents(transformedIncidents);
     } catch (err) {
       console.error('Failed to fetch recent events:', err);
