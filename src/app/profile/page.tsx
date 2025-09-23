@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, ReactNode } from "react";
+import { useState, useRef, useEffect, ReactNode, useMemo } from "react";
 import { useUser } from "../contexts/UserContext";
 import { useThemeToggle, useThemeWatcher, getThemeColors } from "../hooks/useThemeToggle";
 import { apiService } from "../services/apiService";
@@ -36,7 +36,11 @@ import {
   LuRefreshCw,
   LuSmartphone,
   LuAtSign,
+  LuUsers,
+  LuClipboardList,
 } from "react-icons/lu";
+import TeamManagement from "../components/TeamManagement";
+import ApprovalDashboard from "../components/ApprovalDashboard";
 
 // ============================================================================
 // Interfaces (Unchanged)
@@ -200,11 +204,48 @@ export default function ProfilePage() {
         setIsLoading(true);
         if (user) {
             try {
+                // Safely make API calls - some endpoints might not exist for team members
+                const profileCall = async () => {
+                    try {
+                        return await apiService.get('/profile/auth/me');
+                    } catch (error) {
+                        console.warn('Profile endpoint not available:', error);
+                        return { success: false, error: 'Profile endpoint not available' };
+                    }
+                };
+                
+                const notifCall = async () => {
+                    try {
+                        return await apiService.get('/profile/notifications');
+                    } catch (error) {
+                        console.warn('Notifications endpoint not available:', error);
+                        return { success: false, error: 'Notifications endpoint not available' };
+                    }
+                };
+                
+                const securityCall = async () => {
+                    try {
+                        return await apiService.get('/profile/security');
+                    } catch (error) {
+                        console.warn('Security endpoint not available:', error);
+                        return { success: false, error: 'Security endpoint not available' };
+                    }
+                };
+                
+                const prefsCall = async () => {
+                    try {
+                        return await apiService.get('/profile/preferences');
+                    } catch (error) {
+                        console.warn('Preferences endpoint not available:', error);
+                        return { success: false, error: 'Preferences endpoint not available' };
+                    }
+                };
+
                 const [profileRes, notifRes, securityRes, prefsRes] = await Promise.allSettled([
-                    apiService.get('/profile/auth/me'),
-                    apiService.get('/profile/notifications'),
-                    apiService.get('/profile/security'),
-                    apiService.get('/profile/preferences'),
+                    profileCall(),
+                    notifCall(),
+                    securityCall(),
+                    prefsCall(),
                 ]);
 
                 if (profileRes.status === 'fulfilled' && profileRes.value.success && profileRes.value.profile) {
@@ -218,15 +259,31 @@ export default function ProfilePage() {
                         language: p.language || 'English (US)', profilePicture: p.profilePicture || ''
                     });
                 } else {
-                    // Fallback to user context
-                    setProfileData(prev => ({ ...prev, firstName: user.firstName, lastName: user.lastName, email: user.email, companyName: user.companyName, role: user.role }));
+                    // Fallback to user context data
+                    setProfileData(prev => ({ 
+                        ...prev, 
+                        firstName: user.firstName, 
+                        lastName: user.lastName, 
+                        email: user.email, 
+                        companyName: user.companyName, 
+                        role: user.role 
+                    }));
                 }
 
-                if (notifRes.status === 'fulfilled' && notifRes.value.success) setNotificationSettings(notifRes.value.settings);
-                if (securityRes.status === 'fulfilled' && securityRes.value.success) setSecuritySettings(securityRes.value.settings);
-                if (prefsRes.status === 'fulfilled' && prefsRes.value.success) {
-                    // Don't set darkMode locally anymore since we're using theme context
-                    setProfileData(prev => ({ ...prev, language: prefsRes.value.preferences.language || 'English (US)' }));
+                // Handle settings - use defaults if endpoints aren't available
+                if (notifRes.status === 'fulfilled' && notifRes.value.success && notifRes.value.settings) {
+                    setNotificationSettings(notifRes.value.settings);
+                }
+                
+                if (securityRes.status === 'fulfilled' && securityRes.value.success && securityRes.value.settings) {
+                    setSecuritySettings(securityRes.value.settings);
+                }
+                
+                if (prefsRes.status === 'fulfilled' && prefsRes.value.success && prefsRes.value.preferences) {
+                    setProfileData(prev => ({ 
+                        ...prev, 
+                        language: prefsRes.value.preferences.language || 'English (US)' 
+                    }));
                 }
             } catch (error) {
                 console.error('Error loading profile data:', error);
@@ -479,12 +536,43 @@ export default function ProfilePage() {
         } finally { setIsLoading(false); }
     };
 
-  const tabs = [
-    { id: 'general', label: 'General', icon: <LuUser size={18} /> },
-    { id: 'security', label: 'Security', icon: <LuShield size={18} /> },
-    { id: 'notifications', label: 'Notifications', icon: <LuBell size={18} /> },
-    { id: 'preferences', label: 'Preferences', icon: <LuSettings size={18} /> },
-  ];
+  // Helper function to check if user has permission
+  const hasPermission = (permission: string) => {
+    if (!user) return false;
+    
+    // Owners have all permissions
+    if (user.role === 'owner') return true;
+    
+    // Admins have all permissions except delete team member
+    if (user.role === 'admin') return true;
+    
+    // For other roles, check if user has the specific permission
+    return user.permissions?.includes(permission) || false;
+  };
+
+  // Memoize tabs and filter based on permissions
+  const visibleTabs = useMemo(() => {
+    const tabs = [
+      { id: 'general', label: 'General', icon: <LuUser size={18} /> },
+      { id: 'team', label: 'Team', icon: <LuUsers size={18} />, permission: 'view_team' },
+      { id: 'approvals', label: 'Approvals', icon: <LuClipboardList size={18} />, permission: 'approve_campaign' },
+      { id: 'security', label: 'Security', icon: <LuShield size={18} /> },
+      { id: 'notifications', label: 'Notifications', icon: <LuBell size={18} /> },
+      { id: 'preferences', label: 'Preferences', icon: <LuSettings size={18} /> },
+    ];
+    
+    return tabs.filter(tab => !tab.permission || hasPermission(tab.permission));
+  }, [user]);
+
+  // Redirect to a valid tab if current tab is not accessible
+  useEffect(() => {
+    if (user && visibleTabs.length > 0) {
+      const isCurrentTabVisible = visibleTabs.some(tab => tab.id === activeTab);
+      if (!isCurrentTabVisible) {
+        setActiveTab(visibleTabs[0].id); // Redirect to first available tab
+      }
+    }
+  }, [user, activeTab, visibleTabs]);
 
   if (isLoading && !profileData.firstName) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><LuLoader className="w-12 h-12 animate-spin text-[#2A8B8A]" /></div>;
@@ -544,7 +632,7 @@ export default function ProfilePage() {
                 </div>
                 <nav className="border rounded-xl shadow-sm p-3 space-y-1 bg-transparent"
                      style={{ borderColor: colors.border }}>
-                    {tabs.map(tab => (
+                    {visibleTabs.map(tab => (
                         <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                             className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg text-left transition-colors ${
                                 activeTab === tab.id ? 'bg-[#2A8B8A]/10 text-[#2A8B8A]' : ''
@@ -600,6 +688,18 @@ export default function ProfilePage() {
                         <textarea id="bio" value={profileData.bio} rows={4} onChange={(e) => setProfileData(p=>({...p, bio: e.target.value}))} disabled={!isEditing} className="input-field resize-none" placeholder="Tell us about yourself..."/>
                     </InputGroup>
                 </SettingsPanel>
+            )}
+
+            {activeTab === 'team' && (
+                <div className="border rounded-xl shadow-sm bg-transparent p-6" style={{ borderColor: colors.border }}>
+                    <TeamManagement colors={colors} />
+                </div>
+            )}
+
+            {activeTab === 'approvals' && (
+                <div className="border rounded-xl shadow-sm bg-transparent p-6" style={{ borderColor: colors.border }}>
+                    <ApprovalDashboard colors={colors} />
+                </div>
             )}
 
             {activeTab === 'security' && (

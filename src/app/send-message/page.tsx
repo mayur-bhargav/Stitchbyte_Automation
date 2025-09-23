@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useBalance, MESSAGE_COST } from "../contexts/BalanceContext";
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
+import PermissionGuard from '../components/PermissionGuard';
 import AddBalanceModal from '../components/AddBalanceModal';
 import { apiService } from '../services/apiService';
 
@@ -1772,9 +1773,11 @@ function SendMessage() {
 // Wrap the component with ProtectedRoute for security
 const ProtectedSendMessagePage = () => {
   return (
-    <ProtectedRoute>
-      <SendMessage />
-    </ProtectedRoute>
+    <PermissionGuard requiredPermission="send_message">
+      <ProtectedRoute>
+        <SendMessage />
+      </ProtectedRoute>
+    </PermissionGuard>
   );
 };
 

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef, ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { BalanceProvider, useBalance } from "../contexts/BalanceContext";
 import { useUser } from "../contexts/UserContext";
+import { usePermissions } from "../contexts/PermissionContext";
 import { useChatContext } from "../contexts/ChatContext";
 import { apiService } from "../services/apiService";
 import AddBalanceModal from "./AddBalanceModal";
@@ -43,43 +44,43 @@ const navConfig = [
   {
     title: "Main",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: <LuLayoutGrid size={20} /> },
-      { href: "/send-message", label: "Send Message", icon: <LuSend size={20} /> },
-      { href: "/scheduled-messages", label: "Scheduled Messages", icon: <LuClock size={20} /> },
-      { href: "/campaigns", label: "Campaigns", icon: <LuRocket size={20} /> },
-      { href: "/templates", label: "Templates", icon: <LuFileText size={20} /> },
-      { href: "/contacts", label: "Contacts", icon: <LuUsers size={20} /> },
+      { href: "/dashboard", label: "Dashboard", icon: <LuLayoutGrid size={20} />, permission: "view_dashboard" },
+      { href: "/send-message", label: "Send Message", icon: <LuSend size={20} />, permission: "send_message" },
+      { href: "/scheduled-messages", label: "Scheduled Messages", icon: <LuClock size={20} />, permission: "view_messages" },
+      { href: "/campaigns", label: "Campaigns", icon: <LuRocket size={20} />, permission: "view_campaigns" },
+      { href: "/templates", label: "Templates", icon: <LuFileText size={20} />, permission: "view_templates" },
+      { href: "/contacts", label: "Contacts", icon: <LuUsers size={20} />, permission: "view_contacts" },
     ],
   },
   {
     title: "Automation",
     items: [
-      { href: "/automations", label: "Automations", icon: <LuWand size={20} /> },
-      { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} /> },
-      { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} /> },
+      { href: "/automations", label: "Automations", icon: <LuWand size={20} />, permission: "manage_integrations" },
+      { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} />, permission: "manage_integrations" },
+      { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} />, permission: "manage_integrations" },
     ],
   },
   {
     title: "Communication",
     items: [
-      { href: "/chats", label: "Live Chats", icon: <LuMessageSquare size={20} />, notificationKey: "unreadChats" },
-      { href: "/broadcasts", label: "Broadcasts", icon: <LuMegaphone size={20} /> },
+      { href: "/chats", label: "Live Chats", icon: <LuMessageSquare size={20} />, notificationKey: "unreadChats", permission: "view_messages" },
+      { href: "/broadcasts", label: "Broadcasts", icon: <LuMegaphone size={20} />, permission: "view_broadcasts" },
     ],
   },
   {
     title: "Insights",
     items: [
-      { href: "/logs", label: "Message Logs", icon: <LuFileText size={20} /> },
-      { href: "/analytics", label: "Analytics", icon: <LuChartBar size={20} /> },
-      { href: "/integrations-marketplace", label: "Integrations", icon: <LuPuzzle size={20} /> },
+      { href: "/logs", label: "Message Logs", icon: <LuFileText size={20} />, permission: "view_messages" },
+      { href: "/analytics", label: "Analytics", icon: <LuChartBar size={20} />, permission: "view_analytics" },
+      { href: "/integrations-marketplace", label: "Integrations", icon: <LuPuzzle size={20} />, permission: "view_integrations" },
     ],
   },
   {
     title: "Account",
     items: [
-      { href: "/profile", label: "Profile", icon: <LuUser size={20} /> },
-      { href: "/settings", label: "Settings", icon: <LuSettings size={20} /> },
-      { href: "/billing", label: "Billing", icon: <LuCreditCard size={20} /> },
+      { href: "/profile", label: "Profile", icon: <LuUser size={20} /> }, // Always accessible
+      { href: "/settings", label: "Settings", icon: <LuSettings size={20} /> }, // Always accessible
+      { href: "/billing", label: "Billing", icon: <LuCreditCard size={20} />, permission: "view_billing" },
     ]
   }
 ];
@@ -123,6 +124,7 @@ const NavItem = ({ href, icon, label, isActive, notificationCount }: { href: str
 const BalanceHeader = ({ onTopUpClick }: { onTopUpClick: () => void }) => {
     const { balance } = useBalance();
     const { darkMode } = useThemeWatcher();
+    const { hasPermission } = usePermissions();
     const colors = getThemeColors(darkMode);
 
     return (
@@ -136,12 +138,14 @@ const BalanceHeader = ({ onTopUpClick }: { onTopUpClick: () => void }) => {
                 <LuWallet size={18} className="text-[#2A8B8A]" />
                 <span>₹{balance.toFixed(2)}</span>
             </div>
-            <button
-              onClick={onTopUpClick}
-              className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-semibold bg-[#2A8B8A] text-white rounded-lg shadow-sm hover:bg-[#238080] transition-colors"
-            >
-                <LuPlus size={16} /> Top Up
-            </button>
+            {hasPermission('add_balance') && (
+              <button
+                onClick={onTopUpClick}
+                className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-semibold bg-[#2A8B8A] text-white rounded-lg shadow-sm hover:bg-[#238080] transition-colors"
+              >
+                  <LuPlus size={16} /> Top Up
+              </button>
+            )}
         </div>
     );
 };
@@ -157,14 +161,55 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const audioRef = useRef<HTMLAudioElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated, logout } = useUser();
+  const { permissions, hasPermission } = usePermissions();
   const { totalUnreadCount } = useChatContext();
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const { darkMode } = useThemeWatcher();
   const colors = getThemeColors(darkMode);
 
   const isPublicRoute = pathname === '/' || ['/auth', '/landing', '/select-plan', '/about', '/blog', '/careers', '/help', '/api-docs', '/status', '/security', '/privacy', '/terms'].some(p => pathname.startsWith(p)) || pathname === '/integrations';
-  const isFullScreenRoute = pathname.startsWith('/automations/builder');
+  const isFullScreenRoute = pathname.startsWith('/automations/builder') || 
+                            (pathname.startsWith('/automations') && searchParams?.get('mode') === 'builder');
+  
+  // Debug the user object for team member detection
+  console.log('🔍 ClientLayout: User object for filtering:', {
+    user: user,
+    isTeamMember: user?.isTeamMember,
+    role: user?.role,
+    permissions: user?.permissions,
+    isAuthenticated: isAuthenticated
+  });
+  
+  // Filter navigation items based on permissions
+  const filteredNavConfig = navConfig.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      // If no permission is required, always show the item
+      if (!item.permission) return true;
+      
+      // Debug all items for team members
+      if (user?.isTeamMember === true) {
+        console.log(`🔍 Team Member Filtering ${item.label}:`, {
+          permission: item.permission,
+          isTeamMember: user?.isTeamMember,
+          hasPermission: hasPermission(item.permission),
+          userPermissions: permissions
+        });
+      }
+      
+      // For team members, check if they have the required permission
+      if (user?.isTeamMember === true) {
+        console.log(`✅ Team member: showing ${item.label} = ${hasPermission(item.permission)}`);
+        return hasPermission(item.permission);
+      }
+      
+      // For main account users (or when isTeamMember is undefined/false), show all items
+      console.log(`✅ Main user: showing ${item.label} = true`);
+      return true;
+    })
+  })).filter(group => group.items.length > 0); // Remove empty groups
   
   // Simple hydration check
   useEffect(() => {
@@ -253,14 +298,23 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                  scrollbarWidth: 'none', /* Firefox */
                  msOverflowStyle: 'none'  /* Internet Explorer 10+ */
                }}>
-             {navConfig.map((group) => (
+             {filteredNavConfig.map((group) => (
                <div key={group.title} className="mb-2">
                  <h3 className="px-4 py-2 text-xs font-semibold uppercase tracking-wider" 
                      style={{ color: colors.textMuted }}>
                    {group.title}
                  </h3>
                  <div className="space-y-1">
-                   {group.items.map((item) => <NavItem key={item.href} {...item} isActive={isActiveRoute(item.href)} notificationCount={item.notificationKey === 'unreadChats' ? totalUnreadCount : undefined} />)}
+                   {group.items.map((item) => (
+                     <NavItem 
+                       key={item.href} 
+                       href={item.href}
+                       icon={item.icon}
+                       label={item.label}
+                       isActive={isActiveRoute(item.href)} 
+                       notificationCount={'notificationKey' in item && item.notificationKey === 'unreadChats' ? totalUnreadCount : undefined} 
+                     />
+                   ))}
                  </div>
                </div>
              ))}

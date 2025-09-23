@@ -3,6 +3,7 @@ import { useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "../contexts/UserContext";
 import { useBalance } from "../contexts/BalanceContext";
+import { usePermissions } from "../contexts/PermissionContext";
 import { apiService } from "../services/apiService";
 import AddBalanceModal from "../components/AddBalanceModal";
 import {
@@ -166,6 +167,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { user } = useUser();
   const { balance } = useBalance();
+  const { hasPermission } = usePermissions();
   
   // Demo mode for screen recording (set to true when recording)
   const DEMO_MODE = false; // Set to true for Meta app review recording
@@ -870,23 +872,23 @@ export default function Dashboard() {
                       <Alert
                         type="warning"
                         message={<span>Your account balance is low (₹{balance.toFixed(2)}).</span>}
-                        actionText="Add Funds Now"
-                        onAction={() => setShowAddBalanceModal(true)}
+                        actionText={hasPermission('add_balance') ? "Add Funds Now" : undefined}
+                        onAction={hasPermission('add_balance') ? () => setShowAddBalanceModal(true) : undefined}
                       />
                     ) : (
                       <Alert type="success" message="Your account balance is healthy." />
                     )}
 
-                    {!(dashboardData.metaPaymentMethods as any)?.payment_gateway?.enabled ? (
+                    {!(dashboardData.metaPaymentMethods as any)?.payment_gateway?.enabled && hasPermission('view_billing') ? (
                       <Alert
                         type="warning"
                         message="No payment method on file. Set one up to ensure uninterrupted service."
                         actionText="Setup Payment Method"
                         onAction={() => router.push('/billing')}
                       />
-                    ) : (
+                    ) : hasPermission('view_billing') ? (
                       <Alert type="info" message="Payment methods are configured. You're all set!" />
-                    )}
+                    ) : null}
 
                     {!(dashboardData.whatsappProfile as any)?.connected && (
                       <Alert

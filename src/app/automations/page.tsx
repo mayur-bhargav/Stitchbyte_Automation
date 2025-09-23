@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { apiService } from '../services/apiService';
+import AutomationFlowBuilder from '../../components/automation/AutomationFlowBuilder';
 import { integrationTemplates, getTemplatesByCategory, getPopularTemplates, IntegrationTemplate } from './integrationTemplates';
 import IntegrationTemplateModal from './IntegrationTemplateModal';
 import {
@@ -63,15 +64,51 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }
 };
 
-// Types
+// Types and Interfaces
 interface Automation {
-  _id: string | null;
+  _id: string;
   name: string;
-  description?: string;
-  trigger_type: string;
-  status: 'active' | 'paused' | 'draft';
-  created_at: string;
+  description: string;
+  is_active: boolean;
+  status?: 'active' | 'paused' | 'draft'; // Added for compatibility
+  trigger_type?: string; // Added for compatibility
+  trigger_config: any;
   workflow: any[];
+  connections: any[];
+  tags: string[];
+  category: string;
+  created_at: string;
+  updated_at: string;
+  stats: {
+    total_executions?: number;
+    last_execution?: string;
+  };
+}
+
+interface AutomationTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  trigger_type: string;
+  preview_image?: string;
+  tags: string[];
+}
+
+interface ExtendedTemplate extends AutomationTemplate {
+  icon: string; // Made required since it's used in render
+  color: string; // Made required since it's used in render
+  popular: boolean; // Made required since it's used in render
+  trigger?: any;
+  workflow?: any[];
+}
+
+interface WhatsAppConnectionStatus {
+  connected: boolean;
+  status: string;
+  message: string;
+  action_required: string;
+  connect_url: string;
 }
 
 // Main component
@@ -80,8 +117,22 @@ function AutomationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [automations, setAutomations] = useState<Automation[]>([]);
-  const [currentView, setCurrentView] = useState<'list' | 'templates'>('list');
+  const [templates, setTemplates] = useState<AutomationTemplate[]>([]);
+  const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppConnectionStatus | null>(null);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'templates' | 'builder' | 'list'>('dashboard');
+
+  // Helper function to get automation status from is_active
+  const getAutomationStatus = (automation: Automation): 'active' | 'paused' | 'draft' => {
+    return automation.is_active ? 'active' : 'paused';
+  };
+
+  // Helper function to get trigger type from trigger_config
+  const getTriggerType = (automation: Automation): string => {
+    return automation.trigger_config?.type || automation.trigger_type || 'Unknown';
+  };
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedAutomation, setSelectedAutomation] = useState<Automation | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null);
   
   // Integration template modal state
   const [selectedIntegrationTemplate, setSelectedIntegrationTemplate] = useState<IntegrationTemplate | null>(null);
@@ -92,6 +143,89 @@ function AutomationsPage() {
   const [testPhoneNumber, setTestPhoneNumber] = useState('');
   const [testAutomationId, setTestAutomationId] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+
+  // Load data on component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load automations first (most important)
+      let automationsData: Automation[] = [];
+      try {
+        const automationsRes = await apiService.getAutomations();
+        automationsData = (automationsRes as any)?.data || [];
+      } catch (error) {
+        console.error('Failed to load automations:', error);
+        // Continue with empty array
+      }
+
+      // Load templates with fallback
+      let templatesData: AutomationTemplate[] = [];
+      try {
+        const templatesRes = await apiService.getAutomationTemplates();
+        templatesData = (templatesRes as any)?.data || [];
+      } catch (error) {
+        console.error('Templates not available:', error);
+        // Use fallback templates
+        templatesData = [
+          {
+            id: 'welcome_message',
+            name: 'Welcome Message',
+            description: 'Greet new customers and introduce your business',
+            category: 'customer_service',
+            trigger_type: 'welcome_message',
+            tags: ['welcome', 'onboarding']
+          },
+          {
+            id: 'lead_capture',
+            name: 'Lead Capture',
+            description: 'Collect customer information and qualify leads',
+            category: 'sales',
+            trigger_type: 'keyword',
+            tags: ['lead', 'capture']
+          },
+          {
+            id: 'faq_bot',
+            name: 'FAQ Bot',
+            description: 'Answer common questions automatically',
+            category: 'customer_service',
+            trigger_type: 'keyword',
+            tags: ['faq', 'support']
+          }
+        ];
+      }
+
+      // Load WhatsApp status with fallback
+      let statusData: WhatsAppConnectionStatus | null = null;
+      try {
+        const statusRes = await apiService.getWhatsAppConnectionStatus();
+        statusData = (statusRes as any)?.data || statusRes;
+      } catch (error) {
+        console.error('WhatsApp status not available:', error);
+        // Use fallback status
+        statusData = {
+          connected: false,
+          status: 'unknown',
+          message: 'Unable to check WhatsApp connection status',
+          action_required: 'connect',
+          connect_url: '/settings?tab=whatsapp'
+        };
+      }
+
+      setAutomations(automationsData);
+      setTemplates(templatesData);
+      setWhatsappStatus(statusData);
+      
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Mock templates data - combining regular templates with integration templates
   const basicTemplates = [
@@ -130,8 +264,19 @@ function AutomationsPage() {
     }
   ];
 
-  // Combine basic templates with integration templates
-  const templates = [...basicTemplates, ...integrationTemplates];
+  // Helper function to normalize templates with required properties
+  const normalizeTemplate = (template: any): ExtendedTemplate => {
+    return {
+      ...template,
+      icon: template.icon || 'MdAutoAwesome',
+      color: template.color || 'bg-gradient-to-br from-gray-500 to-gray-600',
+      popular: template.popular || false,
+      trigger_type: template.trigger_type || template.trigger?.type || 'unknown'
+    };
+  };
+
+  // Combine basic templates with integration templates and API templates
+  const allTemplates = [...basicTemplates, ...integrationTemplates, ...templates].map(normalizeTemplate);
 
   const categories = [
     { id: "all", label: "All", icon: <MdList className="w-4 h-4" /> },
@@ -149,7 +294,7 @@ function AutomationsPage() {
   ];
 
   // Filter templates based on selected category
-  const filteredTemplates = templates.filter(template => {
+  const filteredTemplates = allTemplates.filter((template: ExtendedTemplate) => {
     if (selectedCategory === 'all') return true;
     if (selectedCategory === 'popular') return template.popular === true;
     return template.category === selectedCategory;
@@ -386,6 +531,25 @@ function AutomationsPage() {
 
   return (
     <div className="space-y-8" style={{ backgroundColor: '#F0F6FF', minHeight: '100vh', padding: '1.5rem' }}>
+      {/* NEW AUTOMATION SYSTEM BANNER */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <MdAutoAwesome className="text-2xl" />
+            <div>
+              <h3 className="font-bold text-lg">🎉 New ManyChat-Style Automation Builder Available!</h3>
+              <p className="text-blue-100">Experience our enhanced automation system with visual flow builder, templates, and advanced features.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/automations/new')}
+            className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-md font-medium transition-colors"
+          >
+            Try New Builder
+          </button>
+        </div>
+      </div>
+      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -523,7 +687,7 @@ function AutomationsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Active</p>
-                  <p className="text-2xl font-bold text-black">{automations.filter(a => a.status === "active").length}</p>
+                  <p className="text-2xl font-bold text-black">{automations.filter(a => getAutomationStatus(a) === "active").length}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-emerald-200 bg-emerald-50">
                   <MdPlayArrow className="w-6 h-6 text-emerald-600" />
@@ -535,7 +699,7 @@ function AutomationsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Paused</p>
-                  <p className="text-2xl font-bold text-black">{automations.filter(a => a.status === "paused").length}</p>
+                  <p className="text-2xl font-bold text-black">{automations.filter(a => getAutomationStatus(a) === "paused").length}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-amber-200 bg-amber-50">
                   <MdPause className="w-6 h-6 text-amber-600" />
@@ -547,7 +711,7 @@ function AutomationsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Draft</p>
-                  <p className="text-2xl font-bold text-black">{automations.filter(a => a.status === "draft").length}</p>
+                  <p className="text-2xl font-bold text-black">0</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-white/50 bg-white/50">
                   <MdEdit className="w-6 h-6 text-[#2A8B8A]" />
@@ -604,20 +768,20 @@ function AutomationsPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-semibold text-black">{automation.name}</h3>
                           <span className={`px-3 py-1 text-xs font-medium rounded-full border ${
-                            automation.status === "active" 
+                            getAutomationStatus(automation) === "active" 
                               ? "text-emerald-700 border-emerald-200 bg-emerald-50" :
-                            automation.status === "paused" 
+                            getAutomationStatus(automation) === "paused" 
                               ? "text-amber-700 border-amber-200 bg-amber-50" :
                             "text-[#2A8B8A] border-[#2A8B8A]/30 bg-[#2A8B8A]/10"
                           }`}>
-                            {automation.status.toUpperCase()}
+                            {getAutomationStatus(automation).toUpperCase()}
                           </span>
                         </div>
                         <p className="text-gray-600 mb-3">{automation.description || "No description"}</p>
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <MdFlashOn className="w-4 h-4" />
-                            Trigger: {automation.trigger_type}
+                            Trigger: {getTriggerType(automation)}
                           </span>
                           <span className="flex items-center gap-1">
                             <MdAccessTime className="w-4 h-4" />
@@ -636,12 +800,12 @@ function AutomationsPage() {
                           Test
                         </button>
                         <button
-                          onClick={() => toggleAutomationStatus(automation._id ?? '', automation.status)}
+                          onClick={() => toggleAutomationStatus(automation._id ?? '', getAutomationStatus(automation))}
                           disabled={!automation._id}
-                          title={!automation._id ? 'Automation missing id; cannot change status' : (automation.status === 'active' ? 'Pause automation' : 'Activate automation')}
-                          className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg flex items-center gap-1 border shadow-lg hover:shadow-xl backdrop-blur-sm ${automation.status === "active" ? "text-amber-700 border-amber-200 hover:bg-amber-50" : "text-emerald-700 border-emerald-200 hover:bg-emerald-50"} ${!automation._id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!automation._id ? 'Automation missing id; cannot change status' : (getAutomationStatus(automation) === 'active' ? 'Pause automation' : 'Activate automation')}
+                          className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg flex items-center gap-1 border shadow-lg hover:shadow-xl backdrop-blur-sm ${getAutomationStatus(automation) === "active" ? "text-amber-700 border-amber-200 hover:bg-amber-50" : "text-emerald-700 border-emerald-200 hover:bg-emerald-50"} ${!automation._id ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          {automation.status === 'active' ? (
+                          {getAutomationStatus(automation) === 'active' ? (
                             <>
                               <MdPause className="w-4 h-4" />
                               Pause

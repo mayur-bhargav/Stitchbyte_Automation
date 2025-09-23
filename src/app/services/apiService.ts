@@ -931,6 +931,57 @@ class ApiService {
     });
   }
 
+  // New automation methods for ManyChat-style system
+  async getAutomationTemplates() {
+    // Try new public endpoint first, then fallback to other endpoints
+    try {
+      return await this.request('/api/automation-templates-public');
+    } catch (error) {
+      try {
+        return await this.request('/automations/templates-public');
+      } catch (error2) {
+        // If both public endpoints fail, try authenticated endpoint
+        return this.request('/automations/templates');
+      }
+    }
+  }
+
+  async createAutomationFromTemplate(templateId: string) {
+    return this.request(`/automations/templates/${templateId}/create`, {
+      method: 'POST',
+    });
+  }
+
+  async getWhatsAppConnectionStatus() {
+    return this.request('/whatsapp/status');
+  }
+
+  async evaluateConditions(conditionsData: any) {
+    return this.request('/automations/conditions/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(conditionsData),
+    });
+  }
+
+  async executeAutomation(automationId: string, phone: string, variables?: any) {
+    return this.request(`/automations/${automationId}/execute`, {
+      method: 'POST',
+      body: JSON.stringify({
+        phone,
+        variables: variables || {}
+      }),
+    });
+  }
+
+  async testAutomation(automationId: string, testPhone: string) {
+    return this.request(`/automations/${automationId}/test`, {
+      method: 'POST',
+      body: JSON.stringify({
+        test_phone: testPhone
+      }),
+    });
+  }
+
   // AI Response methods using Google Gemini API directly
   async generateAIResponse(requestData: {
     message: string;

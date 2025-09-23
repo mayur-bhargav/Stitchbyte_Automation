@@ -8,6 +8,7 @@ import { apiService } from "../services/apiService";
 import Script from "next/script";
 import ProtectedRoute from "../components/ProtectedRoute"; // Assuming this component exists
 import AddBalanceModal from "../components/AddBalanceModal"; // Assuming this component exists
+import PermissionGuard from "../components/PermissionGuard";
 import {
   LuCreditCard, LuWallet, LuX, LuPlus, LuShield, LuTrendingUp, LuCheck,
   LuClock, LuTriangleAlert, LuFilter, LuDownload, LuRefreshCw, LuZap, LuArrowRight,
@@ -215,10 +216,11 @@ export default function BillingPage() {
   }, [transactions, formattedTransactions]);
 
   return (
-    <ProtectedRoute>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      
-      <div className="space-y-8">
+    <PermissionGuard requiredPermission="view_billing">
+      <ProtectedRoute>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+        
+        <div className="space-y-8">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -446,6 +448,7 @@ export default function BillingPage() {
       </div>
       
       <AddBalanceModal isOpen={showAddBalanceModal} onClose={() => setShowAddBalanceModal(false)} />
-    </ProtectedRoute>
+      </ProtectedRoute>
+    </PermissionGuard>
   );
 }

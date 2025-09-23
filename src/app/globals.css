@@ -12,7 +12,7 @@
     @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
   }
   
-  /* Comprehensive input styling for dark mode */
+  /* Comprehensive input styling for light and dark mode */
   input[type="text"], 
   input[type="email"], 
   input[type="password"], 
@@ -22,9 +22,9 @@
   input[type="url"], 
   textarea, 
   select {
-    background-color: white;
-    border-color: #e2e8f0;
-    color: #1e293b;
+    background-color: white !important;
+    border-color: #e2e8f0 !important;
+    color: #1e293b !important;
   }
   
   .dark input[type="text"], 
@@ -42,7 +42,7 @@
   }
   
   input::placeholder, textarea::placeholder {
-    color: #64748b;
+    color: #64748b !important;
   }
   
   .dark input::placeholder, 
@@ -77,53 +77,83 @@
     @apply bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400;
   }
 
-  /* Input Field Styles - More specific selectors */
+  /* Input Field Styles - More specific selectors with higher specificity */
   .input-field,
   input.input-field,
   textarea.input-field,
-  select.input-field {
-    display: block;
-    width: 100%;
-    padding-left: 2.5rem;
-    padding-right: 0.75rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-width: 1px;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    font-size: 0.875rem;
-    background-color: white;
-    border-color: #e2e8f0;
-    color: #1e293b;
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+  select.input-field,
+  form input[type="text"],
+  form input[type="email"], 
+  form input[type="password"],
+  form input[type="number"],
+  form input[type="search"], 
+  form input[type="tel"],
+  form input[type="url"],
+  form textarea,
+  form select {
+    display: block !important;
+    width: 100% !important;
+    padding-left: 2.5rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    border-width: 1px !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+    font-size: 0.875rem !important;
+    background-color: white !important;
+    border-color: #e2e8f0 !important;
+    color: #1e293b !important;
+    transition-property: all !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-duration: 150ms !important;
   }
   
   .input-field:focus,
   input.input-field:focus,
   textarea.input-field:focus,
-  select.input-field:focus {
-    outline: 2px solid transparent;
-    outline-offset: 2px;
-    box-shadow: 0 0 0 2px rgb(42 139 138 / 0.5);
-    border-color: #2A8B8A;
+  select.input-field:focus,
+  form input[type="text"]:focus,
+  form input[type="email"]:focus, 
+  form input[type="password"]:focus,
+  form input[type="number"]:focus,
+  form input[type="search"]:focus, 
+  form input[type="tel"]:focus,
+  form input[type="url"]:focus,
+  form textarea:focus,
+  form select:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px rgb(42 139 138 / 0.5) !important;
+    border-color: #2A8B8A !important;
   }
   
   .input-field:disabled,
   input.input-field:disabled,
   textarea.input-field:disabled,
-  select.input-field:disabled {
-    background-color: #f8fafc;
-    color: #64748b;
-    cursor: not-allowed;
+  select.input-field:disabled,
+  form input:disabled,
+  form textarea:disabled,
+  form select:disabled {
+    background-color: #f8fafc !important;
+    color: #64748b !important;
+    cursor: not-allowed !important;
   }
   
   /* Dark mode styles with higher specificity */
   .dark .input-field,
   .dark input.input-field,
   .dark textarea.input-field,
-  .dark select.input-field {
+  .dark select.input-field,
+  .dark form input[type="text"],
+  .dark form input[type="email"], 
+  .dark form input[type="password"],
+  .dark form input[type="number"],
+  .dark form input[type="search"], 
+  .dark form input[type="tel"],
+  .dark form input[type="url"],
+  .dark form textarea,
+  .dark form select {
     background-color: #334155 !important;
     border-color: #475569 !important;
     color: #f1f5f9 !important;
@@ -131,7 +161,9 @@
   
   .dark .input-field::placeholder,
   .dark input.input-field::placeholder,
-  .dark textarea.input-field::placeholder {
+  .dark textarea.input-field::placeholder,
+  .dark form input::placeholder,
+  .dark form textarea::placeholder {
     color: #94a3b8 !important;
   }
 

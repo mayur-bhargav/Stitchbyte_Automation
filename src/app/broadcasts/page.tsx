@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
+import { ApprovalWrapper } from '../components/ApprovalWrapper';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { apiService } from '../services/apiService';
 
@@ -42,6 +44,7 @@ type Contact = {
 function BroadcastsPage() {
   const router = useRouter();
   const { user } = useUser();
+  const { hasPermission } = usePermissions();
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,6 +268,20 @@ function BroadcastsPage() {
       ).length
     : contacts.length;
 
+  // Check permission
+  if (!hasPermission('manage_broadcasts')) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600">You don't have permission to manage broadcasts.</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
   if (loading) {
     return (
       <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} flex items-center justify-center`}>
@@ -322,8 +339,17 @@ function BroadcastsPage() {
                 )}
               </button>
               
-              <button
-                onClick={() => setShowCreateModal(true)}
+              <ApprovalWrapper
+                action="create_broadcast"
+                requestType="broadcast"
+                requestData={{
+                  name: newBroadcast.name || 'New Broadcast',
+                  message: newBroadcast.message,
+                  template_name: newBroadcast.template_name,
+                  target_groups: newBroadcast.target_groups,
+                  target_contacts_count: targetContactsCount
+                }}
+                onExecute={async () => setShowCreateModal(true)}
                 className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:from-emerald-600 hover:to-blue-600 hover:scale-105 shadow-lg"
               >
                 <div className="flex items-center gap-2">
@@ -332,7 +358,7 @@ function BroadcastsPage() {
                   </svg>
                   New Broadcast
                 </div>
-              </button>
+              </ApprovalWrapper>
             </div>
           </div>
         </div>
@@ -386,12 +412,21 @@ function BroadcastsPage() {
             </svg>
             <h3 className="text-lg font-medium mb-2">No broadcasts found</h3>
             <p className="mb-4">Get started by creating your first broadcast</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
+            <ApprovalWrapper
+              action="create_broadcast"
+              requestType="broadcast"
+              requestData={{
+                name: 'New Broadcast',
+                message: '',
+                template_name: '',
+                target_groups: [],
+                target_contacts_count: 0
+              }}
+              onExecute={async () => setShowCreateModal(true)}
               className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 transition-colors"
             >
               Create Broadcast
-            </button>
+            </ApprovalWrapper>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -692,13 +727,23 @@ function BroadcastsPage() {
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={createBroadcast}
+                  <ApprovalWrapper
+                    action="create_broadcast"
+                    requestType="broadcast"
+                    requestData={{
+                      name: newBroadcast.name,
+                      message: newBroadcast.message,
+                      template_name: newBroadcast.template_name,
+                      target_groups: newBroadcast.target_groups,
+                      scheduled_at: newBroadcast.scheduled_at,
+                      target_contacts_count: targetContactsCount
+                    }}
+                    onExecute={createBroadcast}
                     disabled={!newBroadcast.name || (!newBroadcast.message && !newBroadcast.template_name)}
                     className="flex-1 bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-6 py-3 rounded-lg font-medium transition-all hover:from-emerald-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Create Broadcast
-                  </button>
+                  </ApprovalWrapper>
                 </div>
               </div>
             </div>

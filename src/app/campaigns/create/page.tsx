@@ -14,6 +14,8 @@ import {
 } from 'react-icons/lu';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useUser } from '../../contexts/UserContext';
+import { usePermissions } from '../../contexts/PermissionContext';
+import { ApprovalWrapper } from '../../components/ApprovalWrapper';
 import { apiService } from '../../services/apiService';
 
 interface Segment {
@@ -54,6 +56,7 @@ interface Template {
 const CreateCampaignPage: React.FC = () => {
   const router = useRouter();
   const { user } = useUser();
+  const { hasPermission } = usePermissions();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
@@ -346,6 +349,20 @@ const CreateCampaignPage: React.FC = () => {
   const totalContacts = selectedSegments.reduce((sum, segment) => 
     sum + (segment.contactCount || segment.contact_count || 0), 0
   );
+
+  // Check permission
+  if (!hasPermission('manage_campaigns')) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600">You don't have permission to create campaigns.</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   if (dataLoading) {
     return (
@@ -1301,8 +1318,23 @@ const CreateCampaignPage: React.FC = () => {
                     Next
                   </button>
                 ) : (
-                  <button
-                    onClick={handleCreateCampaign}
+                  <ApprovalWrapper
+                    action="create_campaign"
+                    requestType="campaign"
+                    requestData={{
+                      name: campaignData.name,
+                      description: campaignData.description,
+                      type: campaignData.type,
+                      template_id: campaignData.templateId,
+                      segment_ids: campaignData.segmentIds,
+                      scheduled_at: campaignData.scheduledAt,
+                      template_data: campaignData.templateData,
+                      total_contacts: totalContacts
+                    }}
+                    onExecute={handleCreateCampaign}
+                    onApprovalSubmitted={() => {
+                      // Optionally redirect or show success message
+                    }}
                     disabled={
                       loading ||
                       !campaignData.name ||
@@ -1319,20 +1351,23 @@ const CreateCampaignPage: React.FC = () => {
                       !campaignData.budget.maxDays ||
                       campaignData.budget.maxDays <= 0
                     }
-                    className="px-8 py-3 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#2A8B8A]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
                   >
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Creating Campaign...
-                      </>
-                    ) : (
-                      <>
-                        <LuSend className="w-4 h-4" />
-                        Create Campaign
-                      </>
-                    )}
-                  </button>
+                    <button
+                      className="px-8 py-3 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#2A8B8A]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Creating Campaign...
+                        </>
+                      ) : (
+                        <>
+                          <LuSend className="w-4 h-4" />
+                          Create Campaign
+                        </>
+                      )}
+                    </button>
+                  </ApprovalWrapper>
                 )}
               </div>
             </div>
