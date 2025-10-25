@@ -608,6 +608,14 @@ class ApiService {
           throw new Error('Authentication required');
         }
         
+        if (response.status === 429) {
+          // Rate limit - redirect to rate limit error page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/error-pages/rate-limit';
+          }
+          throw new Error('Your IP has been temporarily blocked due to too many violations');
+        }
+        
         let errorMessage = 'Request failed';
         try {
           const error = await response.json();
