@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# Large media files (too big for GitHub)
+public/demo-video.mp4
+public/*.mp4
+
 # debug
 npm-debug.log*
 yarn-debug.log*
