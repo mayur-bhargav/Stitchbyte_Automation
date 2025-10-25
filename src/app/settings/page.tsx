@@ -30,9 +30,29 @@ const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || '2303984949951970';
 const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'http://localhost:3000/auth/whatsapp-callback';
 const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management,pages_manage_metadata';
 const STATE = 'secure_random_state_123';
-// Embedded Signup extras parameter for creating new WhatsApp Business Accounts
-// auth_type=rerequest forces fresh permissions, bypassing reconnect flow
-const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent('{"setup":{"action":"manage","feature":"whatsapp_embedded_signup"},"business":{"force_selection":false}}');
+// WhatsApp Embedded Signup Configuration ID
+const CONFIG_ID = '714413008094076';
+// Embedded Signup extras parameter like AiSensy - complete business setup
+const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent(JSON.stringify({
+  sessionInfoVersion: "3",
+  feature: "whatsapp_embedded_signup",
+  features: [
+    { name: "marketing_messages_lite" },
+    { name: "will_be_partner_certified" }
+  ],
+  setup: {
+    business: {
+      isWebsiteRequired: false,
+      name: "Stitchbyte",
+      timezone: "UTC+05:30"
+    },
+    phone: {
+      displayName: "Stitchbyte",
+      category: "",
+      description: ""
+    }
+  }
+}));
 
 // ============================================================================
 // Reusable UI Components
@@ -227,10 +247,8 @@ export default function SettingsPage() {
             console.warn('Backend OAuth URL failed, falling back to direct URL:', backendError);
         }
 
-        // Fallback: Use embedded signup flow to create NEW WhatsApp Business Account
-        // This skips showing existing business accounts and forces account creation with phone number setup
-        // auth_type=reauthenticate forces complete fresh login
-        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&auth_type=reauthenticate&setup_type=seamless&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
+        // Fallback: Use AiSensy-style embedded signup with complete business setup and config_id
+        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&config_id=${CONFIG_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&display=popup&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
         window.location.href = metaLoginUrl;
 
     } catch (error) {
