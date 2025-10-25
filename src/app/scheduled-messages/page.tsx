@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { apiService } from '../services/apiService';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 // Types for scheduled messages
 type ScheduledMessage = {
@@ -632,7 +635,16 @@ function ScheduledMessages() {
 const ProtectedScheduledMessagesPage = () => {
   return (
     <ProtectedRoute>
-      <ScheduledMessages />
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading scheduled messages...</p>
+          </div>
+        </div>
+      }>
+        <ScheduledMessages />
+      </Suspense>
     </ProtectedRoute>
   );
 };
