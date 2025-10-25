@@ -31,7 +31,8 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'http://localh
 const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management,pages_manage_metadata';
 const STATE = 'secure_random_state_123';
 // Embedded Signup extras parameter for creating new WhatsApp Business Accounts
-const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent('{"setup":{"action":"manage","feature":"whatsapp_embedded_signup"}}');
+// auth_type=rerequest forces fresh permissions, bypassing reconnect flow
+const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent('{"setup":{"action":"manage","feature":"whatsapp_embedded_signup"},"business":{"force_selection":false}}');
 
 // ============================================================================
 // Reusable UI Components
@@ -228,7 +229,8 @@ export default function SettingsPage() {
 
         // Fallback: Use embedded signup flow to create NEW WhatsApp Business Account
         // This skips showing existing business accounts and forces account creation with phone number setup
-        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&setup_type=seamless&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
+        // auth_type=rerequest bypasses the reconnect flow
+        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&auth_type=rerequest&setup_type=seamless&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
         window.location.href = metaLoginUrl;
 
     } catch (error) {
