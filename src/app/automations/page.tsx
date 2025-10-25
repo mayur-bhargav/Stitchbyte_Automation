@@ -1,77 +1,30 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
+import Modal from '../../components/ui/Modal';
 import { apiService } from '../services/apiService';
-import AutomationFlowBuilder from '../../components/automation/AutomationFlowBuilder';
-import { integrationTemplates, getTemplatesByCategory, getPopularTemplates, IntegrationTemplate } from './integrationTemplates';
-import IntegrationTemplateModal from './IntegrationTemplateModal';
+
+// Import Material Design icons
 import {
   MdAdd,
   MdAutoAwesome,
-  MdRocket,
-  MdBuild,
-  MdList,
-  MdGridView,
-  MdSearch,
-  MdFilterList,
-  MdStar,
-  MdChat,
-  MdTrendingUp,
-  MdAttachMoney,
-  MdHandshake,
-  MdArrowBack,
-  MdClose,
+  MdSettings,
   MdPlayArrow,
   MdPause,
-  MdEdit,
-  MdCheck,
   MdDelete,
-  MdBugReport,
-  MdAccessTime,
-  MdFlashOn,
-  MdShoppingCart,
-  MdEvent,
-  MdNotifications,
-  MdEmail,
-  MdPhone,
-  MdLink,
-  MdSchedule,
-  MdPerson,
-  MdBusinessCenter,
-  MdHome,
-  MdLocationOn,
-  MdCelebration,
-  MdFavorite,
-  MdQuestionAnswer,
-  MdHelp,
-  MdExtension,
-  MdStore,
-  MdSupport,
-  MdPayment,
-  MdAnalytics,
-  MdPersonAdd
+  MdEdit,
+  MdChat,
+  MdWarning,
+  MdCheckCircle
 } from "react-icons/md";
 
-// Toast notification function
-const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-  // You can implement a proper toast system later
-  if (type === 'success') {
-    // console.log('✅ ' + message);
-  } else {
-    console.error('❌ ' + message);
-  }
-};
-
-// Types and Interfaces
 interface Automation {
   _id: string;
   name: string;
   description: string;
   is_active: boolean;
-  status?: 'active' | 'paused' | 'draft'; // Added for compatibility
-  trigger_type?: string; // Added for compatibility
   trigger_config: any;
   workflow: any[];
   connections: any[];
@@ -85,24 +38,6 @@ interface Automation {
   };
 }
 
-interface AutomationTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  trigger_type: string;
-  preview_image?: string;
-  tags: string[];
-}
-
-interface ExtendedTemplate extends AutomationTemplate {
-  icon: string; // Made required since it's used in render
-  color: string; // Made required since it's used in render
-  popular: boolean; // Made required since it's used in render
-  trigger?: any;
-  workflow?: any[];
-}
-
 interface WhatsAppConnectionStatus {
   connected: boolean;
   status: string;
@@ -111,38 +46,22 @@ interface WhatsAppConnectionStatus {
   connect_url: string;
 }
 
-// Main component
-function AutomationsPage() {
-  const { user } = useUser();
+export default function AutomationsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const { user } = useUser();
   const [automations, setAutomations] = useState<Automation[]>([]);
-  const [templates, setTemplates] = useState<AutomationTemplate[]>([]);
   const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppConnectionStatus | null>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'templates' | 'builder' | 'list'>('dashboard');
-
-  // Helper function to get automation status from is_active
-  const getAutomationStatus = (automation: Automation): 'active' | 'paused' | 'draft' => {
-    return automation.is_active ? 'active' : 'paused';
-  };
-
-  // Helper function to get trigger type from trigger_config
-  const getTriggerType = (automation: Automation): string => {
-    return automation.trigger_config?.type || automation.trigger_type || 'Unknown';
-  };
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedAutomation, setSelectedAutomation] = useState<Automation | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  // Integration template modal state
-  const [selectedIntegrationTemplate, setSelectedIntegrationTemplate] = useState<IntegrationTemplate | null>(null);
-  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
-  
-  // Test modal state
-  const [showTestModal, setShowTestModal] = useState(false);
-  const [testPhoneNumber, setTestPhoneNumber] = useState('');
-  const [testAutomationId, setTestAutomationId] = useState<string | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+  } | null>(null);
 
   // Load data on component mount
   useEffect(() => {
@@ -157,46 +76,18 @@ function AutomationsPage() {
       let automationsData: Automation[] = [];
       try {
         const automationsRes = await apiService.getAutomations();
-        automationsData = (automationsRes as any)?.data || [];
+        
+        // Backend returns array directly or wrapped in data object
+        if (Array.isArray(automationsRes)) {
+          automationsData = automationsRes;
+        } else if ((automationsRes as any)?.data && Array.isArray((automationsRes as any).data)) {
+          automationsData = (automationsRes as any).data;
+        } else {
+          automationsData = [];
+        }
       } catch (error) {
         console.error('Failed to load automations:', error);
         // Continue with empty array
-      }
-
-      // Load templates with fallback
-      let templatesData: AutomationTemplate[] = [];
-      try {
-        const templatesRes = await apiService.getAutomationTemplates();
-        templatesData = (templatesRes as any)?.data || [];
-      } catch (error) {
-        console.error('Templates not available:', error);
-        // Use fallback templates
-        templatesData = [
-          {
-            id: 'welcome_message',
-            name: 'Welcome Message',
-            description: 'Greet new customers and introduce your business',
-            category: 'customer_service',
-            trigger_type: 'welcome_message',
-            tags: ['welcome', 'onboarding']
-          },
-          {
-            id: 'lead_capture',
-            name: 'Lead Capture',
-            description: 'Collect customer information and qualify leads',
-            category: 'sales',
-            trigger_type: 'keyword',
-            tags: ['lead', 'capture']
-          },
-          {
-            id: 'faq_bot',
-            name: 'FAQ Bot',
-            description: 'Answer common questions automatically',
-            category: 'customer_service',
-            trigger_type: 'keyword',
-            tags: ['faq', 'support']
-          }
-        ];
       }
 
       // Load WhatsApp status with fallback
@@ -217,7 +108,6 @@ function AutomationsPage() {
       }
 
       setAutomations(automationsData);
-      setTemplates(templatesData);
       setWhatsappStatus(statusData);
       
     } catch (error) {
@@ -227,727 +117,284 @@ function AutomationsPage() {
     }
   };
 
-  // Mock templates data - combining regular templates with integration templates
-  const basicTemplates = [
-    {
-      id: 'welcome',
-      name: 'Welcome New Users',
-      description: 'Send a personalized welcome message to new sign-ups',
-      category: 'engagement',
-      icon: 'MdCelebration',
-      color: 'bg-gradient-to-br from-[#2A8B8A] to-[#238080]',
-      popular: true,
-      trigger: { type: 'user_signup' },
-      workflow: []
-    },
-    {
-      id: 'abandoned-cart',
-      name: 'Abandoned Cart Recovery',
-      description: 'Re-engage customers who left items in their cart',
-      category: 'revenue',
-      icon: 'MdShoppingCart',
-      color: 'bg-gradient-to-br from-orange-500 to-red-500',
-      popular: true,
-      trigger: { type: 'cart_abandonment' },
-      workflow: []
-    },
-    {
-      id: 'custom-4step',
-      name: '4-Step Business Automation',
-      description: 'Complete business workflow: Trigger → Response → Data Collection → Custom Action',
-      category: 'business',
-      icon: 'MdAutoAwesome',
-      color: 'bg-gradient-to-br from-purple-500 to-pink-500',
-      popular: true,
-      trigger: { type: 'keyword' },
-      workflow: []
-    }
-  ];
-
-  // Helper function to normalize templates with required properties
-  const normalizeTemplate = (template: any): ExtendedTemplate => {
-    return {
-      ...template,
-      icon: template.icon || 'MdAutoAwesome',
-      color: template.color || 'bg-gradient-to-br from-gray-500 to-gray-600',
-      popular: template.popular || false,
-      trigger_type: template.trigger_type || template.trigger?.type || 'unknown'
-    };
-  };
-
-  // Combine basic templates with integration templates and API templates
-  const allTemplates = [...basicTemplates, ...integrationTemplates, ...templates].map(normalizeTemplate);
-
-  const categories = [
-    { id: "all", label: "All", icon: <MdList className="w-4 h-4" /> },
-    { id: "popular", label: "Most popular", icon: <MdStar className="w-4 h-4" /> },
-    { id: "engagement", label: "Improve engagement", icon: <MdChat className="w-4 h-4" /> },
-    { id: "revenue", label: "Increase revenue", icon: <MdAttachMoney className="w-4 h-4" /> },
-    { id: "business", label: "Business Automation", icon: <MdBusinessCenter className="w-4 h-4" /> },
-    { id: "e-commerce", label: "E-commerce", icon: <MdStore className="w-4 h-4" /> },
-    { id: "crm", label: "CRM & Sales", icon: <MdPersonAdd className="w-4 h-4" /> },
-    { id: "productivity", label: "Productivity", icon: <MdExtension className="w-4 h-4" /> },
-    { id: "finance", label: "Finance & Payments", icon: <MdPayment className="w-4 h-4" /> },
-    { id: "support", label: "Customer Support", icon: <MdSupport className="w-4 h-4" /> },
-    { id: "marketing", label: "Marketing", icon: <MdEmail className="w-4 h-4" /> },
-    { id: "analytics", label: "Analytics", icon: <MdAnalytics className="w-4 h-4" /> }
-  ];
-
-  // Filter templates based on selected category
-  const filteredTemplates = allTemplates.filter((template: ExtendedTemplate) => {
-    if (selectedCategory === 'all') return true;
-    if (selectedCategory === 'popular') return template.popular === true;
-    return template.category === selectedCategory;
-  });
-
-  // Load automations from backend
-  const loadAutomations = async () => {
-    try {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
-
-
-      const response = await apiService.getOptional('/automations');
-
-      if (response) {
-        // Normalize array source
-        const dataArray = Array.isArray(response) ? response : (response.automations && Array.isArray(response.automations) ? response.automations : null);
-        if (dataArray) {
-          // Ensure each automation has an _id when possible. Try several common id fields.
-          const normalized = dataArray.map((a: any, idx: number) => {
-            const foundId = a?._id ?? a?.id ?? a?.uuid ?? a?.id_str ?? a?.uid ?? (a && a._meta && a._meta.id) ?? null;
-            return {
-              ...a,
-              // store null explicitly when no id found so callers can handle it
-              _id: foundId ?? null,
-              // keep a client-only fallback key for rendering if needed
-              __clientTempId: foundId ? undefined : `tmp-${idx}`,
-            };
-          });
-          setAutomations(normalized);
-        } else {
-          // console.log('No automations found in response:', response);
-          setAutomations([]);
-        }
-      } else {
-        // Automations endpoint not available
-        // console.log('Automations endpoint not available, showing empty automations');
-        setAutomations([]);
-      }
-      
-      setLoading(false);
-    } catch (error) {
-      // console.log('Failed to load automations, showing empty automations:', error);
-      setAutomations([]);
-      setLoading(false);
-    }
-  };
-
-    const createFromTemplate = (template: any) => {
-    const params = new URLSearchParams();
-    if (template) {
-      params.set('template', template.id);
-    }
-    router.push(`/automations/builder?${params.toString()}`);
-  };
-
-  const handleTemplateClick = (template: any) => {
-    // Check if it's an integration template
-    if ((template as IntegrationTemplate).integration) {
-      setSelectedIntegrationTemplate(template as IntegrationTemplate);
-      setShowIntegrationModal(true);
-    } else {
-      // Regular template - go directly to builder
-      createFromTemplate(template);
-    }
-  };
-
-  const handleCreateIntegrationAutomation = (template: IntegrationTemplate) => {
-    setShowIntegrationModal(false);
-    createFromTemplate(template);
-  };
-
-  const renderIcon = (iconName: string) => {
-    const icons: { [key: string]: any } = {
-      MdCelebration,
-      MdShoppingCart,
-      MdAutoAwesome,
-      MdBusinessCenter,
-      MdPersonAdd,
-      MdTrendingUp,
-      MdSupport,
-      MdEmail,
-      MdPayment,
-      MdEvent,
-      MdAnalytics,
-      MdStore,
-      MdExtension,
-      MdChat,
-      MdNotifications
-    };
-    const IconComponent = icons[iconName] || MdAutoAwesome;
-    return <IconComponent className="w-8 h-8" />;
-  };
-
-  // Automation action functions
-  const toggleAutomationStatus = async (automationId: string, currentStatus: string) => {
-    if (!automationId) {
-      console.error('Cannot toggle automation: missing id');
-      showToast('Cannot update automation: missing id', 'error');
-      return;
-    }
-
-    try {
-      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
-      // console.log(`Toggling automation ${automationId} from ${currentStatus} to ${newStatus}`);
-
-      // Use patch method for partial updates
-      try {
-        await apiService.patchAutomation(automationId, { status: newStatus });
-      } catch (err) {
-        // Log detailed server error if available
-        console.error('Patch failed, error:', err);
-        // Try to surface server response if it's a JSON error
+  const handleDeleteAutomation = (automation: Automation) => {
+    if (!automation._id) return;
+    
+    setModalConfig({
+      title: 'Delete Automation',
+      message: `Are you sure you want to delete "${automation.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+      onConfirm: async () => {
         try {
-          // Attempt a direct fetch to read response body for debugging
-          const token = localStorage.getItem('token');
-          const res = await fetch(`${apiService.baseURL}/automations/${automationId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify({ status: newStatus })
-          });
-
-          let bodyText = null;
-          try { bodyText = await res.text(); } catch(e) { bodyText = String(e); }
-          console.error('Direct PATCH response status:', res.status, res.statusText, 'body:', bodyText);
-        } catch (fetchErr) {
-          console.error('Direct PATCH attempt failed:', fetchErr);
+          await apiService.deleteAutomation(automation._id);
+          await loadDashboardData(); // Refresh list
+        } catch (error) {
+          console.error('Failed to delete automation:', error);
         }
-        throw err;
       }
-
-      // Update local state
-      setAutomations(prev => prev.map(automation => 
-        automation._id === automationId 
-          ? { ...automation, status: newStatus as 'active' | 'paused' | 'draft' }
-          : automation
-      ));
-
-      showToast(`Automation ${newStatus === 'active' ? 'activated' : 'paused'}`, 'success');
-    } catch (error) {
-      console.error('Failed to toggle automation status:', error);
-      showToast('Failed to update automation status', 'error');
-    }
+    });
+    setIsModalOpen(true);
   };
 
-  const deleteAutomation = async (automationId: string) => {
-    if (!confirm('Are you sure you want to delete this automation? This action cannot be undone.')) {
-      return;
-    }
-
-    if (!automationId) {
-      console.error('Cannot delete automation: missing id');
-      showToast('Cannot delete automation: missing id', 'error');
-      return;
-    }
-
-    try {
-      // console.log(`Deleting automation ${automationId}`);
-      await apiService.deleteAutomation(automationId);
-
-      // Remove from local state
-      setAutomations(prev => prev.filter(automation => automation._id !== automationId));
-
-      showToast('Automation deleted successfully!', 'success');
-    } catch (error) {
-      console.error('Failed to delete automation:', error);
-      showToast('Failed to delete automation', 'error');
-    }
-  };
-
-  const openTestModal = (automationId: string) => {
-    setTestAutomationId(automationId);
-    setShowTestModal(true);
-    setTestPhoneNumber('');
-  };
-
-  const handleTestSubmit = async () => {
-    if (!testPhoneNumber.trim() || !testAutomationId) return;
-
-    setIsTesting(true);
-    try {
-      // console.log(`Testing automation ${testAutomationId} with phone ${testPhoneNumber}`);
-      
-      // Call test API endpoint
-      const response = await fetch(`${apiService.baseURL}/automations/${testAutomationId}/test`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          phone_number: testPhoneNumber.replace(/\D/g, ''), // Remove non-digits
-          test_mode: true 
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Test failed');
+  const handleToggleAutomation = (automation: Automation) => {
+    if (!automation._id) return;
+    
+    const action = automation.is_active ? 'pause' : 'activate';
+    setModalConfig({
+      title: `${automation.is_active ? 'Pause' : 'Activate'} Automation`,
+      message: `Are you sure you want to ${action} "${automation.name}"?`,
+      confirmText: automation.is_active ? 'Pause' : 'Activate',
+      confirmButtonClass: automation.is_active ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700',
+      onConfirm: async () => {
+        try {
+          await apiService.updateAutomation(automation._id, { is_active: !automation.is_active });
+          await loadDashboardData(); // Refresh list
+        } catch (error) {
+          console.error('Failed to toggle automation:', error);
+        }
       }
-
-      const result = await response.json();
-      // console.log('Test result:', result);
-      
-      showToast('Test message sent successfully!', 'success');
-      setShowTestModal(false);
-      setTestPhoneNumber('');
-      setTestAutomationId(null);
-    } catch (error) {
-      console.error('Failed to test automation:', error);
-      showToast('Failed to send test message', 'error');
-    } finally {
-      setIsTesting(false);
-    }
+    });
+    setIsModalOpen(true);
   };
 
-  useEffect(() => {
-    if (user?.id) {
-      loadAutomations();
-    }
-  }, [user?.id]);
+  const renderWhatsAppConnectionBanner = () => {
+    if (!whatsappStatus || whatsappStatus.connected) return null;
+
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start space-x-3">
+          <MdWarning className="text-amber-500 text-xl mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-amber-800 font-medium">WhatsApp Not Connected</h3>
+            <p className="text-amber-700 text-sm mt-1">{whatsappStatus.message}</p>
+            <button
+              onClick={() => router.push(whatsappStatus.connect_url)}
+              className="mt-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              Connect WhatsApp
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDashboard = () => (
+    <div className="space-y-6">
+      {renderWhatsAppConnectionBanner()}
+
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Automations</h1>
+          <p className="text-gray-600 mt-2">Create and manage your WhatsApp automation workflows</p>
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => router.push('/automations/new?mode=builder')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-colors"
+          >
+            <MdSettings className="text-lg" />
+            <span>Create Automation</span>
+          </button>
+          
+          <button
+            onClick={() => router.push('/automations/new')}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-colors"
+          >
+            <MdAdd className="text-lg" />
+            <span>Browse Templates</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <MdSettings className="text-blue-600 text-2xl" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Automations</p>
+              <p className="text-2xl font-bold text-gray-900">{automations.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <MdCheckCircle className="text-green-600 text-2xl" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {automations.filter(a => a.is_active).length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <MdPause className="text-yellow-600 text-2xl" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Paused</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {automations.filter(a => !a.is_active).length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <MdChat className="text-purple-600 text-2xl" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Executions</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {automations.reduce((sum, a) => sum + (a.stats?.total_executions || 0), 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Automations List */}
+      <div className="bg-white rounded-lg shadow">
+        
+        {automations.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <MdAutoAwesome className="mx-auto text-gray-400 text-6xl mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No automations yet</h3>
+            <p className="text-gray-600 mb-6">Get started by creating your first automation or using a template.</p>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => router.push('/automations/new?mode=builder')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Create Automation
+              </button>
+              <button
+                onClick={() => router.push('/automations/new')}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Browse Templates
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {automations.map((automation) => (
+              <div key={automation._id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <h3 className="text-lg font-medium text-gray-900">{automation.name}</h3>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        automation.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {automation.is_active ? 'Active' : 'Paused'}
+                      </span>
+                      {automation.category && (
+                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                          {automation.category}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-600 mt-1">{automation.description}</p>
+                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                      <span>Trigger: {automation.trigger_config?.trigger_type || 'Unknown'}</span>
+                      <span>Steps: {automation.workflow?.length || 0}</span>
+                      {automation.stats?.total_executions !== undefined && (
+                        <span>Executions: {automation.stats.total_executions}</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleToggleAutomation(automation)}
+                      className={`p-2 rounded-md transition-colors ${
+                        automation.is_active
+                          ? 'bg-red-100 hover:bg-red-200 text-red-600'
+                          : 'bg-green-100 hover:bg-green-200 text-green-600'
+                      }`}
+                      title={automation.is_active ? 'Pause automation' : 'Start automation'}
+                    >
+                      {automation.is_active ? <MdPause /> : <MdPlayArrow />}
+                    </button>
+                    
+                    <button
+                      onClick={() => router.push('/automations/new?mode=builder')}
+                      className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-md transition-colors"
+                      title="Create new automation"
+                    >
+                      <MdEdit />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDeleteAutomation(automation)}
+                      className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-md transition-colors"
+                      title="Delete automation"
+                    >
+                      <MdDelete />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-black rounded-full"></div>
-      </div>
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading automations...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <div className="space-y-8" style={{ backgroundColor: '#F0F6FF', minHeight: '100vh', padding: '1.5rem' }}>
-      {/* NEW AUTOMATION SYSTEM BANNER */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <MdAutoAwesome className="text-2xl" />
-            <div>
-              <h3 className="font-bold text-lg">🎉 New ManyChat-Style Automation Builder Available!</h3>
-              <p className="text-blue-100">Experience our enhanced automation system with visual flow builder, templates, and advanced features.</p>
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/automations/new')}
-            className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-md font-medium transition-colors"
-          >
-            Try New Builder
-          </button>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {renderDashboard()}
         </div>
       </div>
       
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {currentView !== "list" && (
-            <button
-              onClick={() => setCurrentView("list")}
-              className="flex items-center gap-2 text-gray-600 hover:text-black transition-all duration-200 p-2 rounded-xl hover:bg-white/50 backdrop-blur-sm"
-            >
-              <MdArrowBack className="w-5 h-5" />
-              Back
-            </button>
-          )}
-          <div>
-            <h1 className="text-3xl font-bold text-black">
-              {currentView === "templates" ? "Create an automation" : "Automations"}
-            </h1>
-            <p className="text-gray-600 mt-2">
-              {currentView === "templates" 
-                ? `Choose from our pre-built automations, ${integrationTemplates.length} integration templates, or create your own 4-step business workflow`
-                : "Set up automated workflows to streamline your messaging"
-              }
-            </p>
-          </div>
-        </div>
-        {currentView === "list" && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const params = new URLSearchParams();
-                params.set('template', 'custom-enhanced');
-                router.push(`/automations/builder?${params.toString()}`);
-              }}
-              className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white px-6 py-3 font-medium transition-all duration-200 rounded-xl shadow-lg hover:shadow-xl flex items-center gap-2"
-            >
-              <MdBuild className="w-5 h-5" />
-              Create Automation
-            </button>
-            <button
-              onClick={() => setCurrentView("templates")}
-              className="bg-gradient-to-r from-[#2A8B8A] to-[#1e6b6b] text-white px-6 py-3 font-medium hover:from-[#238080] hover:to-[#1a5c5c] transition-all duration-200 rounded-xl shadow-lg hover:shadow-xl flex items-center gap-2"
-            >
-              <MdAdd className="w-5 h-5" />
-              Browse Templates
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Templates View */}
-      {currentView === "templates" && (
-        <div className="space-y-6">
-          {/* Categories */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`flex items-center gap-2 px-4 py-2 backdrop-blur-sm border rounded-xl hover:bg-white/90 transition-all duration-200 shadow-lg ${
-                  selectedCategory === category.id
-                    ? 'bg-[#2A8B8A] text-white border-[#2A8B8A]'
-                    : 'bg-white/80 border-white/50 text-gray-700'
-                }`}
-              >
-                {category.icon}
-                {category.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Templates Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.map((template) => (
-              <div
-                key={template.id}
-                className="bg-white/80 backdrop-blur-sm border border-white/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer rounded-xl hover:border-white/70 hover:-translate-y-1 shadow-lg"
-                onClick={() => handleTemplateClick(template)}
-              >
-                <div className={`w-14 h-14 ${template.color} flex items-center justify-center text-white mb-4 rounded-xl shadow-lg`}>
-                  {renderIcon(template.icon)}
-                </div>
-                <h3 className="text-lg font-semibold text-black mb-2">{template.name}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{template.description}</p>
-                
-                {/* Integration Badge */}
-                {(template as any).integration && (
-                  <div className="mt-3 mb-2">
-                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs font-medium px-2 py-1 rounded-full">
-                      <MdExtension className="w-3 h-3" />
-                      {(template as any).integration}
-                    </span>
-                  </div>
-                )}
-                
-                {template.popular && (
-                  <div className="mt-3">
-                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-medium px-2 py-1 rounded-full">
-                      <MdStar className="w-3 h-3" />
-                      Popular
-                    </span>
-                  </div>
-                )}
-                
-                {/* Benefits Preview for Integration Templates */}
-                {(template as any).benefits && (
-                  <div className="mt-3">
-                    <p className="text-xs text-gray-500">
-                      • {(template as any).benefits[0]}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Confirmation Modal */}
+      {modalConfig && (
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onConfirm={modalConfig.onConfirm}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          confirmText={modalConfig.confirmText}
+          confirmButtonClass={modalConfig.confirmButtonClass}
+        />
       )}
-
-      {/* List View */}
-      {currentView === "list" && (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white/80 backdrop-blur-sm border border-white/50 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Automations</p>
-                  <p className="text-2xl font-bold text-black">{automations.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-white/50 bg-white/50">
-                  <MdAutoAwesome className="w-6 h-6 text-[#2A8B8A]" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm border border-white/50 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active</p>
-                  <p className="text-2xl font-bold text-black">{automations.filter(a => getAutomationStatus(a) === "active").length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-emerald-200 bg-emerald-50">
-                  <MdPlayArrow className="w-6 h-6 text-emerald-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm border border-white/50 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Paused</p>
-                  <p className="text-2xl font-bold text-black">{automations.filter(a => getAutomationStatus(a) === "paused").length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-amber-200 bg-amber-50">
-                  <MdPause className="w-6 h-6 text-amber-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm border border-white/50 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Draft</p>
-                  <p className="text-2xl font-bold text-black">0</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-white/50 bg-white/50">
-                  <MdEdit className="w-6 h-6 text-[#2A8B8A]" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Empty State */}
-          {automations.length === 0 && (
-            <div className="bg-white/80 backdrop-blur-sm border border-white/50 p-12 text-center rounded-xl shadow-lg">
-              <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-xl border border-white/50 bg-white/50">
-                <MdAutoAwesome className="w-8 h-8 text-[#2A8B8A]" />
-              </div>
-              <h3 className="text-lg font-semibold text-black mb-2">No automations yet</h3>
-              <p className="text-gray-600 mb-6">Create your first 4-step business automation: Trigger → Response → Data Collection → Custom Action</p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set('template', 'custom-enhanced');
-                    router.push(`/automations/builder?${params.toString()}`);
-                  }}
-                  className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white px-6 py-3 font-medium transition-all duration-200 rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                >
-                  <MdBuild className="w-5 h-5" />
-                  Create Automation
-                </button>
-                <button
-                  onClick={() => setCurrentView("templates")}
-                  className="bg-gradient-to-r from-[#2A8B8A] to-[#1e6b6b] text-white px-6 py-3 font-medium hover:from-[#238080] hover:to-[#1a5c5c] transition-all duration-200 rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                >
-                  <MdAdd className="w-5 h-5" />
-                  Browse Templates
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Automations List (if we have any) */}
-          {automations.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-white/50">
-                <h2 className="text-lg font-semibold text-black flex items-center gap-2">
-                  <MdList className="w-5 h-5" />
-                  Your Automations
-                </h2>
-              </div>
-              <div className="divide-y divide-white/50">
-                {automations.map((automation, index) => (
-                  <div key={`${automation._id ?? 'automation'}-${index}`} className="p-6 hover:bg-white/50 transition-all duration-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-black">{automation.name}</h3>
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${
-                            getAutomationStatus(automation) === "active" 
-                              ? "text-emerald-700 border-emerald-200 bg-emerald-50" :
-                            getAutomationStatus(automation) === "paused" 
-                              ? "text-amber-700 border-amber-200 bg-amber-50" :
-                            "text-[#2A8B8A] border-[#2A8B8A]/30 bg-[#2A8B8A]/10"
-                          }`}>
-                            {getAutomationStatus(automation).toUpperCase()}
-                          </span>
-                        </div>
-                        <p className="text-gray-600 mb-3">{automation.description || "No description"}</p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <MdFlashOn className="w-4 h-4" />
-                            Trigger: {getTriggerType(automation)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MdAccessTime className="w-4 h-4" />
-                            Created: {new Date(automation.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openTestModal(automation._id ?? '')}
-                          disabled={!automation._id}
-                          title={!automation._id ? 'Automation missing id; cannot test' : 'Test automation'}
-                          className={`text-[#2A8B8A] border border-[#2A8B8A]/30 hover:bg-[#2A8B8A]/10 px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-1 rounded-lg shadow-lg hover:shadow-xl backdrop-blur-sm ${!automation._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <MdBugReport className="w-4 h-4" />
-                          Test
-                        </button>
-                        <button
-                          onClick={() => toggleAutomationStatus(automation._id ?? '', getAutomationStatus(automation))}
-                          disabled={!automation._id}
-                          title={!automation._id ? 'Automation missing id; cannot change status' : (getAutomationStatus(automation) === 'active' ? 'Pause automation' : 'Activate automation')}
-                          className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg flex items-center gap-1 border shadow-lg hover:shadow-xl backdrop-blur-sm ${getAutomationStatus(automation) === "active" ? "text-amber-700 border-amber-200 hover:bg-amber-50" : "text-emerald-700 border-emerald-200 hover:bg-emerald-50"} ${!automation._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          {getAutomationStatus(automation) === 'active' ? (
-                            <>
-                              <MdPause className="w-4 h-4" />
-                              Pause
-                            </>
-                          ) : (
-                            <>
-                              <MdCheck className="w-4 h-4" />
-                              Activate
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => deleteAutomation(automation._id ?? '')}
-                          disabled={!automation._id}
-                          title={!automation._id ? 'Automation missing id; cannot delete' : 'Delete automation'}
-                          className={`text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg flex items-center gap-1 shadow-lg hover:shadow-xl backdrop-blur-sm ${!automation._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <MdDelete className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Test Phone Number Modal */}
-      {showTestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#2A8B8A] to-[#238080] rounded-xl flex items-center justify-center">
-                  <MdBugReport className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-black">Test Automation</h2>
-                  <p className="text-sm text-gray-600">Send test message to phone number</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowTestModal(false);
-                  setTestPhoneNumber("");
-                  setTestAutomationId(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-white/50"
-              >
-                <MdClose className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="phoneNumber" className="block text-sm font-medium text-black mb-2">
-                  Phone Number
-                </label>
-                <input
-                  id="phoneNumber"
-                  type="tel"
-                  value={testPhoneNumber}
-                  onChange={(e) => setTestPhoneNumber(e.target.value)}
-                  placeholder="+1234567890 or 1234567890"
-                  className="w-full px-4 py-3 border border-white/50 rounded-xl focus:ring-2 focus:ring-[#2A8B8A] focus:border-[#2A8B8A] transition-all duration-200 text-black placeholder-gray-500 bg-white/50 backdrop-blur-sm"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Enter phone number with country code (e.g., +1234567890)
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-r from-[#2A8B8A]/10 to-[#238080]/10 p-4 rounded-xl border border-[#2A8B8A]/20">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border border-[#2A8B8A]/30 bg-white/50 backdrop-blur-sm">
-                    <svg className="w-3 h-3 text-[#2A8B8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-[#2A8B8A] mb-1">Test Information</h4>
-                    <p className="text-xs text-gray-600">
-                      This will execute the automation workflow and send the configured messages to the specified phone number.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowTestModal(false);
-                  setTestPhoneNumber("");
-                  setTestAutomationId(null);
-                }}
-                className="flex-1 px-4 py-3 border border-white/50 text-gray-700 rounded-xl hover:bg-white/50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl backdrop-blur-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleTestSubmit}
-                disabled={isTesting || !testPhoneNumber.trim()}
-                className="flex-1 bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white px-4 py-3 rounded-xl hover:from-[#238080] hover:to-[#1e6b6b] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-              >
-                {isTesting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <MdBugReport className="w-4 h-4" />
-                    Send Test
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Integration Template Modal */}
-      <IntegrationTemplateModal
-        template={selectedIntegrationTemplate}
-        isOpen={showIntegrationModal}
-        onClose={() => setShowIntegrationModal(false)}
-        onCreateAutomation={handleCreateIntegrationAutomation}
-      />
-    </div>
-  );
-}
-
-// Wrap with ProtectedRoute - this is the key fix!
-const ProtectedAutomationsPage = () => {
-  return (
-    <ProtectedRoute>
-      <AutomationsPage />
     </ProtectedRoute>
   );
-};
-
-export default ProtectedAutomationsPage;
+}

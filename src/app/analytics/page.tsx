@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { apiService } from "../services/apiService";
+import { useUser } from "../contexts/UserContext";
 
 export default function AnalyticsPage() {
+  const { user } = useUser();
   const [timeRange, setTimeRange] = useState("7d");
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState({
@@ -13,152 +15,435 @@ export default function AnalyticsPage() {
     automationsTriggered: 0,
     activeWorkflows: 0,
     responseRate: 0,
-    averageResponseTime: 0
+    averageResponseTime: 0,
+    totalContacts: 0,
+    activeContacts: 0,
+    totalTemplates: 0,
+    activeCampaigns: 0,
+    totalCampaigns: 0
   });
-  const [templatePerformance, setTemplatePerformance] = useState([
-    { name: "Welcome Message", sent: 0, delivered: 0, read: 0, rate: 0 },
-    { name: "Order Confirmation", sent: 0, delivered: 0, read: 0, rate: 0 },
-    { name: "Support Follow-up", sent: 0, delivered: 0, read: 0, rate: 0 },
-    { name: "Appointment Reminder", sent: 0, delivered: 0, read: 0, rate: 0 },
-  ]);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [templatePerformance, setTemplatePerformance] = useState<any[]>([]);
+  const [messageTimeline, setMessageTimeline] = useState<any[]>([]);
+  const [campaignStats, setCampaignStats] = useState<any[]>([]);
+  const [hourlyDistribution, setHourlyDistribution] = useState<any[]>([]);
+  const [topContacts, setTopContacts] = useState<any[]>([]);
+  const [automationBreakdown, setAutomationBreakdown] = useState<any[]>([]);
+  const [responseTimeBreakdown, setResponseTimeBreakdown] = useState({
+    fast: 0,    // ≤ 1 hour
+    medium: 0,  // 1-4 hours
+    slow: 0     // > 4 hours
+  });
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [timeRange]);
+  }, [timeRange, user]);
 
-    const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
       
-      // Try to fetch real analytics data - but be more selective about which APIs to call
-      const [dashboardResponse, contactsResponse] = await Promise.allSettled([
-        apiService.getDashboardStats(),
-        apiService.getContacts()
+      // Fetch all relevant data from backend
+      const [
+        logsResponse,
+        contactsResponse,
+        templatesResponse,
+        campaignsResponse,
+        automationsResponse
+      ] = await Promise.allSettled([
+        apiService.getOptional('/logs'),
+        apiService.getOptional('/contacts'),
+        apiService.getOptional('/templates'),
+        apiService.getOptional('/campaigns'),
+        apiService.getOptional('/automations')
       ]);
 
-      let hasRealData = false;
-      setConnectionStatus('connected');
-
-      // Process dashboard stats if available
-      if (dashboardResponse.status === 'fulfilled' && dashboardResponse.value) {
-        const dashboardData = dashboardResponse.value;
-        // console.log('Dashboard data received:', dashboardData);
-        
-        // Extract analytics from dashboard data
-        setAnalytics({
-          messagesSent: dashboardData?.total_messages || dashboardData?.messagesSent || 1247,
-          messagesDelivered: dashboardData?.delivered_messages || dashboardData?.messagesDelivered || 1186,
-          messagesRead: dashboardData?.read_messages || dashboardData?.messagesRead || 892,
-          messagesFailed: dashboardData?.failed_messages || dashboardData?.messagesFailed || 61,
-          automationsTriggered: dashboardData?.automations_triggered || dashboardData?.automationsTriggered || 89,
-          activeWorkflows: dashboardData?.active_workflows || dashboardData?.activeWorkflows || 12,
-          responseRate: dashboardData?.response_rate || dashboardData?.responseRate || 75.2,
-          averageResponseTime: dashboardData?.average_response_time || dashboardData?.averageResponseTime || 4.5
-        });
-        hasRealData = true;
-        setIsDataLoaded(true);
+      // Process logs data
+      let logs: any[] = [];
+      if (logsResponse.status === 'fulfilled' && logsResponse.value) {
+        logs = (logsResponse.value as any)?.logs || [];
       }
 
-      // Try to get basic metrics from contacts
+      // Process contacts data
+      let contacts: any[] = [];
       if (contactsResponse.status === 'fulfilled' && contactsResponse.value) {
-        const contactsData = contactsResponse.value as any;
-        // console.log('Contacts data received:', contactsData);
+        contacts = (contactsResponse.value as any)?.contacts || [];
+      }
+
+      // Process templates data
+      let templates: any[] = [];
+      if (templatesResponse.status === 'fulfilled' && templatesResponse.value) {
+        templates = (templatesResponse.value as any)?.templates || templatesResponse.value || [];
+      }
+
+      // Process campaigns data
+      let campaigns: any[] = [];
+      if (campaignsResponse.status === 'fulfilled' && campaignsResponse.value) {
+        campaigns = (campaignsResponse.value as any)?.campaigns || [];
+      }
+
+      // Process automations data
+      let automations: any[] = [];
+      if (automationsResponse.status === 'fulfilled' && automationsResponse.value) {
+        automations = Array.isArray(automationsResponse.value) ? automationsResponse.value : [];
+      }
+
+      // Calculate analytics from real data
+      const now = new Date();
+      const timeRangeMs = getTimeRangeMs(timeRange);
+      const startDate = new Date(now.getTime() - timeRangeMs);
+
+      // Filter logs by time range
+      const filteredLogs = logs.filter((log: any) => {
+        const logDate = new Date(log.sent_at || log.timestamp || log.created_at);
+        return logDate >= startDate;
+      });
+
+      // Calculate message stats
+      const sentMessages = filteredLogs.filter((log: any) => log.direction === 'outgoing');
+      const deliveredMessages = sentMessages.filter((log: any) => log.success || log.status === 'delivered');
+      const readMessages = sentMessages.filter((log: any) => log.status === 'read');
+      const failedMessages = sentMessages.filter((log: any) => !log.success || log.status === 'failed');
+
+      // Calculate contact stats
+      const activeContacts = contacts.filter((c: any) => {
+        const lastInteraction = new Date(c.last_interaction || c.created_at);
+        return lastInteraction >= startDate;
+      });
+
+      // Calculate campaign stats
+      const activeCampaigns = campaigns.filter((c: any) => c.status === 'active');
+
+      // Calculate template performance
+      const templateStats = templates.map((template: any) => {
+        const templateLogs = sentMessages.filter((log: any) => 
+          log.template_name === template.name || log.template === template.name
+        );
+        const delivered = templateLogs.filter((log: any) => log.success || log.status === 'delivered');
+        const read = templateLogs.filter((log: any) => log.status === 'read');
         
-        const contacts = contactsData?.contacts || contactsData || [];
-        if (Array.isArray(contacts) && contacts.length > 0) {
-          // Generate analytics based on contact data
-          const totalContacts = contacts.length;
-          const estimatedMessages = totalContacts * 3; // Assume 3 messages per contact
-          const estimatedDelivered = Math.floor(estimatedMessages * 0.95);
-          const estimatedRead = Math.floor(estimatedDelivered * 0.75);
-          const estimatedFailed = estimatedMessages - estimatedDelivered;
+        return {
+          name: template.name,
+          sent: templateLogs.length,
+          delivered: delivered.length,
+          read: read.length,
+          rate: delivered.length > 0 ? (read.length / delivered.length) * 100 : 0
+        };
+      }).filter((t: any) => t.sent > 0)
+        .sort((a: any, b: any) => b.rate - a.rate)
+        .slice(0, 5);
+
+      // Calculate hourly distribution
+      const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+        const count = sentMessages.filter((log: any) => {
+          const logDate = new Date(log.sent_at || log.timestamp);
+          return logDate.getHours() === hour;
+        }).length;
+        return { hour, count };
+      });
+
+      // Calculate daily timeline
+      const days = Math.min(getDaysFromRange(timeRange), 30);
+      const dailyData = Array.from({ length: days }, (_, index) => {
+        const date = new Date(now.getTime() - (days - 1 - index) * 24 * 60 * 60 * 1000);
+        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+        
+        const count = sentMessages.filter((log: any) => {
+          const logDate = new Date(log.sent_at || log.timestamp);
+          return logDate >= dayStart && logDate < dayEnd;
+        }).length;
+        
+        return {
+          date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          count,
+          delivered: sentMessages.filter((log: any) => {
+            const logDate = new Date(log.sent_at || log.timestamp);
+            return logDate >= dayStart && logDate < dayEnd && (log.success || log.status === 'delivered');
+          }).length
+        };
+      });
+
+      // Calculate campaign performance
+      const campaignPerformance = campaigns.map((campaign: any) => {
+        const campaignLogs = sentMessages.filter((log: any) => log.campaign_id === campaign.id);
+        return {
+          name: campaign.name,
+          status: campaign.status,
+          sent: campaign.sent_count || campaignLogs.length,
+          total: campaign.total_count || (campaign.recipients?.length || 0),
+          success_rate: campaign.success_rate || 0
+        };
+      }).filter((c: any) => c.sent > 0)
+        .sort((a: any, b: any) => b.sent - a.sent)
+        .slice(0, 5);
+
+      // Calculate top contacts by message count
+      const contactMessageCount = new Map();
+      sentMessages.forEach((log: any) => {
+        const phone = log.to || log.phone;
+        contactMessageCount.set(phone, (contactMessageCount.get(phone) || 0) + 1);
+      });
+      
+      const topContactsList = Array.from(contactMessageCount.entries())
+        .map(([phone, count]) => {
+          const contact = contacts.find((c: any) => c.phone === phone);
+          return {
+            phone,
+            name: contact?.name || phone,
+            messageCount: count,
+            lastMessage: sentMessages.filter((log: any) => (log.to || log.phone) === phone)
+              .sort((a: any, b: any) => new Date(b.sent_at || b.timestamp).getTime() - new Date(a.sent_at || a.timestamp).getTime())[0]
+          };
+        })
+        .sort((a: any, b: any) => b.messageCount - a.messageCount)
+        .slice(0, 10);
+
+      // Calculate response metrics
+      const responseTimes: number[] = [];
+      let fastResponses = 0;    // ≤ 1 hour
+      let mediumResponses = 0;  // 1-4 hours
+      let slowResponses = 0;    // > 4 hours
+      
+      sentMessages.forEach((log: any) => {
+        if (log.response_time) {
+          const hours = log.response_time / 3600; // Convert seconds to hours
+          responseTimes.push(log.response_time);
           
-          if (!hasRealData) {
-            setAnalytics({
-              messagesSent: estimatedMessages,
-              messagesDelivered: estimatedDelivered,
-              messagesRead: estimatedRead,
-              messagesFailed: estimatedFailed,
-              automationsTriggered: Math.floor(totalContacts * 0.3),
-              activeWorkflows: Math.min(totalContacts / 10, 15),
-              responseRate: 75.2,
-              averageResponseTime: 4.5
-            });
-            hasRealData = true;
-            setIsDataLoaded(true);
+          if (hours <= 1) {
+            fastResponses++;
+          } else if (hours <= 4) {
+            mediumResponses++;
+          } else {
+            slowResponses++;
           }
         }
-      }
+      });
+      
+      const avgResponseTime = responseTimes.length > 0 
+        ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length 
+        : 0;
+      
+      const totalResponses = fastResponses + mediumResponses + slowResponses;
+      const responseBreakdown = {
+        fast: totalResponses > 0 ? (fastResponses / totalResponses) * 100 : 0,
+        medium: totalResponses > 0 ? (mediumResponses / totalResponses) * 100 : 0,
+        slow: totalResponses > 0 ? (slowResponses / totalResponses) * 100 : 0
+      };
 
-      // Log any errors for debugging but don't fail
-      if (dashboardResponse.status === 'rejected') {
-        console.warn('Dashboard API failed:', dashboardResponse.reason?.message || 'Unknown error');
-      }
-      if (contactsResponse.status === 'rejected') {
-        console.warn('Contacts API failed:', contactsResponse.reason?.message || 'Unknown error');
-      }
+      // Calculate automation breakdown - count triggers per automation
+      const automationTriggers = automations.map((automation: any) => {
+        // Count messages sent by this automation (based on automation_id in logs)
+        const automationMessages = sentMessages.filter((log: any) => 
+          log.automation_id === automation.id || 
+          log.automation_name === automation.name
+        );
+        
+        return {
+          name: automation.name || 'Unnamed Automation',
+          triggers: automationMessages.length,
+          status: automation.status,
+          enabled: automation.enabled
+        };
+      }).filter((a: any) => a.triggers > 0) // Only show automations that have been triggered
+        .sort((a: any, b: any) => b.triggers - a.triggers) // Sort by most triggered
+        .slice(0, 5); // Top 5
 
-      // If we still don't have real data, show enhanced demo data
-      if (!hasRealData) {
-        console.warn('All APIs unavailable, showing enhanced demo data');
-        setConnectionStatus('disconnected');
-        setAnalytics({
-          messagesSent: 1247,
-          messagesDelivered: 1186,
-          messagesRead: 892,
-          messagesFailed: 61,
-          automationsTriggered: 89,
-          activeWorkflows: 12,
-          responseRate: 75.2,
-          averageResponseTime: 4.5
-        });
-      }
+      setAnalytics({
+        messagesSent: sentMessages.length,
+        messagesDelivered: deliveredMessages.length,
+        messagesRead: readMessages.length,
+        messagesFailed: failedMessages.length,
+        automationsTriggered: automations.filter((a: any) => a.status === 'active').length,
+        activeWorkflows: automations.filter((a: any) => a.enabled).length,
+        responseRate: deliveredMessages.length > 0 ? (readMessages.length / deliveredMessages.length) * 100 : 0,
+        averageResponseTime: avgResponseTime > 0 ? avgResponseTime / 3600 : 0, // Convert to hours
+        totalContacts: contacts.length,
+        activeContacts: activeContacts.length,
+        totalTemplates: templates.length,
+        activeCampaigns: activeCampaigns.length,
+        totalCampaigns: campaigns.length
+      });
 
-      // Always show demo template data for now since templates API is failing
-      setTemplatePerformance([
-        { name: "Welcome Message", sent: 456, delivered: 442, read: 338, rate: 76.5 },
-        { name: "Order Confirmation", sent: 234, delivered: 228, read: 189, rate: 82.9 },
-        { name: "Support Follow-up", sent: 189, delivered: 182, read: 124, rate: 68.1 },
-        { name: "Appointment Reminder", sent: 145, delivered: 140, read: 118, rate: 84.3 },
-      ]);
+      setTemplatePerformance(templateStats);
+      setMessageTimeline(dailyData);
+      setCampaignStats(campaignPerformance);
+      setHourlyDistribution(hourlyData);
+      setTopContacts(topContactsList);
+      setAutomationBreakdown(automationTriggers);
+      setResponseTimeBreakdown(responseBreakdown);
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      setConnectionStatus('disconnected');
-      // Fallback to demo data
-      setAnalytics({
-        messagesSent: 1247,
-        messagesDelivered: 1186,
-        messagesRead: 892,
-        messagesFailed: 61,
-        automationsTriggered: 89,
-        activeWorkflows: 12,
-        responseRate: 75.2,
-        averageResponseTime: 4.5
-      });
-      
-      setTemplatePerformance([
-        { name: "Welcome Message", sent: 456, delivered: 442, read: 338, rate: 76.5 },
-        { name: "Order Confirmation", sent: 234, delivered: 228, read: 189, rate: 82.9 },
-        { name: "Support Follow-up", sent: 189, delivered: 182, read: 124, rate: 68.1 },
-        { name: "Appointment Reminder", sent: 145, delivered: 140, read: 118, rate: 84.3 },
-      ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleSaveAsPDF = () => {
+    // Create a blob with the HTML content for download
+    const printContent = document.getElementById('report-preview')?.innerHTML || '';
+    const fullHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Analytics Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .metric-card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 8px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+          th { background-color: #2A8B8A; color: white; }
+        </style>
+      </head>
+      <body>
+        ${printContent}
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob([fullHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const getTimeRangeMs = (range: string) => {
+    switch (range) {
+      case '24h': return 24 * 60 * 60 * 1000;
+      case '7d': return 7 * 24 * 60 * 60 * 1000;
+      case '30d': return 30 * 24 * 60 * 60 * 1000;
+      case '90d': return 90 * 24 * 60 * 60 * 1000;
+      default: return 7 * 24 * 60 * 60 * 1000;
+    }
+  };
+
+  const getDaysFromRange = (range: string) => {
+    switch (range) {
+      case '24h': return 1;
+      case '7d': return 7;
+      case '30d': return 30;
+      case '90d': return 90;
+      default: return 7;
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F0F6FF] p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center min-h-64">
-            <div className="text-center">
-              <div className="animate-spin w-8 h-8 border-4 border-[#2A8B8A] border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading analytics data...</p>
-              <p className="text-sm text-gray-500 mt-2">Fetching real-time metrics</p>
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Skeleton Header */}
+          <div className="flex items-center justify-between animate-pulse">
+            <div>
+              <div className="h-9 bg-gray-200 rounded w-48 mb-3"></div>
+              <div className="h-5 bg-gray-200 rounded w-64"></div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-10 bg-gray-200 rounded-xl w-40"></div>
+              <div className="h-10 bg-gray-200 rounded-xl w-32"></div>
+              <div className="h-10 bg-gray-200 rounded-xl w-32"></div>
+            </div>
+          </div>
+
+          {/* Skeleton Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl shadow-lg p-6 animate-pulse">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+                  <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+                </div>
+                <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-20"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Skeleton Automation & Response Metrics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2].map((i) => (
+              <div key={i} className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl shadow-lg animate-pulse">
+                <div className="p-6 border-b border-white/50">
+                  <div className="h-6 bg-gray-200 rounded w-48"></div>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                      <div className="h-8 bg-gray-200 rounded w-16"></div>
+                    </div>
+                    <div className="w-16 h-16 bg-gray-200 rounded-xl"></div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-28 mb-2"></div>
+                      <div className="h-8 bg-gray-200 rounded w-12"></div>
+                    </div>
+                    <div className="w-16 h-16 bg-gray-200 rounded-xl"></div>
+                  </div>
+                  <div className="pt-4 border-t border-white/50 space-y-3">
+                    {[1, 2, 3].map((j) => (
+                      <div key={j} className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-32"></div>
+                        <div className="h-4 bg-gray-200 rounded w-16"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Skeleton Timeline Chart */}
+          <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl shadow-lg animate-pulse">
+            <div className="p-6 border-b border-white/50">
+              <div className="h-6 bg-gray-200 rounded w-40"></div>
+            </div>
+            <div className="p-6">
+              <div className="h-64 flex items-end justify-between gap-4">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center">
+                    <div className="w-full bg-gray-200 rounded-t-lg" style={{height: `${Math.random() * 80 + 20}%`}}></div>
+                    <div className="h-3 bg-gray-200 rounded w-8 mt-2"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Skeleton Template Performance */}
+          <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl shadow-lg animate-pulse">
+            <div className="p-6 border-b border-white/50">
+              <div className="h-6 bg-gray-200 rounded w-56"></div>
+            </div>
+            <div className="divide-y divide-white/50">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-5 bg-gray-200 rounded w-40"></div>
+                    <div className="h-6 bg-gray-200 rounded-full w-24"></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[1, 2, 3].map((j) => (
+                      <div key={j}>
+                        <div className="h-3 bg-gray-200 rounded w-12 mb-1"></div>
+                        <div className="h-5 bg-gray-200 rounded w-16"></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-3"></div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -167,32 +452,12 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F6FF] p-6">
+    <div className="min-h-screen bg-transparent p-6">
       <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-black">Analytics</h1>
-            {connectionStatus === 'connected' && isDataLoaded && (
-              <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full border border-green-200 flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Live Data
-              </span>
-            )}
-            {connectionStatus === 'disconnected' && (
-              <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full border border-amber-200 flex items-center gap-1">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                Demo Data
-              </span>
-            )}
-            {connectionStatus === 'checking' && (
-              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full border border-blue-200 flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                Loading...
-              </span>
-            )}
-          </div>
+          <h1 className="text-3xl font-bold text-black">Analytics</h1>
           <p className="text-gray-600 mt-2">Monitor your WhatsApp automation performance</p>
         </div>
         <div className="flex items-center gap-4">
@@ -207,10 +472,7 @@ export default function AnalyticsPage() {
             <option value="90d">Last 3 Months</option>
           </select>
           <button 
-            onClick={() => {
-              setConnectionStatus('checking');
-              fetchAnalyticsData();
-            }}
+            onClick={() => fetchAnalyticsData()}
             disabled={loading}
             className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white px-6 py-2 rounded-xl font-medium hover:from-[#238080] hover:to-[#1e6b6b] transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center gap-2"
           >
@@ -219,7 +481,13 @@ export default function AnalyticsPage() {
             </svg>
             {loading ? 'Refreshing...' : 'Refresh Data'}
           </button>
-          <button className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white px-6 py-2 rounded-xl font-medium hover:from-[#238080] hover:to-[#1e6b6b] transition-all duration-200 shadow-lg hover:shadow-xl">
+          <button 
+            onClick={() => setShowExportModal(true)}
+            className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white px-6 py-2 rounded-xl font-medium hover:from-[#238080] hover:to-[#1e6b6b] transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
             Export Report
           </button>
         </div>
@@ -234,8 +502,8 @@ export default function AnalyticsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </div>
-            <span className="text-sm text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
-              {isDataLoaded ? '+12.5%' : 'Demo'}
+            <span className="text-sm text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded-full">
+              Total
             </span>
           </div>
           <div>
@@ -357,18 +625,20 @@ export default function AnalyticsPage() {
 
             <div className="pt-4 border-t border-white/50">
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Welcome Automation</span>
-                  <span className="font-medium text-[#2A8B8A]">45 triggers</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Follow-up Sequence</span>
-                  <span className="font-medium text-[#2A8B8A]">23 triggers</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Support Workflow</span>
-                  <span className="font-medium text-[#2A8B8A]">21 triggers</span>
-                </div>
+                {automationBreakdown.length > 0 ? (
+                  automationBreakdown.map((automation, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{automation.name}</span>
+                      <span className="font-medium text-[#2A8B8A]">
+                        {automation.triggers} {automation.triggers === 1 ? 'trigger' : 'triggers'}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-sm text-gray-500 py-2">
+                    No automation activity in this time range
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -412,36 +682,38 @@ export default function AnalyticsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Average Response Time</span>
-                <span className="text-lg font-semibold text-black">{analytics.averageResponseTime}h</span>
+                <span className="text-lg font-semibold text-black">
+                  {analytics.averageResponseTime > 0 ? `${analytics.averageResponseTime.toFixed(1)}h` : 'N/A'}
+                </span>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">≤ 1 hour</span>
-                  <span className="font-medium">42%</span>
+                  <span className="font-medium">{responseTimeBreakdown.fast.toFixed(0)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] h-2 rounded-full transition-all duration-1000" style={{width: '42%'}}></div>
+                  <div className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] h-2 rounded-full transition-all duration-1000" style={{width: `${responseTimeBreakdown.fast}%`}}></div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">1-4 hours</span>
-                  <span className="font-medium">33%</span>
+                  <span className="font-medium">{responseTimeBreakdown.medium.toFixed(0)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] h-2 rounded-full transition-all duration-1000" style={{width: '33%'}}></div>
+                  <div className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] h-2 rounded-full transition-all duration-1000" style={{width: `${responseTimeBreakdown.medium}%`}}></div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">&gt; 4 hours</span>
-                  <span className="font-medium">25%</span>
+                  <span className="font-medium">{responseTimeBreakdown.slow.toFixed(0)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-2 rounded-full transition-all duration-1000" style={{width: '25%'}}></div>
+                  <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-2 rounded-full transition-all duration-1000" style={{width: `${responseTimeBreakdown.slow}%`}}></div>
                 </div>
               </div>
             </div>
@@ -517,6 +789,312 @@ export default function AnalyticsPage() {
         </div>
       </div>
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Analytics Report Preview</h2>
+                <p className="text-white/80 mt-1">Review your report before exporting</p>
+              </div>
+              <button 
+                onClick={() => setShowExportModal(false)}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable */}
+            <div className="overflow-y-auto max-h-[calc(90vh-200px)] p-8" style={{scrollbarWidth: 'thin'}}>
+              <div id="report-preview">
+                {/* Report Header */}
+                <div className="text-center mb-8 pb-6 border-b-2 border-gray-200">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-2">Analytics Report</h1>
+                  <p className="text-lg text-gray-600">WhatsApp Automation Performance</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Generated on {new Date().toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Time Range: <span className="font-semibold">
+                      {timeRange === '24h' && 'Last 24 Hours'}
+                      {timeRange === '7d' && 'Last 7 Days'}
+                      {timeRange === '30d' && 'Last 30 Days'}
+                      {timeRange === '90d' && 'Last 3 Months'}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Key Metrics Summary */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">
+                    📊 Key Metrics Summary
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Messages Sent</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">{analytics.messagesSent.toLocaleString()}</p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Messages Delivered</p>
+                      <p className="text-3xl font-bold text-green-600">{analytics.messagesDelivered.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">
+                        {analytics.messagesSent > 0 ? 
+                          `${((analytics.messagesDelivered / analytics.messagesSent) * 100).toFixed(1)}% delivery rate` : 
+                          '0%'
+                        }
+                      </p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Messages Read</p>
+                      <p className="text-3xl font-bold text-blue-600">{analytics.messagesRead.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">
+                        {analytics.messagesDelivered > 0 ? 
+                          `${((analytics.messagesRead / analytics.messagesDelivered) * 100).toFixed(1)}% read rate` : 
+                          '0%'
+                        }
+                      </p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Messages Failed</p>
+                      <p className="text-3xl font-bold text-red-600">{analytics.messagesFailed.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">
+                        {analytics.messagesSent > 0 ? 
+                          `${((analytics.messagesFailed / analytics.messagesSent) * 100).toFixed(1)}% failure rate` : 
+                          '0%'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Automation Performance */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">
+                    🤖 Automation Performance
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Automations Triggered</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">{analytics.automationsTriggered}</p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Active Workflows</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">{analytics.activeWorkflows}</p>
+                    </div>
+                  </div>
+                  {automationBreakdown.length > 0 && (
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="font-semibold text-gray-900 mb-3">Top Automations:</p>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 text-sm font-semibold text-gray-700">Automation Name</th>
+                            <th className="text-right py-2 text-sm font-semibold text-gray-700">Triggers</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {automationBreakdown.map((automation, index) => (
+                            <tr key={index} className="border-b border-gray-100">
+                              <td className="py-2 text-gray-800">{automation.name}</td>
+                              <td className="text-right py-2 font-medium text-[#2A8B8A]">{automation.triggers}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Response Analytics */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">
+                    💬 Response Analytics
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Response Rate</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">{analytics.responseRate.toFixed(1)}%</p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Average Response Time</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">
+                        {analytics.averageResponseTime > 0 ? `${analytics.averageResponseTime.toFixed(1)}h` : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="border border-gray-300 rounded-lg p-4 mt-4">
+                    <p className="font-semibold text-gray-900 mb-3">Response Time Distribution:</p>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">≤ 1 hour</span>
+                          <span className="text-sm font-medium">{responseTimeBreakdown.fast.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] h-3 rounded-full" 
+                            style={{width: `${responseTimeBreakdown.fast}%`}}
+                          ></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">1-4 hours</span>
+                          <span className="text-sm font-medium">{responseTimeBreakdown.medium.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] h-3 rounded-full" 
+                            style={{width: `${responseTimeBreakdown.medium}%`}}
+                          ></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">&gt; 4 hours</span>
+                          <span className="text-sm font-medium">{responseTimeBreakdown.slow.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-3 rounded-full" 
+                            style={{width: `${responseTimeBreakdown.slow}%`}}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Template Performance */}
+                {templatePerformance.length > 0 && (
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">
+                      📝 Top Performing Templates
+                    </h2>
+                    <div className="border border-gray-300 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Template Name</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Sent</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Delivered</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Read</th>
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Read Rate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {templatePerformance.map((template, index) => (
+                            <tr key={index} className="border-t border-gray-200">
+                              <td className="py-3 px-4 text-gray-800">{template.name}</td>
+                              <td className="text-right py-3 px-4 text-gray-700">{template.sent.toLocaleString()}</td>
+                              <td className="text-right py-3 px-4 text-gray-700">
+                                {template.delivered.toLocaleString()}
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({template.sent > 0 ? ((template.delivered / template.sent) * 100).toFixed(1) : 0}%)
+                                </span>
+                              </td>
+                              <td className="text-right py-3 px-4 text-gray-700">
+                                {template.read.toLocaleString()}
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({template.delivered > 0 ? ((template.read / template.delivered) * 100).toFixed(1) : 0}%)
+                                </span>
+                              </td>
+                              <td className="text-right py-3 px-4">
+                                <span className="inline-block bg-[#2A8B8A] text-white px-3 py-1 rounded-full text-sm font-medium">
+                                  {template.rate.toFixed(1)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact Statistics */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">
+                    👥 Contact Statistics
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Total Contacts</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">{analytics.totalContacts.toLocaleString()}</p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Active Contacts</p>
+                      <p className="text-3xl font-bold text-green-600">{analytics.activeContacts.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">
+                        {analytics.totalContacts > 0 ? 
+                          `${((analytics.activeContacts / analytics.totalContacts) * 100).toFixed(1)}% active` : 
+                          '0%'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Campaign Statistics */}
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">
+                    🎯 Campaign Statistics
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Total Campaigns</p>
+                      <p className="text-3xl font-bold text-[#2A8B8A]">{analytics.totalCampaigns}</p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Active Campaigns</p>
+                      <p className="text-3xl font-bold text-green-600">{analytics.activeCampaigns}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer - Action Buttons */}
+            <div className="border-t border-gray-200 p-6 bg-gray-50 flex items-center justify-end gap-4">
+              <button 
+                onClick={() => setShowExportModal(false)}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handlePrint}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print Report
+              </button>
+              <button 
+                onClick={handleSaveAsPDF}
+                className="px-6 py-2.5 bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white rounded-xl font-medium hover:from-[#238080] hover:to-[#1e6b6b] transition-all flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Save to Computer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

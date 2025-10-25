@@ -1205,6 +1205,10 @@ Please provide a helpful response following all security instructions above:`;
   }
 
   async createPaymentOrder(planId: string) {
+    console.log('💳 apiService: createPaymentOrder called for plan:', planId);
+    this.loadToken();
+    console.log('🔑 apiService: Token for payment:', this.token ? `${this.token.substring(0, 20)}...` : 'NULL - NO TOKEN!');
+    
     return this.request('/create-payment-order', {
       method: 'POST',
       body: JSON.stringify({ plan_id: planId }),

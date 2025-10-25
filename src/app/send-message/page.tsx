@@ -158,12 +158,13 @@ function SendMessage() {
         showToastNotification('Failed to load templates', 'error');
       });
 
-    // Load account limits
+    // Load account limits with authentication
     setLimitsLoading(true);
-    fetch("http://localhost:8000/phone-number-status")
-      .then(res => res.json())
+    apiService.getOptional('/phone-number-status')
       .then(data => {
-        setAccountLimits(data);
+        if (data) {
+          setAccountLimits(data);
+        }
         setLimitsLoading(false);
       })
       .catch(() => setLimitsLoading(false));
@@ -171,12 +172,13 @@ function SendMessage() {
     // Load message usage
     loadMessageUsage();
 
-    // Load WhatsApp config
+    // Load WhatsApp config with authentication
     setConfigLoading(true);
-    fetch("http://localhost:8000/whatsapp/config")
-      .then(res => res.json())
+    apiService.getOptional('/whatsapp/config')
       .then(data => {
-        setWhatsappConfig(data);
+        if (data) {
+          setWhatsappConfig(data);
+        }
         setConfigLoading(false);
       })
       .catch((error) => {
@@ -189,8 +191,12 @@ function SendMessage() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showVariableDropdown) {
-        setShowVariableDropdown(false);
-        setActiveVariableField(null);
+        const target = event.target as HTMLElement;
+        // Check if click is outside the dropdown and not on a variable button
+        if (!target.closest('.variable-dropdown') && !target.closest('.variable-toggle-btn')) {
+          setShowVariableDropdown(false);
+          setActiveVariableField(null);
+        }
       }
     };
 
@@ -349,14 +355,26 @@ function SendMessage() {
   const processDynamicVariables = async (text: string, phoneNumber: string) => {
     let processedText = text;
     
-    // Get contact info for this phone number
-    const contact = allContacts.find(c => c.phone === phoneNumber);
+    // Normalize phone number for matching (remove +, spaces, dashes)
+    const normalizedPhone = phoneNumber.replace(/[\+\s\-\(\)]/g, '');
+    
+    // Get contact info for this phone number - try both original and normalized
+    let contact = allContacts.find(c => c.phone === phoneNumber);
+    if (!contact) {
+      // Try normalized comparison
+      contact = allContacts.find(c => c.phone?.replace(/[\+\s\-\(\)]/g, '') === normalizedPhone);
+    }
+    
+    // Use WhatsApp profile name (from webhook/API) or contact name, fallback to phone
+    const displayName = contact?.whatsapp_name || contact?.name || phoneNumber;
+    const firstName = contact?.first_name || contact?.whatsapp_name?.split(' ')[0] || contact?.name?.split(' ')[0] || '';
+    const lastName = contact?.last_name || contact?.whatsapp_name?.split(' ').slice(1).join(' ') || contact?.name?.split(' ').slice(1).join(' ') || '';
     
     // Replace dynamic variables
-    processedText = processedText.replace(/\{\{name\}\}/g, contact?.name || phoneNumber);
+    processedText = processedText.replace(/\{\{name\}\}/g, displayName);
     processedText = processedText.replace(/\{\{phone\}\}/g, phoneNumber);
-    processedText = processedText.replace(/\{\{first_name\}\}/g, contact?.first_name || contact?.name?.split(' ')[0] || '');
-    processedText = processedText.replace(/\{\{last_name\}\}/g, contact?.last_name || contact?.name?.split(' ').slice(1).join(' ') || '');
+    processedText = processedText.replace(/\{\{first_name\}\}/g, firstName);
+    processedText = processedText.replace(/\{\{last_name\}\}/g, lastName);
     processedText = processedText.replace(/\{\{company\}\}/g, contact?.company || '');
     processedText = processedText.replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
     processedText = processedText.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
@@ -894,7 +912,7 @@ function SendMessage() {
                             />
                             <button
                               type="button"
-                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#2A8B8A] transition-colors"
+                              className="variable-toggle-btn absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#2A8B8A] transition-colors"
                               onClick={() => {
                                 // console.log('Variable dropdown button clicked for:', v);
                                 setActiveVariableField(v);
@@ -909,7 +927,7 @@ function SendMessage() {
                             
                             {/* Variable Dropdown */}
                             {showVariableDropdown && activeVariableField === v && (
-                              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
+                              <div className="variable-dropdown absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
                                 <div className="py-2">
                                   <div className="px-4 py-2 text-sm font-medium text-gray-700 border-b border-gray-200">
                                     Dynamic Variables
@@ -919,12 +937,18 @@ function SendMessage() {
                                       key={variable.key}
                                       type="button"
                                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-                                      onClick={() => {
-                                        // console.log('Variable selected:', variable.label, 'for field:', v);
+                                      onMouseDown={(e) => {
+                                        e.preventDefault(); // Prevent input blur
+                                        e.stopPropagation(); // Stop event bubbling
+                                      }}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('Variable selected:', variable.label, 'for field:', v);
                                         const currentValue = variableValues[v] || "";
-                                        // console.log('Current value:', currentValue);
+                                        console.log('Current value:', currentValue);
                                         const newValue = currentValue + variable.label;
-                                        // console.log('New value:', newValue);
+                                        console.log('New value:', newValue);
                                         setVariableValues(vals => ({ 
                                           ...vals, 
                                           [v]: newValue 
@@ -1631,9 +1655,42 @@ function SendMessage() {
             {/* Contacts List */}
             <div className="flex-1 overflow-y-auto p-6">
               {contactsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2A8B8A]"></div>
-                  <span className="ml-3 text-gray-600">Loading contacts...</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="border border-gray-200 rounded-lg p-4 animate-pulse">
+                      <div className="flex items-start gap-3">
+                        {/* Checkbox Skeleton */}
+                        <div className="w-5 h-5 bg-gray-200 rounded border-2 border-gray-300 flex-shrink-0 mt-0.5"></div>
+                        
+                        {/* Content Skeleton */}
+                        <div className="flex-1 min-w-0 space-y-3">
+                          {/* Name */}
+                          <div className="h-5 bg-gray-200 rounded w-32"></div>
+                          
+                          {/* Phone */}
+                          <div className="h-4 bg-gray-200 rounded w-28"></div>
+                          
+                          {/* Tags */}
+                          <div className="flex flex-wrap gap-1.5">
+                            <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                          </div>
+                          
+                          {/* Info Row */}
+                          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-3 h-3 bg-gray-200 rounded"></div>
+                              <div className="h-3 bg-gray-200 rounded w-24"></div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-3 h-3 bg-gray-200 rounded"></div>
+                              <div className="h-3 bg-gray-200 rounded w-20"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : getFilteredContacts().length === 0 ? (
                 <div className="text-center py-12">

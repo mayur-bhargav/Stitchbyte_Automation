@@ -599,15 +599,150 @@ export default function Dashboard() {
 
 
   // ============================================================================
-  // LOADING STATE
+  // LOADING STATE - SKELETON LOADER
   // ============================================================================
 
   if (dashboardData.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-24 w-24 border-b-2 border-[#2A8B8A] mx-auto"></div>
-          <p className="text-slate-500 mt-4">Loading Dashboard...</p>
+      <div className="min-h-screen bg-transparent text-slate-800">
+        <div className="flex">
+          <main className="flex-1 p-6 md:p-8">
+            <div className="w-full max-w-screen-2xl mx-auto space-y-8">
+              
+              {/* Skeleton Stats Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="relative rounded-xl bg-white border border-slate-200 shadow-sm p-4 animate-pulse">
+                    <div className="flex items-start gap-4">
+                      <div className="w-9 h-9 bg-slate-200 rounded-lg"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-24"></div>
+                        <div className="h-7 bg-slate-200 rounded w-16"></div>
+                        <div className="h-3 bg-slate-200 rounded w-32"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Skeleton Main Content Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Skeleton Chart Card */}
+                <div className="lg:col-span-8">
+                  <div className="relative rounded-xl bg-white border border-slate-200 shadow-sm animate-pulse">
+                    <div className="flex items-center justify-between border-b border-slate-200 p-5 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-slate-200 rounded-lg"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-slate-200 rounded w-40"></div>
+                          <div className="h-3 bg-slate-200 rounded w-32"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-5 pt-0">
+                      <div className="h-64 bg-slate-100 rounded-lg mb-6"></div>
+                      <div className="grid grid-cols-3 gap-4 border-t border-slate-200 pt-5">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="text-center space-y-2">
+                            <div className="h-3 bg-slate-200 rounded w-20 mx-auto"></div>
+                            <div className="h-5 bg-slate-200 rounded w-16 mx-auto"></div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skeleton Right Side Cards */}
+                <div className="lg:col-span-4 space-y-8">
+                  {/* Skeleton Profile Card */}
+                  <div className="relative rounded-xl bg-white border border-slate-200 shadow-sm animate-pulse">
+                    <div className="flex items-center justify-between border-b border-slate-200 p-5 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-slate-200 rounded-lg"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-slate-200 rounded w-32"></div>
+                          <div className="h-3 bg-slate-200 rounded w-24"></div>
+                        </div>
+                      </div>
+                      <div className="w-6 h-6 bg-slate-200 rounded"></div>
+                    </div>
+                    <div className="p-5 pt-0 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-slate-200 rounded-full"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-5 bg-slate-200 rounded w-32"></div>
+                          <div className="h-4 bg-slate-200 rounded w-24"></div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-4 bg-slate-200 rounded w-full"></div>
+                        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Skeleton Alerts Card */}
+                  <div className="relative rounded-xl bg-white border border-slate-200 shadow-sm animate-pulse">
+                    <div className="flex items-center justify-between border-b border-slate-200 p-5 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-slate-200 rounded-lg"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-slate-200 rounded w-28"></div>
+                          <div className="h-3 bg-slate-200 rounded w-32"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-5 pt-0 space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-slate-100 rounded-lg p-4">
+                          <div className="h-4 bg-slate-200 rounded w-full mb-2"></div>
+                          <div className="h-3 bg-slate-200 rounded w-2/3"></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skeleton Secondary Row */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {[1, 2].map((cardNum) => (
+                  <div key={cardNum} className="relative rounded-xl bg-white border border-slate-200 shadow-sm animate-pulse">
+                    <div className="flex items-center justify-between border-b border-slate-200 p-5 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-slate-200 rounded-lg"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-slate-200 rounded w-32"></div>
+                          <div className="h-3 bg-slate-200 rounded w-40"></div>
+                        </div>
+                      </div>
+                      <div className="h-4 bg-slate-200 rounded w-20"></div>
+                    </div>
+                    <div className="p-5 pt-0">
+                      <div className="space-y-3">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className="flex items-center justify-between py-3 border-b border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-slate-200 rounded-full"></div>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-slate-200 rounded w-32"></div>
+                                <div className="h-3 bg-slate-200 rounded w-24"></div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 bg-slate-200 rounded-full w-16"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          </main>
         </div>
       </div>
     );

@@ -5,6 +5,7 @@
 'use client';
 
 import React from 'react';
+import { Handle, Position } from 'reactflow';
 
 interface TagNodeProps {
   data: {
@@ -117,8 +118,21 @@ const TagNode: React.FC<TagNodeProps> = ({ data, id }) => {
         </div>
       </div>
       
-      {/* Connection handle */}
-      <div className={`absolute w-3 h-3 ${getActionColor(data.action)} border-2 border-white rounded-full -right-1.5 top-1/2 transform -translate-y-1/2`}></div>
+      {/* Connection handles */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="tag-input"
+        className="w-6 h-6 bg-teal-500 border-2 border-white"
+        style={{ top: -12 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="tag-output"
+        className="w-6 h-6 bg-teal-500 border-2 border-white"
+        style={{ bottom: -12 }}
+      />
     </div>
   );
 };

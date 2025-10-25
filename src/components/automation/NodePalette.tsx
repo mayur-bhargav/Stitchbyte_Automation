@@ -34,24 +34,12 @@ const nodeCategories: NodeCategory[] = [
     ),
     nodes: [
       {
-        id: 'keyword-trigger',
-        name: 'Keyword Trigger',
-        description: 'Start automation when user sends specific keywords',
+        id: 'trigger',
+        name: 'Trigger',
+        description: 'Start your automation - configure for keywords, welcome, schedule, or integrations',
         icon: (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-        ),
-        color: 'bg-blue-500',
-        type: 'trigger'
-      },
-      {
-        id: 'welcome-trigger',
-        name: 'Welcome Message',
-        description: 'Trigger when user first contacts you',
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         ),
         color: 'bg-green-500',
@@ -193,8 +181,12 @@ const nodeCategories: NodeCategory[] = [
 const NodePalette: React.FC = () => {
   const [expandedCategory, setExpandedCategory] = useState<string>('messages');
 
-  const onDragStart = (event: React.DragEvent, nodeType: string) => {
+  const onDragStart = (event: React.DragEvent, nodeType: string, nodeId?: string) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
+    // Pass additional data for specific node types
+    if (nodeId) {
+      event.dataTransfer.setData('application/reactflow-nodeid', nodeId);
+    }
     event.dataTransfer.effectAllowed = 'move';
   };
 
@@ -237,7 +229,7 @@ const NodePalette: React.FC = () => {
                   <div
                     key={node.id}
                     draggable
-                    onDragStart={(event) => onDragStart(event, node.type)}
+                    onDragStart={(event) => onDragStart(event, node.type, node.id)}
                     className="p-3 border border-gray-200 rounded-md cursor-move hover:border-indigo-300 hover:shadow-sm transition-all bg-white"
                   >
                     <div className="flex items-start space-x-3">

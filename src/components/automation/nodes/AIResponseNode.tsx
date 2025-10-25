@@ -5,6 +5,7 @@
 'use client';
 
 import React from 'react';
+import { Handle, Position } from 'reactflow';
 
 interface AIResponseNodeProps {
   data: {
@@ -104,8 +105,21 @@ const AIResponseNode: React.FC<AIResponseNodeProps> = ({ data, id }) => {
         </div>
       </div>
       
-      {/* Connection handle */}
-      <div className="absolute w-3 h-3 bg-purple-500 border-2 border-white rounded-full -right-1.5 top-1/2 transform -translate-y-1/2"></div>
+      {/* Connection handles */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="ai-input"
+        className="!w-8 !h-8 bg-purple-500 border-3 border-white"
+        style={{ top: -16 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="ai-output"
+        className="!w-8 !h-8 bg-purple-500 border-3 border-white"
+        style={{ bottom: -16 }}
+      />
     </div>
   );
 };

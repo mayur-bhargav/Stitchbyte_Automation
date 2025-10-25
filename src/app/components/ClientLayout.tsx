@@ -33,8 +33,15 @@ import {
   LuMegaphone,
   LuWallet,
   LuPlus,
-  LuClock
+  LuClock,
+  LuShield,
+  LuMail
 } from "react-icons/lu";
+
+// ============================================================================
+// Super Admin Configuration
+// ============================================================================
+const SUPER_ADMIN_EMAILS = ["admin@stitchbyte.com", "info@stitchbyte.in", "mayurbhargava026@gmail.com"];
 
 // ============================================================================
 // Navigation Configuration (Defined outside the component for performance)
@@ -56,15 +63,16 @@ const navConfig = [
     title: "Automation",
     items: [
       { href: "/automations", label: "Automations", icon: <LuWand size={20} />, permission: "manage_integrations" },
-      { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} />, permission: "manage_integrations" },
-      { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} />, permission: "manage_integrations" },
+      { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} />, permission: "manage_integrations", comingSoon: true },
+      { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} />, permission: "manage_integrations", comingSoon: true },
     ],
   },
   {
     title: "Communication",
     items: [
       { href: "/chats", label: "Live Chats", icon: <LuMessageSquare size={20} />, notificationKey: "unreadChats", permission: "view_messages" },
-      { href: "/broadcasts", label: "Broadcasts", icon: <LuMegaphone size={20} />, permission: "view_broadcasts" },
+      { href: "/broadcasts", label: "Broadcasts", icon: <LuMegaphone size={20} />, permission: "view_broadcasts", comingSoon: true },
+      { href: "/email-sender", label: "Email Sender", icon: <LuMail size={20} />, permission: "send_message" },
     ],
   },
   {
@@ -89,9 +97,42 @@ const navConfig = [
 // Helper Components (Now included in the same file to avoid conflicts)
 // ============================================================================
 
-const NavItem = ({ href, icon, label, isActive, notificationCount }: { href: string, icon: ReactNode, label: string, isActive: boolean, notificationCount?: number }) => {
+const NavItem = ({ href, icon, label, isActive, notificationCount, comingSoon, onComingSoonClick }: { 
+  href: string, 
+  icon: ReactNode, 
+  label: string, 
+  isActive: boolean, 
+  notificationCount?: number,
+  comingSoon?: boolean,
+  onComingSoonClick?: () => void 
+}) => {
   const { darkMode } = useThemeWatcher();
   const colors = getThemeColors(darkMode);
+
+  if (comingSoon) {
+    return (
+      <button 
+        onClick={onComingSoonClick}
+        className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left relative"
+        style={{
+          backgroundColor: colors.background,
+          color: colors.textSecondary,
+          opacity: 0.7
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = colors.hover;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = colors.background;
+        }}>
+        {icon}
+        <span className="flex-1">{label}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-semibold">
+          Soon
+        </span>
+      </button>
+    );
+  }
 
   return (
     <Link href={href} 
@@ -158,6 +199,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showAddBalanceModal, setShowAddBalanceModal] = useState(false);
+  const [isStandalonePage, setIsStandalonePage] = useState(false);
+  const [showComingSoonToast, setShowComingSoonToast] = useState(false);
+  const [comingSoonFeature, setComingSoonFeature] = useState('');
   const audioRef = useRef<HTMLAudioElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -173,14 +217,32 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const isFullScreenRoute = pathname.startsWith('/automations/builder') || 
                             (pathname.startsWith('/automations') && searchParams?.get('mode') === 'builder');
   
-  // Debug the user object for team member detection
-  console.log('🔍 ClientLayout: User object for filtering:', {
-    user: user,
-    isTeamMember: user?.isTeamMember,
-    role: user?.role,
-    permissions: user?.permissions,
-    isAuthenticated: isAuthenticated
-  });
+  // Handle coming soon feature clicks
+  const handleComingSoonClick = (featureName: string) => {
+    setComingSoonFeature(featureName);
+    setShowComingSoonToast(true);
+    
+    // Auto hide after 4 seconds
+    setTimeout(() => {
+      setShowComingSoonToast(false);
+    }, 4000);
+  };
+  
+  // Check if this is a standalone page (like 404) on mount and on route changes
+  useEffect(() => {
+    const checkStandalone = () => {
+      const isStandalone = document.body.getAttribute('data-standalone-page') === 'true';
+      setIsStandalonePage(isStandalone);
+    };
+    
+    checkStandalone();
+    
+    // Set up a mutation observer to watch for changes
+    const observer = new MutationObserver(checkStandalone);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-standalone-page'] });
+    
+    return () => observer.disconnect();
+  }, [pathname]);
   
   // Filter navigation items based on permissions
   const filteredNavConfig = navConfig.map(group => ({
@@ -189,24 +251,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       // If no permission is required, always show the item
       if (!item.permission) return true;
       
-      // Debug all items for team members
-      if (user?.isTeamMember === true) {
-        console.log(`🔍 Team Member Filtering ${item.label}:`, {
-          permission: item.permission,
-          isTeamMember: user?.isTeamMember,
-          hasPermission: hasPermission(item.permission),
-          userPermissions: permissions
-        });
-      }
-      
       // For team members, check if they have the required permission
       if (user?.isTeamMember === true) {
-        console.log(`✅ Team member: showing ${item.label} = ${hasPermission(item.permission)}`);
         return hasPermission(item.permission);
       }
       
       // For main account users (or when isTeamMember is undefined/false), show all items
-      console.log(`✅ Main user: showing ${item.label} = true`);
       return true;
     })
   })).filter(group => group.items.length > 0); // Remove empty groups
@@ -262,7 +312,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return <div className="min-h-screen bg-slate-100" />;
   }
 
-  if (isPublicRoute || isFullScreenRoute) {
+  // Skip layout for standalone pages (like 404), public routes, or full-screen routes
+  if (isStandalonePage || isPublicRoute || isFullScreenRoute) {
     return <>{children}</>;
   }
 
@@ -312,7 +363,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                        icon={item.icon}
                        label={item.label}
                        isActive={isActiveRoute(item.href)} 
-                       notificationCount={'notificationKey' in item && item.notificationKey === 'unreadChats' ? totalUnreadCount : undefined} 
+                       notificationCount={'notificationKey' in item && item.notificationKey === 'unreadChats' ? totalUnreadCount : undefined}
+                       comingSoon={('comingSoon' in item && item.comingSoon === true) ? true : false}
+                       onComingSoonClick={() => handleComingSoonClick(item.label)}
                      />
                    ))}
                  </div>
@@ -436,7 +489,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <header className="backdrop-blur-md border-b px-8 py-6 sticky top-0 z-40 flex justify-between items-center"
                   style={{
                     backgroundColor: darkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.8)',
-                    borderColor: darkMode ? '#475569' : '#e2e8f0'
+                    borderColor: darkMode ? '#475569' : '#e2e8f0',
+                    padding: '27px'
                   }}>
              <h1 className="text-2xl font-bold" 
                  style={{ color: darkMode ? '#f1f5f9' : '#1e293b' }}>
@@ -453,6 +507,53 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
       <AddBalanceModal isOpen={showAddBalanceModal} onClose={() => setShowAddBalanceModal(false)} />
       <audio ref={audioRef} src="/notification.wav" preload="auto" />
+      
+      {/* Coming Soon Toast Notification */}
+      {showComingSoonToast && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <style jsx>{`
+            .animate-fade-in {
+              animation: fadeIn 0.3s ease-in-out;
+            }
+            
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: translateX(100%);
+              }
+              to {
+                opacity: 1;
+                transform: translateX(0);
+              }
+            }
+          `}</style>
+          <div className="rounded-lg shadow-lg p-4 max-w-md bg-blue-50 border border-blue-200">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 bg-blue-500">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-blue-800">
+                  Coming Soon!
+                </p>
+                <p className="text-sm mt-1 text-blue-600">
+                  <span className="font-semibold">{comingSoonFeature}</span> feature is currently under development. We'll notify you when it's ready!
+                </p>
+              </div>
+              <button
+                onClick={() => setShowComingSoonToast(false)}
+                className="flex-shrink-0 text-blue-400 hover:text-blue-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </BalanceProvider>
   );
 }

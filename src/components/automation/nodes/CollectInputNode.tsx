@@ -5,6 +5,7 @@
 'use client';
 
 import React from 'react';
+import { Handle, Position } from 'reactflow';
 
 interface CollectInputNodeProps {
   data: {
@@ -84,13 +85,19 @@ const CollectInputNode: React.FC<CollectInputNodeProps> = ({ data, id }) => {
       </div>
 
       {/* Connection handles */}
-      <div 
-        className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-500 border-2 border-white rounded-full"
-        style={{ pointerEvents: 'all' }}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="collect-input"
+        className="w-6 h-6 bg-purple-500 border-2 border-white"
+        style={{ top: -12 }}
       />
-      <div 
-        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-purple-500 border-2 border-white rounded-full"
-        style={{ pointerEvents: 'all' }}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="collect-output"
+        className="w-6 h-6 bg-purple-500 border-2 border-white"
+        style={{ bottom: -12 }}
       />
     </div>
   );

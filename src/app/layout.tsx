@@ -23,10 +23,6 @@ export const metadata: Metadata = {
   description: "Advanced WhatsApp Business Automation Platform with AI-powered features",
 };
 
-// In your src/app/layout.tsx file
-
-// ... (imports and metadata are fine)
-
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
     <html lang="en" suppressHydrationWarning>

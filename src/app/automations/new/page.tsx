@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '../../contexts/UserContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 import AutomationFlowBuilder from '../../../components/automation/AutomationFlowBuilder';
 import { apiService } from '../../services/apiService';
 
@@ -78,10 +79,23 @@ export default function NewAutomationsPage() {
   // Check URL parameters on mount to set initial tab
   useEffect(() => {
     const mode = searchParams.get('mode');
+    const automationId = searchParams.get('id');
+    
     if (mode === 'builder') {
       setActiveTab('builder');
+      
+      // If editing an existing automation, load it
+      if (automationId && automations.length > 0) {
+        const automation = automations.find(a => a._id === automationId);
+        if (automation) {
+          setSelectedAutomation(automation);
+        }
+      }
+    } else {
+      // Default to templates view on this page
+      setActiveTab('templates');
     }
-  }, [searchParams]);
+  }, [searchParams, automations]);
 
   // Helper function to switch tabs and update URL
   const switchTab = (tab: 'dashboard' | 'builder' | 'templates') => {
@@ -453,7 +467,7 @@ export default function NewAutomationsPage() {
           <p className="text-gray-600 mt-1">Choose from pre-built automation templates to get started quickly</p>
         </div>
         <button
-          onClick={() => setActiveTab('dashboard')}
+          onClick={() => router.push('/automations')}
           className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center space-x-2 transition-colors"
         >
           <MdArrowBack />
@@ -517,45 +531,68 @@ export default function NewAutomationsPage() {
     </div>
   );
 
-  const renderFlowBuilder = () => (
-    <div className="h-screen flex flex-col">
-      {/* Header bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {selectedAutomation ? `Edit: ${selectedAutomation.name}` : 'Create New Automation'}
-          </h1>
-          <p className="text-gray-600 mt-1">Build your automation workflow using our visual flow builder</p>
-        </div>
-        <button
-          onClick={() => {
-            setActiveTab('dashboard');
-            setSelectedAutomation(null);
-          }}
-          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center space-x-2 transition-colors"
-        >
-          <MdArrowBack />
-          <span>Back to Dashboard</span>
-        </button>
-      </div>
+  const renderFlowBuilder = () => {
+    // Convert automation workflow to ReactFlow format
+    const initialNodes = selectedAutomation?.workflow?.map((step: any) => ({
+      id: step.id || `${step.type}-${Date.now()}`,
+      type: step.type,
+      position: step.position || { x: 250, y: 50 },
+      data: {
+        label: step.label || step.type,
+        ...step.config,
+        ...step.data
+      }
+    })) || [];
 
-      {/* Flow builder - takes remaining height */}
-      <div className="flex-1 bg-white">
-        <AutomationFlowBuilder 
-          automationId={selectedAutomation?._id}
-          onSave={(automationData: any) => {
-            // Refresh dashboard after save
-            loadDashboardData();
-            setActiveTab('dashboard');
-            setSelectedAutomation(null);
-          }}
-          onTest={() => {
-            console.log('Test automation:', selectedAutomation);
-          }}
-        />
+    const initialEdges = selectedAutomation?.connections?.map((conn: any, index: number) => ({
+      id: conn.id || `edge-${index}`,
+      source: conn.source,
+      target: conn.target,
+      sourceHandle: conn.sourceHandle,
+      targetHandle: conn.targetHandle,
+      type: conn.type || 'smoothstep',
+      animated: conn.animated !== false
+    })) || [];
+
+    return (
+      <div className="h-screen flex flex-col">
+        {/* Header bar */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {selectedAutomation ? `Edit: ${selectedAutomation.name}` : 'Create New Automation'}
+            </h1>
+            <p className="text-gray-600 mt-1">Build your automation workflow using our visual flow builder</p>
+          </div>
+          <button
+            onClick={() => router.push('/automations')}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center space-x-2 transition-colors"
+          >
+            <MdArrowBack />
+            <span>Back to Dashboard</span>
+          </button>
+        </div>
+
+        {/* Flow builder - takes remaining height */}
+        <div className="flex-1 bg-white">
+          <ErrorBoundary>
+            <AutomationFlowBuilder 
+              automationId={selectedAutomation?._id}
+              initialNodes={initialNodes}
+              initialEdges={initialEdges}
+              onSave={(automationData: any) => {
+                // Redirect to automations list after save
+                router.push('/automations');
+              }}
+              onTest={() => {
+                console.log('Test automation:', selectedAutomation);
+              }}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (

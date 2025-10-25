@@ -1,0 +1,124 @@
+/* AutomationFlowBuilder Custom Styles */
+
+/* Make connection handles bigger and more visible */
+.react-flow__handle {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  border: 3px solid white !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.2s ease !important;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.2) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Ensure edges are visible with proper z-index */
+.react-flow__edge {
+  z-index: 1000 !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 3 !important;
+  stroke: #6366f1 !important;
+}
+
+/* Animated edge */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+/* Edge label background */
+.react-flow__edge-textbg {
+  fill: white;
+}
+
+.react-flow__edge-text {
+  font-size: 12px;
+  fill: #374151;
+}
+
+/* Connection line (while dragging) */
+.react-flow__connectionline {
+  stroke: #6366f1 !important;
+  stroke-width: 3 !important;
+  stroke-dasharray: 5, 5;
+}
+
+/* Edge markers (arrows) */
+.react-flow__edge .react-flow__edge-path {
+  marker-end: url(#react-flow__arrowclosed) !important;
+}
+
+.react-flow__arrowhead path {
+  fill: #6366f1 !important;
+  stroke: #6366f1 !important;
+}
+
+/* Hover effect for edges */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #4f46e5 !important;
+  stroke-width: 4 !important;
+}
+
+/* Selected edge */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #4338ca !important;
+  stroke-width: 4 !important;
+}
+
+/* Make sure edges are rendered */
+.react-flow__edges {
+  z-index: 100 !important;
+}
+
+.react-flow__nodes {
+  z-index: 200 !important;
+}
+
+/* Animation for dashed edges */
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Edge button (for adding conditions, etc) */
+.react-flow__edge-button {
+  width: 20px;
+  height: 20px;
+  background: #6366f1;
+  border: 1px solid white;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.react-flow__edge-button:hover {
+  background: #4f46e5;
+  transform: scale(1.1);
+}
+
+/* Remove edge button */
+.react-flow__edge-removebutton {
+  width: 20px;
+  height: 20px;
+  background: #ef4444;
+  border: 1px solid white;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.react-flow__edge-removebutton:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}

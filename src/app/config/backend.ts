@@ -26,6 +26,11 @@ export const BACKEND_CONFIG = {
   }
 } as const;
 
+// Helper function to get the API base URL
+export const getApiBaseUrl = (): string => {
+  return BACKEND_CONFIG.BASE_URL;
+};
+
 // Version comparison utilities
 export const VersionUtils = {
   // Parse semantic version string (e.g., "2.5.2" -> [2, 5, 2])

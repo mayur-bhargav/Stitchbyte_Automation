@@ -26,6 +26,7 @@ import {
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useUser } from '../contexts/UserContext';
 import { apiService } from '../services/apiService';
+import SegmentModal from '../../components/campaigns/SegmentModal';
 
 // Types
 interface Segment {
@@ -62,6 +63,20 @@ interface Campaign {
     variantBTemplateData?: Record<string, string>;
     variantBMediaFiles?: Record<string, string>;
     testDurationHours: number;
+    // Phased testing fields
+    testPhase?: string; // 'testing' | 'optimization' | 'continuous'
+    testingDurationDays?: number;
+    testingStartedAt?: string;
+    testingCompletedAt?: string;
+    successMetric?: string; // 'ctr' | 'reply_rate' | 'delivery_rate' | 'composite'
+    autoSelectWinner?: boolean;
+    winnerVariant?: string; // 'A' | 'B'
+    winnerSelectedAt?: string;
+    winnerSelectionReason?: string;
+    variantAMetrics?: Record<string, any>;
+    variantBMetrics?: Record<string, any>;
+    enableContinuousRotation?: boolean;
+    phaseHistory?: Array<Record<string, any>>;
   };
   metrics?: {
     sent: number;
@@ -172,6 +187,7 @@ export default function CampaignsPage() {
 
   // Modal states
   const [showCreateSegmentModal, setShowCreateSegmentModal] = useState(false);
+  const [showNewSegmentModal, setShowNewSegmentModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [modalContent, setModalContent] = useState({
@@ -285,31 +301,59 @@ export default function CampaignsPage() {
       const response: any = await apiService.getCampaigns({ page: 1, limit: 50 });
       if (response && response.campaigns) {
         // Transform API response to match frontend interface
-        const transformedCampaigns = response.campaigns.map((campaign: any) => ({
-          id: campaign.id,
-          name: campaign.name,
-          description: campaign.description,
-          type: campaign.type,
-          status: campaign.status,
-          segments: campaign.segments || [],
-          messageTemplate: campaign.message_template || campaign.messageTemplate,
-          scheduledAt: campaign.scheduled_at || campaign.scheduledAt,
-          createdAt: campaign.created_at || campaign.createdAt,
-          updatedAt: campaign.updated_at || campaign.updatedAt,
-          metrics: {
-            sent: campaign.sent_count || campaign.metrics?.sent || 0,
-            delivered: campaign.delivered_count || campaign.metrics?.delivered || 0,
-            opened: campaign.read_count || campaign.metrics?.opened || 0,
-            clicked: campaign.clicked_count || campaign.metrics?.clicked || 0,
-            converted: campaign.replied_count || campaign.metrics?.converted || 0,
-            deliveryRate: campaign.delivery_rate || campaign.metrics?.deliveryRate || 0,
-            readRate: campaign.read_rate || campaign.metrics?.readRate || 0,
-            ctr: campaign.click_rate || campaign.metrics?.ctr || 0,
-            replyRate: campaign.reply_rate || campaign.metrics?.replyRate || 0,
-            totalCost: campaign.total_cost || campaign.metrics?.totalCost || 0,
-            roi: campaign.roi || campaign.metrics?.roi || 0,
-          }
-        }));
+        const transformedCampaigns = response.campaigns.map((campaign: any) => {
+          const transformed = {
+            id: campaign.id,
+            name: campaign.name,
+            description: campaign.description,
+            type: campaign.type,
+            status: campaign.status,
+            segments: campaign.segments || [],
+            messageTemplate: campaign.message_template || campaign.messageTemplate,
+            scheduledAt: campaign.scheduled_at || campaign.scheduledAt,
+            createdAt: campaign.created_at || campaign.createdAt,
+            updatedAt: campaign.updated_at || campaign.updatedAt,
+            // Transform ab_test (snake_case) to abTest (camelCase)
+            abTest: campaign.ab_test ? {
+              enabled: campaign.ab_test.enabled,
+              testName: campaign.ab_test.test_name,
+              splitPercentage: campaign.ab_test.split_percentage,
+              variantBTemplateId: campaign.ab_test.variant_b_template_id,
+              variantBTemplateData: campaign.ab_test.variant_b_template_data,
+              variantBMediaFiles: campaign.ab_test.variant_b_media_files,
+              testDurationHours: campaign.ab_test.test_duration_hours,
+              // New phased testing fields
+              testPhase: campaign.ab_test.test_phase,
+              testingDurationDays: campaign.ab_test.testing_duration_days,
+              testingStartedAt: campaign.ab_test.testing_started_at,
+              testingCompletedAt: campaign.ab_test.testing_completed_at,
+              successMetric: campaign.ab_test.success_metric,
+              autoSelectWinner: campaign.ab_test.auto_select_winner,
+              winnerVariant: campaign.ab_test.winner_variant,
+              winnerSelectedAt: campaign.ab_test.winner_selected_at,
+              winnerSelectionReason: campaign.ab_test.winner_selection_reason,
+              variantAMetrics: campaign.ab_test.variant_a_metrics,
+              variantBMetrics: campaign.ab_test.variant_b_metrics,
+              enableContinuousRotation: campaign.ab_test.enable_continuous_rotation,
+              phaseHistory: campaign.ab_test.phase_history,
+            } : undefined,
+            metrics: {
+              sent: campaign.sent_count || campaign.metrics?.sent || 0,
+              delivered: campaign.delivered_count || campaign.metrics?.delivered || 0,
+              opened: campaign.read_count || campaign.metrics?.opened || 0,
+              clicked: campaign.clicked_count || campaign.metrics?.clicked || 0,
+              converted: campaign.replied_count || campaign.metrics?.converted || 0,
+              deliveryRate: campaign.delivery_rate || campaign.metrics?.deliveryRate || 0,
+              readRate: campaign.read_rate || campaign.metrics?.readRate || 0,
+              ctr: campaign.click_rate || campaign.metrics?.ctr || 0,
+              replyRate: campaign.reply_rate || campaign.metrics?.replyRate || 0,
+              totalCost: campaign.total_cost || campaign.metrics?.totalCost || 0,
+              roi: campaign.roi || campaign.metrics?.roi || 0,
+            }
+          };
+          
+          return transformed;
+        });
         setCampaigns(transformedCampaigns);
         
         // Start polling for running campaigns
@@ -496,14 +540,46 @@ export default function CampaignsPage() {
 
   const loadAnalytics = async () => {
     try {
-      const response: any = await apiService.getCampaignAnalytics();
-      if (response && (response.analytics || response.data)) {
-        setCampaignAnalytics(response.analytics || response.data);
+      console.log('📊 Loading campaign analytics from dashboard endpoint...');
+      const response: any = await apiService.getDashboardStats();
+      console.log('📊 Dashboard analytics response:', response);
+      
+      if (response && response.success) {
+        // Transform the new analytics format to match existing interface
+        const { campaign_breakdown } = response;
+        console.log('📊 Campaign breakdown:', campaign_breakdown);
+        
+        if (campaign_breakdown && Array.isArray(campaign_breakdown)) {
+          const transformedAnalytics = campaign_breakdown.map((campaign: any) => ({
+            campaignId: campaign.campaign_id,
+            campaignName: campaign.campaign_name,
+            metrics: {
+              sent: campaign.sent || 0,
+              delivered: campaign.success || 0,
+              opened: 0, // Not tracked in campaign_analytics yet
+              clicked: 0, // Not tracked in campaign_analytics yet
+              converted: 0,
+              revenue: undefined,
+              deliveryRate: campaign.sent ? ((campaign.success || 0) / campaign.sent * 100) : 0,
+              readRate: 0,
+              ctr: 0,
+              replyRate: 0,
+              totalCost: 0,
+              roi: 0
+            }
+          }));
+          console.log('📊 Transformed analytics:', transformedAnalytics);
+          setCampaignAnalytics(transformedAnalytics);
+        } else {
+          console.log('📊 No campaign breakdown data');
+          setCampaignAnalytics([]);
+        }
       } else {
+        console.log('📊 Invalid response or no success flag');
         setCampaignAnalytics([]);
       }
     } catch (err) {
-      console.error('Error loading analytics:', err);
+      console.error('❌ Error loading analytics:', err);
       setCampaignAnalytics([]);
     }
   };
@@ -1708,6 +1784,15 @@ export default function CampaignsPage() {
                                     <LuPencil className="w-4 h-4" />
                                   </button>
                                 )}
+                                {campaign.abTest?.enabled && (
+                                  <button
+                                    onClick={() => setActiveTab('abTests')}
+                                    className="text-blue-600 hover:text-blue-900"
+                                    title="View A/B Test Details"
+                                  >
+                                    <LuTestTube className="w-4 h-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleDeleteCampaign(campaign.id)}
                                   className="text-red-600 hover:text-red-900"
@@ -1764,11 +1849,18 @@ export default function CampaignsPage() {
                       Auto-Create from Tags
                     </button>
                     <button
-                      onClick={() => handleCreateSegment()}
+                      onClick={() => setShowNewSegmentModal(true)}
                       className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#2A8B8A] hover:bg-[#228B8A]"
                     >
                       <LuPlus className="w-4 h-4 mr-2" />
-                      Create Segment
+                      Create Advanced Segment
+                    </button>
+                    <button
+                      onClick={() => handleCreateSegment()}
+                      className="inline-flex items-center px-3 py-2 border border-[#2A8B8A] text-sm font-medium rounded-md text-[#2A8B8A] bg-white hover:bg-[#2A8B8A]/5"
+                    >
+                      <LuPlus className="w-4 h-4 mr-2" />
+                      Quick Create
                     </button>
                   </div>
                 </div>
@@ -1847,54 +1939,100 @@ export default function CampaignsPage() {
         );
 
       case 'abTests':
+        // Extract ALL campaigns that have A/B tests (regardless of status or enabled state)
+        // This includes completed, active, paused, cancelled - any campaign with ab_test data
+        const campaignsWithABTests = campaigns.filter(campaign => 
+          campaign.abTest && Object.keys(campaign.abTest).length > 0
+        );
+        
+        // Categorize by status for display
+        const activeABTests = campaignsWithABTests.filter(c => 
+          c.status === 'running' || c.status === 'scheduled'
+        );
+        const completedABTests = campaignsWithABTests.filter(c => c.status === 'completed');
+        const otherABTests = campaignsWithABTests.filter(c => 
+          c.status !== 'running' && c.status !== 'scheduled' && c.status !== 'completed'
+        );
+        
         return (
           <div className="space-y-6">
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg leading-6 font-medium text-slate-900">
-                    A/B Tests
-                  </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg leading-6 font-medium text-slate-900">
+                      A/B Tests from Campaigns
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      All campaigns with A/B testing configured
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-[#2A8B8A]">{campaignsWithABTests.length}</div>
+                      <div className="text-xs text-slate-500">Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{activeABTests.length}</div>
+                      <div className="text-xs text-slate-500">Active</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{completedABTests.length}</div>
+                      <div className="text-xs text-slate-500">Completed</div>
+                    </div>
+                  </div>
                 </div>
                 
-                {abTests.length > 0 ? (
+                {campaignsWithABTests.length > 0 ? (
                   <div className="space-y-4">
-                    {abTests.map((test) => {
-                      const campaignExecution = campaignExecutions[test.testId];
-                      const isRunning = campaignExecution?.is_running || test.status === 'running';
+                    {campaignsWithABTests.map((campaign) => {
+                      const abTest = campaign.abTest!;
+                      const campaignExecution = campaignExecutions[campaign.id];
+                      const isRunning = campaignExecution?.is_running || campaign.status === 'running';
                       
                       return (
-                        <div key={test.testId} className="border border-slate-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                        <div key={campaign.id} className="border border-slate-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                           {/* Test Header */}
                           <div className="flex items-center justify-between mb-4">
                             <div>
-                              <h4 className="text-lg font-semibold text-slate-900">{test.testName}</h4>
+                              <h4 className="text-lg font-semibold text-slate-900">{campaign.name}</h4>
+                              <p className="text-sm text-slate-600 mb-2">
+                                A/B Test: {abTest.testName || 'Unnamed Test'}
+                              </p>
                               <div className="flex items-center gap-4 mt-1">
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(test.status)}`}>
-                                  {test.status.charAt(0).toUpperCase() + test.status.slice(1)}
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(campaign.status)}`}>
+                                  {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                                </span>
+                                {abTest.enabled ? (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                    ✓ A/B Test Enabled
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                                    ⚠ A/B Test Disabled
+                                  </span>
+                                )}
+                                <span className="text-sm text-slate-500">
+                                  Split: {abTest.splitPercentage}% / {100 - abTest.splitPercentage}%
                                 </span>
                                 <span className="text-sm text-slate-500">
-                                  Split: {test.testPercentage}% / {100 - test.testPercentage}%
+                                  Duration: {abTest.testDurationHours}h
                                 </span>
                                 <span className="text-sm text-slate-500">
-                                  Duration: {test.durationHours}h
+                                  Total Contacts: {campaign.metrics?.sent || 0}
                                 </span>
                               </div>
                             </div>
                             <div className="text-right">
-                              {test.results?.winner && (
-                                <div className="text-sm">
-                                  <span className="text-green-600 font-semibold">
-                                  Winner: {test.results.winner === 'variant-a' ? 'Variant A' : 'Variant B'}
-                                  </span>
-                                  <div className="text-xs text-slate-500">
-                                    Confidence: {test.confidence}%
-                                  </div>
+                              {isRunning && (
+                                <div className="text-sm text-[#2A8B8A] font-medium flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-[#2A8B8A] rounded-full animate-pulse" />
+                                  Test Running
                                 </div>
                               )}
-                              {isRunning && (
-                                <div className="text-sm text-[#2A8B8A] font-medium">
-                                  Test Running
+                              {campaign.status === 'completed' && (
+                                <div className="text-sm text-green-600 font-medium">
+                                  ✓ Test Completed
                                 </div>
                               )}
                             </div>
@@ -1923,60 +2061,90 @@ export default function CampaignsPage() {
                           )}
 
                           {/* Variant Comparison */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {test.variations.map((variant, index) => (
-                              <div key={variant.id} className="border border-slate-100 rounded-lg p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <h5 className="font-medium text-slate-900">{variant.name}</h5>
-                                  <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">
-                                    {variant.trafficAllocation}% traffic
-                                  </span>
-                                </div>
-                                
-                                <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-600">Sent:</span>
-                                    <span className="font-medium">{variant.metrics.sent.toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-600">Delivered:</span>
-                                    <span className="font-medium">{variant.metrics.delivered.toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-600">Opened:</span>
-                                    <span className="font-medium">{variant.metrics.opened.toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-600">Conversion Rate:</span>
-                                    <span className="font-medium text-[#2A8B8A]">
-                                      {variant.metrics.conversionRate.toFixed(2)}%
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {/* Performance indicator */}
-                                {test.results?.winner === variant.id.split('-').pop() && (
-                                  <div className="mt-2 p-2 bg-green-50 rounded text-xs text-green-700 text-center font-medium">
-                                    🏆 Winning Variant
-                                  </div>
-                                )}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            {/* Variant A */}
+                            <div className="border border-slate-100 rounded-lg p-4 bg-blue-50">
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="font-medium text-slate-900">Variant A (Original)</h5>
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                                  {abTest.splitPercentage}% traffic
+                                </span>
                               </div>
-                            ))}
+                              
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Template:</span>
+                                  <span className="font-medium text-xs text-slate-900">{campaign.messageTemplate || 'Default'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Status:</span>
+                                  <span className="font-medium text-slate-900">{campaign.status}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Variant B */}
+                            <div className="border border-slate-100 rounded-lg p-4 bg-purple-50">
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="font-medium text-slate-900">Variant B (Test)</h5>
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
+                                  {100 - abTest.splitPercentage}% traffic
+                                </span>
+                              </div>
+                              
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Template:</span>
+                                  <span className="font-medium text-xs text-slate-900">{abTest.variantBTemplateId}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Duration:</span>
+                                  <span className="font-medium text-slate-900">{abTest.testDurationHours}h</span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Campaign Metrics */}
+                          {campaign.metrics && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-slate-50 rounded-lg">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-slate-900">{campaign.metrics.sent || 0}</div>
+                                <div className="text-xs text-slate-600">Sent</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">{campaign.metrics.delivered || 0}</div>
+                                <div className="text-xs text-slate-600">Delivered</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-blue-600">{campaign.metrics.opened || 0}</div>
+                                <div className="text-xs text-slate-600">Opened</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-[#2A8B8A]">{campaign.metrics.deliveryRate?.toFixed(1) || 0}%</div>
+                                <div className="text-xs text-slate-600">Delivery Rate</div>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Test Controls */}
                           <div className="mt-4 pt-4 border-t border-slate-200">
                             <div className="flex items-center justify-between">
                               <div className="text-xs text-slate-500">
-                                Started: {new Date(test.startedAt).toLocaleString()}
-                                {test.endedAt && (
+                                Created: {new Date(campaign.createdAt).toLocaleDateString()}
+                                {campaign.scheduledAt && (
                                   <span className="ml-4">
-                                    Ended: {new Date(test.endedAt).toLocaleString()}
+                                    Scheduled: {new Date(campaign.scheduledAt).toLocaleString()}
+                                  </span>
+                                )}
+                                {campaign.status === 'completed' && (
+                                  <span className="ml-4 text-green-600">
+                                    ✓ Completed
                                   </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                {renderExecutionControls({ id: test.testId, status: test.status } as Campaign)}
+                                {renderExecutionControls(campaign)}
                               </div>
                             </div>
                           </div>
@@ -1987,10 +2155,19 @@ export default function CampaignsPage() {
                 ) : (
                   <div className="text-center py-12">
                     <LuTestTube className="mx-auto h-12 w-12 text-slate-400" />
-                    <h3 className="mt-2 text-sm font-medium text-slate-900">No A/B tests</h3>
+                    <h3 className="mt-2 text-sm font-medium text-slate-900">No A/B Tests Found</h3>
                     <p className="mt-1 text-sm text-slate-500">
-                      Create your first A/B test to optimize your campaigns.
+                      A/B tests are created within campaigns. Create a campaign with A/B testing enabled to see results here.
                     </p>
+                    <div className="mt-6">
+                      <Link
+                        href="/campaigns/create"
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#2A8B8A] hover:bg-[#228B8A]"
+                      >
+                        <LuPlus className="w-4 h-4 mr-2" />
+                        Create Campaign with A/B Test
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2458,6 +2635,17 @@ export default function CampaignsPage() {
           </div>
         </div>
       )}
+
+      {/* New Enhanced Segment Modal */}
+      <SegmentModal
+        isOpen={showNewSegmentModal}
+        onClose={() => setShowNewSegmentModal(false)}
+        onSuccess={() => {
+          setShowNewSegmentModal(false);
+          loadSegments();
+          showSuccess('Segment Created', 'Your advanced segment has been created successfully!');
+        }}
+      />
     </ProtectedRoute>
   );
 }

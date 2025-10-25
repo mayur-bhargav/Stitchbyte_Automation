@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { getApiBaseUrl } from '../config/backend';
 // Temporarily comment out to debug
 // import { useChatContext } from "../contexts/ChatContext";
 // import { useRealTimeChat } from "../hooks/useRealTimeChat";
@@ -78,7 +79,7 @@ export default function ChatContacts() {
 
   const fetchContacts = async () => {
     try {
-      const response = await fetch('http://localhost:8000/chat/contacts');
+      const response = await fetch(`${getApiBaseUrl()}/chat/contacts`);
       const data = await response.json();
       
       // const validContacts = (data.contacts || [])

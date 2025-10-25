@@ -22,6 +22,7 @@ import ReactFlow, {
   ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import './AutomationFlowBuilder.css';
 
 import NodePalette from './NodePalette';
 import NodeEditor from './NodeEditor';
@@ -49,11 +50,17 @@ const nodeTypes = {
 
 // Default edge style
 const defaultEdgeOptions = {
-  style: { strokeWidth: 2, stroke: '#6366f1' },
-  type: ConnectionLineType.SmoothStep,
+  style: { 
+    strokeWidth: 3, 
+    stroke: '#6366f1',
+  },
+  type: 'smoothstep',
+  animated: true,
   markerEnd: {
     type: MarkerType.ArrowClosed,
     color: '#6366f1',
+    width: 25,
+    height: 25,
   },
 };
 
@@ -74,7 +81,13 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
   initialNodes = [],
   initialEdges = []
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  // Ensure all initial nodes have valid positions
+  const validInitialNodes = initialNodes.map(node => ({
+    ...node,
+    position: node.position || { x: 250, y: 50 }
+  }));
+  
+  const [nodes, setNodes, onNodesChange] = useNodesState(validInitialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -85,72 +98,9 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
   const [errors, setErrors] = useState<string[]>([]);
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { project, getViewport } = useReactFlow();
+  const reactFlowInstance = useReactFlow();
 
-  // Initialize with trigger node if empty
-  useEffect(() => {
-    if (nodes.length === 0) {
-      const triggerNode: Node = {
-        id: 'trigger-1',
-        type: 'trigger',
-        position: { x: 250, y: 50 },
-        data: {
-          triggerType: 'keyword',
-          keywords: [],
-          label: 'Trigger',
-          onEdit: handleNodeEdit
-        },
-      };
-      setNodes([triggerNode]);
-    }
-  }, [nodes.length, setNodes]);
-
-  const onConnect = useCallback(
-    (params: Connection) => {
-      const edge = {
-        ...params,
-        id: `edge-${params.source}-${params.target}`,
-        data: { conditionType: 'always' }
-      };
-      setEdges((eds) => addEdge(edge, eds));
-    },
-    [setEdges]
-  );
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-
-      const type = event.dataTransfer.getData('application/reactflow');
-      if (!type || !reactFlowWrapper.current) return;
-
-      const position = project({
-        x: event.clientX - reactFlowWrapper.current.getBoundingClientRect().left,
-        y: event.clientY - reactFlowWrapper.current.getBoundingClientRect().top,
-      });
-
-      const newNode: Node = {
-        id: `${type}-${Date.now()}`,
-        type: type as any,
-        position,
-        data: {
-          label: getNodeLabel(type),
-          onEdit: handleNodeEdit,
-          onDelete: handleNodeDelete,
-          ...getDefaultNodeData(type)
-        },
-      };
-
-      setNodes((nds) => nds.concat(newNode));
-    },
-    [project, setNodes]
-  );
-
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
+  // Define handlers before useEffect
   const handleNodeEdit = useCallback((node: Node) => {
     setSelectedNode(node);
     setIsEditorOpen(true);
@@ -160,6 +110,132 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
     setNodes((nds) => nds.filter((node) => node.id !== nodeId));
     setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
   }, [setNodes, setEdges]);
+
+  // Load initial nodes with handlers
+  useEffect(() => {
+    if (validInitialNodes.length > 0 && nodes.length === 0) {
+      // Add handlers to initial nodes
+      setNodes(validInitialNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          onEdit: handleNodeEdit,
+          onDelete: handleNodeDelete
+        }
+      })));
+    }
+  }, [validInitialNodes.length, nodes.length, setNodes, handleNodeEdit, handleNodeDelete]);
+
+  // Debug: Log edges whenever they change
+  useEffect(() => {
+    console.log('🔄 Edges updated:', edges.length, edges);
+  }, [edges]);
+
+  const onConnect = useCallback(
+    (params: Connection) => {
+      console.log('🔗 Connection attempt:', {
+        source: params.source,
+        sourceHandle: params.sourceHandle,
+        target: params.target,
+        targetHandle: params.targetHandle
+      });
+      
+      // Validate source and target exist
+      const sourceNode = nodes.find(n => n.id === params.source);
+      const targetNode = nodes.find(n => n.id === params.target);
+      
+      if (!sourceNode || !targetNode) {
+        console.error('❌ Source or target node not found', { 
+          sourceExists: !!sourceNode, 
+          targetExists: !!targetNode,
+          allNodes: nodes.map(n => ({ id: n.id, type: n.type }))
+        });
+        return;
+      }
+      
+      console.log('✅ Nodes found:', {
+        source: sourceNode.type,
+        target: targetNode.type
+      });
+      
+      // Ensure handle IDs are included
+      const newEdge: Edge = {
+        id: `edge-${params.source}-${params.target}-${Date.now()}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle || null,
+        targetHandle: params.targetHandle || null,
+        type: 'smoothstep',
+        animated: true,
+        style: { 
+          strokeWidth: 4, 
+          stroke: '#6366f1' 
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#6366f1',
+          width: 30,
+          height: 30
+        },
+        data: { conditionType: 'always' }
+      } as Edge;
+      
+      console.log('🎨 Creating edge:', newEdge);
+      setEdges((eds) => {
+        const newEdges = addEdge(newEdge, eds);
+        console.log('📊 All edges after add:', newEdges);
+        return newEdges;
+      });
+      console.log('✅ Edge added:', newEdge.id);
+    },
+    [nodes, setEdges]
+  );
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const type = event.dataTransfer.getData('application/reactflow');
+      const nodeId = event.dataTransfer.getData('application/reactflow-nodeid');
+      
+      // Safety checks: ensure ReactFlow is initialized
+      if (!type || !reactFlowWrapper.current || !reactFlowInstance) {
+        console.warn('⚠️ Cannot drop node: ReactFlow not ready');
+        return;
+      }
+
+      const position = reactFlowInstance.project({
+        x: event.clientX - reactFlowWrapper.current.getBoundingClientRect().left,
+        y: event.clientY - reactFlowWrapper.current.getBoundingClientRect().top,
+      });
+
+      const newNodeId = `${type}-${Date.now()}`;
+      
+      // Get default node data
+      let nodeData = getDefaultNodeData(type);
+      
+      const newNode: Node = {
+        id: newNodeId,
+        type: type as any,
+        position,
+        data: {
+          label: getNodeLabel(type),
+          onEdit: handleNodeEdit,
+          onDelete: handleNodeDelete,
+          ...nodeData
+        },
+      };
+
+      console.log('🆕 Adding new node:', newNodeId, 'type:', type, 'nodeId:', nodeId);
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [reactFlowInstance, setNodes, handleNodeEdit, handleNodeDelete]
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
 
   const handleNodeUpdate = useCallback((updatedNode: Node) => {
     setNodes((nds) =>
@@ -172,10 +248,10 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
   const validateAutomation = (): string[] => {
     const validationErrors: string[] = [];
 
-    // Check for trigger node
+    // Check for trigger node (warning only, not blocking)
     const triggerNodes = nodes.filter(node => node.type === 'trigger');
-    if (triggerNodes.length === 0) {
-      validationErrors.push('Automation must have at least one trigger');
+    if (triggerNodes.length === 0 && nodes.length > 0) {
+      validationErrors.push('Warning: Automation has no trigger. Add a trigger to activate it.');
     }
 
     // Check for orphaned nodes (nodes without incoming connections except trigger)
@@ -246,6 +322,10 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
         trigger_config: {
           trigger_type: nodes.find(n => n.type === 'trigger')?.data.triggerType || 'keyword',
           keywords: nodes.find(n => n.type === 'trigger')?.data.keywords || [],
+          integration_id: nodes.find(n => n.type === 'trigger')?.data.integrationId || null,
+          integration_name: nodes.find(n => n.type === 'trigger')?.data.integrationName || null,
+          integration_event: nodes.find(n => n.type === 'trigger')?.data.integrationEvent || null,
+          integration_event_label: nodes.find(n => n.type === 'trigger')?.data.integrationEventLabel || null,
           trigger_conditions: {}
         }
       };
@@ -385,28 +465,46 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
 
       {/* Flow Canvas */}
       <div className="flex-1 relative" ref={reactFlowWrapper}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          nodeTypes={nodeTypes}
-          defaultEdgeOptions={defaultEdgeOptions}
-          connectionLineType={ConnectionLineType.SmoothStep}
-          fitView
-          attributionPosition="bottom-left"
-        >
-          <Background 
-            variant={BackgroundVariant.Dots} 
-            gap={12} 
-            size={1}
-            color="#e5e7eb"
-          />
-          <Controls />
-        </ReactFlow>
+        {nodes && edges ? (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            nodeTypes={nodeTypes}
+            defaultEdgeOptions={defaultEdgeOptions}
+            connectionLineType={ConnectionLineType.SmoothStep}
+            connectionLineStyle={{ 
+              strokeWidth: 3, 
+              stroke: '#6366f1',
+              strokeDasharray: '5,5'
+            }}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            attributionPosition="bottom-left"
+            minZoom={0.1}
+            maxZoom={2}
+            snapToGrid={true}
+            snapGrid={[15, 15]}
+            deleteKeyCode="Delete"
+            multiSelectionKeyCode="Shift"
+          >
+            <Background 
+              variant={BackgroundVariant.Dots} 
+              gap={12} 
+              size={1}
+              color="#e5e7eb"
+            />
+            <Controls />
+          </ReactFlow>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">Loading flow builder...</p>
+          </div>
+        )}
       </div>
 
       {/* Node Editor Panel */}

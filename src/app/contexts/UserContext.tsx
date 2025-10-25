@@ -90,16 +90,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         
         if (token) {
           const userData = await apiService.getCurrentUser();
-          console.log('🔍 UserContext: Raw API response:', userData);
           if (userData) {
-            console.log('🔍 UserContext: Setting user data:', {
-              id: userData.id,
-              email: userData.email,
-              isTeamMember: userData.isTeamMember,
-              role: userData.role,
-              permissions: userData.permissions
-            });
-            console.log('🔍 UserContext: Complete user object being set:', userData);
             setUser(userData);
             
             // If user data doesn't include subscription, try to fetch it separately
@@ -148,15 +139,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const refreshUser = async () => {
     try {
       const userData = await apiService.getCurrentUser();
-      console.log('🔍 UserContext refreshUser: Raw API response:', userData);
       if (userData) {
-        console.log('🔍 UserContext refreshUser: Setting user data:', {
-          id: userData.id,
-          email: userData.email,
-          isTeamMember: userData.isTeamMember,
-          role: userData.role,
-          permissions: userData.permissions
-        });
         setUser(userData);
         
         // Also check subscription status separately if user data doesn't include it
@@ -188,13 +171,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       // Normal login or successful 2FA verification
       if (response && response.user) {
-        console.log('🔍 UserContext login: Setting user from signin response:', {
-          id: response.user.id,
-          email: response.user.email,
-          isTeamMember: response.user.isTeamMember,
-          role: response.user.role,
-          permissions: response.user.permissions
-        });
         setUser(response.user);
         
         // Set backup code flag if backup code was used

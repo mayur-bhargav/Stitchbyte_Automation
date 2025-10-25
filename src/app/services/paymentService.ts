@@ -1,5 +1,7 @@
 "use client";
 
+import { getApiBaseUrl } from '../config/backend';
+
 // Payment service for handling Razorpay and Stripe integrations
 export class PaymentService {
   private static razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
@@ -143,7 +145,7 @@ export class PaymentService {
   }): Promise<{ success: boolean; message: string }> {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/payments/reboost-credits', {
+      const response = await fetch(`${getApiBaseUrl()}/payments/reboost-credits`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

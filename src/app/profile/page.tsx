@@ -65,12 +65,11 @@ interface UserProfile {
 
 interface NotificationSettings {
   emailNotifications: boolean;
-  smsNotifications: boolean;
   desktopNotifications: boolean;
   marketingEmails: boolean;
-  securityAlerts: boolean;
   campaignUpdates: boolean;
   chatNotifications: boolean;
+  fcmToken?: string;
 }
 
 interface SecuritySettings {
@@ -178,7 +177,7 @@ export default function ProfilePage() {
     firstName: user?.firstName || '', lastName: user?.lastName || '', email: user?.email || '', phone: '', companyName: user?.companyName || '', companyAddress: '', role: user?.role || '', timezone: 'UTC+5:30 (India Standard Time)', language: 'English (US)', profilePicture: '', bio: '', website: '', linkedin: '', twitter: ''
   });
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    emailNotifications: true, smsNotifications: false, desktopNotifications: true, marketingEmails: false, securityAlerts: true, campaignUpdates: true, chatNotifications: true
+    emailNotifications: true, desktopNotifications: true, marketingEmails: false, campaignUpdates: true, chatNotifications: true
   });
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>({
     twoFactorEnabled: false, loginAlerts: true, sessionTimeout: 30, allowMultipleSessions: true
@@ -197,6 +196,12 @@ export default function ProfilePage() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
   const [showRegenerateCodesModal, setShowRegenerateCodesModal] = useState(false);
+  const [showNotificationPermissionModal, setShowNotificationPermissionModal] = useState(false);
+  const [pendingNotificationToggle, setPendingNotificationToggle] = useState<{key: string, value: boolean} | null>(null);
+  const [notificationPermissionError, setNotificationPermissionError] = useState<string>('');
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+  const [isSendingTestNotification, setIsSendingTestNotification] = useState(false);
+  const [testNotificationStatus, setTestNotificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   // All backend functions are unchanged
   useEffect(() => {
@@ -394,8 +399,34 @@ export default function ProfilePage() {
         let endpoint = '';
 
         if (type === 'notifications') {
-            newSettings = { ...notificationSettings, [key]: value };
-            setNotificationSettings(newSettings);
+            // Handle FCM token for Desktop and Chat notifications
+            if ((key === 'desktopNotifications' || key === 'chatNotifications') && value === true) {
+                // Check permission status immediately
+                if (typeof window !== 'undefined' && 'Notification' in window) {
+                    const currentPermission = Notification.permission;
+                    
+                    if (currentPermission === 'denied') {
+                        // Show modal in error state immediately
+                        setPendingNotificationToggle({ key: key as string, value });
+                        setNotificationPermissionError('Notifications are blocked in your browser. Please enable them in your browser settings and try again.');
+                        setShowNotificationPermissionModal(true);
+                        return;
+                    }
+                }
+                
+                // Show modal first to explain what will happen
+                setPendingNotificationToggle({ key: key as string, value });
+                setNotificationPermissionError(''); // Clear any previous errors
+                setShowNotificationPermissionModal(true);
+                return; // Don't proceed yet, wait for user confirmation
+            } else if ((key === 'desktopNotifications' || key === 'chatNotifications') && value === false) {
+                // When turning off, keep the token but mark as disabled
+                newSettings = { ...notificationSettings, [key]: value };
+                setNotificationSettings(newSettings);
+            } else {
+                newSettings = { ...notificationSettings, [key]: value };
+                setNotificationSettings(newSettings);
+            }
             endpoint = '/profile/auth/me/notifications';
         } else if (type === 'security') {
             newSettings = { ...securitySettings, [key]: value };
@@ -403,7 +434,187 @@ export default function ProfilePage() {
             endpoint = '/profile/auth/me/security';
         }
 
-        try { await apiService.put(endpoint, newSettings); } catch (error) { console.error(`Error saving ${type} settings:`, error); }
+        try { 
+            await apiService.put(endpoint, newSettings); 
+        } catch (error) { 
+            console.error(`Error saving ${type} settings:`, error); 
+        }
+    };
+
+    // Function to handle notification permission approval
+    const handleApproveNotificationPermission = async () => {
+        if (!pendingNotificationToggle) return;
+        
+        const { key, value } = pendingNotificationToggle;
+        let newSettings: any;
+
+        setIsRequestingPermission(true);
+        setNotificationPermissionError('');
+
+        try {
+            // Check if notifications are supported
+            if (!("Notification" in window)) {
+                setNotificationPermissionError('Your browser does not support notifications. Please try a different browser.');
+                setIsRequestingPermission(false);
+                return;
+            }
+
+            // Check current permission state
+            const currentPermission = Notification.permission;
+            
+            if (currentPermission === 'denied') {
+                setNotificationPermissionError('Notifications are blocked in your browser. Please enable them in your browser settings and try again.');
+                setIsRequestingPermission(false);
+                return;
+            }
+
+            // Request notification permission
+            const permission = await Notification.requestPermission();
+            
+            if (permission === 'granted') {
+                // Get FCM token
+                const fcmToken = await requestFCMToken();
+                
+                if (fcmToken) {
+                    newSettings = { ...notificationSettings, [key]: value, fcmToken };
+                    setNotificationSettings(newSettings);
+                    
+                    // Save to backend
+                    try { 
+                        await apiService.put('/profile/auth/me/notifications', newSettings); 
+                        // Success - close modal
+                        setShowNotificationPermissionModal(false);
+                        setPendingNotificationToggle(null);
+                        setNotificationPermissionError('');
+                    } catch (error) { 
+                        console.error('Error saving notification settings:', error);
+                        setNotificationPermissionError('Settings saved locally but failed to sync with server.');
+                    }
+                } else {
+                    setNotificationPermissionError('Failed to get notification token. Please try again or check your browser settings.');
+                }
+            } else if (permission === 'denied') {
+                setNotificationPermissionError('You denied notification permissions. Please enable them in your browser settings to receive notifications.');
+            } else {
+                setNotificationPermissionError('Notification permission was not granted. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error requesting notification permission:', error);
+            setNotificationPermissionError('An error occurred while requesting notification permission. Please try again.');
+        } finally {
+            setIsRequestingPermission(false);
+        }
+    };
+
+    // Function to handle notification permission denial
+    const handleDenyNotificationPermission = () => {
+        setShowNotificationPermissionModal(false);
+        setPendingNotificationToggle(null);
+        setNotificationPermissionError('');
+    };
+
+    // Function to send test notification
+    const sendTestNotification = async () => {
+        setIsSendingTestNotification(true);
+        setTestNotificationStatus('idle');
+
+        try {
+            // Check if notifications are supported and permitted
+            if (!("Notification" in window)) {
+                setTestNotificationStatus('error');
+                alert('Your browser does not support notifications.');
+                setIsSendingTestNotification(false);
+                return;
+            }
+
+            if (Notification.permission !== 'granted') {
+                setTestNotificationStatus('error');
+                alert('Notification permission not granted. Please enable notifications first.');
+                setIsSendingTestNotification(false);
+                return;
+            }
+
+            // Send a browser notification immediately
+            const notification = new Notification('Test Notification from Stitchbyte', {
+                body: 'This is a test notification. If you can see this, notifications are working correctly!',
+                icon: '/favicon.ico', // You can change this to your app icon
+                badge: '/favicon.ico',
+                tag: 'test-notification',
+                requireInteraction: false,
+            });
+
+            // Optional: Handle notification click
+            notification.onclick = function(event) {
+                event.preventDefault();
+                window.focus();
+                notification.close();
+            };
+
+            // Auto close after 5 seconds
+            setTimeout(() => {
+                notification.close();
+            }, 5000);
+
+            setTestNotificationStatus('success');
+            
+            // Also try to send via backend FCM if we can get a fresh token
+            try {
+                console.log('🔄 Getting fresh FCM token for backend notification...');
+                const freshToken = await requestFCMToken();
+                
+                if (freshToken) {
+                    console.log('✅ Fresh FCM token obtained, sending to backend...');
+                    await apiService.post('/profile/notifications/test', {
+                        fcmToken: freshToken,
+                        message: 'Test notification from Stitchbyte Automation'
+                    });
+                    console.log('✅ Backend FCM notification sent successfully');
+                } else {
+                    console.warn('⚠️ Could not get FCM token. Browser notification worked, but backend FCM notification skipped.');
+                    console.info('💡 Tip: Make sure notifications are enabled and service worker is registered.');
+                }
+            } catch (backendError: any) {
+                // This is optional - browser notification already worked
+                console.warn('⚠️ Backend notification failed, but browser notification worked:', backendError);
+            }
+
+            // Reset status after 3 seconds
+            setTimeout(() => {
+                setTestNotificationStatus('idle');
+            }, 3000);
+
+        } catch (error) {
+            console.error('Error sending test notification:', error);
+            setTestNotificationStatus('error');
+            alert('Failed to send test notification. Please try again.');
+        } finally {
+            setIsSendingTestNotification(false);
+        }
+    };
+
+    // Function to request FCM token
+    const requestFCMToken = async (): Promise<string | null> => {
+        try {
+            // Import Firebase configuration dynamically
+            const { requestFCMToken: getFirebaseToken } = await import('@/config/firebase');
+            
+            console.log('🔄 Attempting to get real FCM token from Firebase...');
+            
+            // Get real FCM token from Firebase
+            const token = await getFirebaseToken();
+            
+            if (token) {
+                console.log('✅ Real FCM Token obtained from Firebase:', token.substring(0, 30) + '...');
+                return token;
+            } else {
+                console.error('❌ Could not get FCM token from Firebase - token was null/undefined');
+                console.error('Check: 1) Notification permission granted? 2) Service worker registered? 3) Firebase config correct?');
+                return null; // Don't use mock token - return null to prevent sending invalid token
+            }
+        } catch (error) {
+            console.error('❌ Error getting FCM token:', error);
+            return null; // Don't use mock token - return null to prevent sending invalid token
+        }
     };
 
     const handleThemeToggle = () => {
@@ -769,12 +980,101 @@ export default function ProfilePage() {
 
             {activeTab === 'notifications' && (
                 <SettingsPanel title="Notifications" description="Choose how you want to be notified about activities.">
-                    {Object.entries(notificationSettings).map(([key, value]) => (
-                        <ToggleSwitch key={key} enabled={value} onChange={() => handleSettingToggle(key as keyof NotificationSettings, !value, 'notifications')}
-                            label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                            description={`Receive ${key.replace(/([A-Z])/g, ' $1').toLowerCase()}`}
-                        />
-                    ))}
+                    <ToggleSwitch 
+                        enabled={notificationSettings.emailNotifications} 
+                        onChange={() => handleSettingToggle('emailNotifications', !notificationSettings.emailNotifications, 'notifications')}
+                        label="Email Notifications"
+                        description="Master control for all email notifications. If disabled, no emails will be sent (marketing, login alerts, campaigns, etc.)"
+                    />
+                    <ToggleSwitch 
+                        enabled={notificationSettings.desktopNotifications} 
+                        onChange={() => handleSettingToggle('desktopNotifications', !notificationSettings.desktopNotifications, 'notifications')}
+                        label="Desktop Notifications"
+                        description="Receive push notifications for login activities and important events. Requires browser permission and FCM token."
+                    />
+                    <ToggleSwitch 
+                        enabled={notificationSettings.marketingEmails} 
+                        onChange={() => handleSettingToggle('marketingEmails', !notificationSettings.marketingEmails, 'notifications')}
+                        label="Marketing Emails"
+                        description="Receive promotional emails and product updates. Only works if Email Notifications is enabled."
+                    />
+                    <ToggleSwitch 
+                        enabled={notificationSettings.campaignUpdates} 
+                        onChange={() => handleSettingToggle('campaignUpdates', !notificationSettings.campaignUpdates, 'notifications')}
+                        label="Campaign Updates"
+                        description="Get notified about campaign status, performance reports, and completion. Only works if Email Notifications is enabled."
+                    />
+                    <ToggleSwitch 
+                        enabled={notificationSettings.chatNotifications} 
+                        onChange={() => handleSettingToggle('chatNotifications', !notificationSettings.chatNotifications, 'notifications')}
+                        label="Chat Notifications"
+                        description="Receive push notifications when you get new messages in live chats. Requires browser permission and FCM token."
+                    />
+                    
+                    {/* FCM Token Info */}
+                    {(notificationSettings.desktopNotifications || notificationSettings.chatNotifications) && notificationSettings.fcmToken && (
+                        <div className="mt-4 p-4 border rounded-lg bg-transparent" style={{ borderColor: colors.border }}>
+                            <div className="flex items-start gap-3">
+                                <LuBell size={20} style={{ color: '#2A8B8A' }} className="flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-sm" style={{ color: colors.text }}>Push Notifications Enabled</h4>
+                                    <p className="text-xs mt-1" style={{ color: colors.textMuted }}>
+                                        Your device is registered to receive push notifications. If you stop receiving notifications, try toggling the setting off and on again.
+                                    </p>
+                                    <div className="mt-3">
+                                        <button 
+                                            onClick={sendTestNotification}
+                                            disabled={isSendingTestNotification}
+                                            className="btn-secondary text-xs flex items-center gap-2"
+                                            style={{
+                                                opacity: isSendingTestNotification ? 0.6 : 1,
+                                                cursor: isSendingTestNotification ? 'not-allowed' : 'pointer'
+                                            }}
+                                        >
+                                            {isSendingTestNotification ? (
+                                                <>
+                                                    <LuLoader className="animate-spin" size={14}/>
+                                                    Sending...
+                                                </>
+                                            ) : testNotificationStatus === 'success' ? (
+                                                <>
+                                                    <LuCheck size={14}/>
+                                                    Notification Sent!
+                                                </>
+                                            ) : testNotificationStatus === 'error' ? (
+                                                <>
+                                                    <LuTriangleAlert size={14}/>
+                                                    Failed - Try Again
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <LuBell size={14}/>
+                                                    Send Test Notification
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Warning when email notifications is off */}
+                    {!notificationSettings.emailNotifications && (
+                        <div className="mt-4 p-4 border rounded-lg bg-transparent" style={{ 
+                            borderColor: darkMode ? '#dc2626' : '#fca5a5',
+                        }}>
+                            <div className="flex items-start gap-3">
+                                <LuTriangleAlert size={20} style={{ color: darkMode ? '#f87171' : '#dc2626' }} className="flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="font-semibold text-sm" style={{ color: darkMode ? '#f87171' : '#dc2626' }}>Email Notifications Disabled</h4>
+                                    <p className="text-xs mt-1" style={{ color: darkMode ? '#fca5a5' : '#b91c1c' }}>
+                                        You won't receive any emails including security alerts, campaign updates, or marketing emails until you re-enable this setting.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </SettingsPanel>
             )}
             
@@ -836,7 +1136,7 @@ export default function ProfilePage() {
             ) : (
                 <div className="text-center p-4">
                     <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4"><LuCheck className="w-8 h-8 text-emerald-600"/></div>
-                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">2FA Enabled!</h3>
+                    <h3 className="text-lg font-semibold text-slate-800 ">2FA Enabled!</h3>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Your account is now protected. Don't forget to save your backup codes.</p>
                     <button onClick={() => {setShow2FAModal(false); showBackupCodes();}} className="btn-primary mt-4">View Backup Codes</button>
                 </div>
@@ -846,7 +1146,7 @@ export default function ProfilePage() {
 
       <Modal isOpen={showBackupCodesModal} onClose={() => setShowBackupCodesModal(false)}>
           <div className="p-6">
-              <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Your Backup Codes</h2>
+              <h2 className="text-xl font-semibold text-slate-800  mb-2">Your Backup Codes</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Store these codes in a safe place. They can be used to access your account if you lose your device.</p>
               <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-700 p-4 rounded-lg border dark:border-slate-600">
                   {backupCodes.map(code => <p key={code} className="font-mono text-center bg-white dark:bg-slate-800 p-2 border dark:border-slate-600 rounded">{code}</p>)}
@@ -866,7 +1166,7 @@ export default function ProfilePage() {
                 }`}>
                     <LuTriangleAlert size={32} className={showDisable2FAModal ? 'text-red-500' : 'text-amber-500'}/>
                 </div>
-                <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+                <h2 className="text-xl font-semibold text-slate-800 ">
                     {showDisable2FAModal && "Disable 2FA?"}
                     {showRegenerateCodesModal && "Regenerate Codes?"}
                     {showResetAuthenticatorModal && "Reset Authenticator?"}
@@ -889,6 +1189,116 @@ export default function ProfilePage() {
                     </button>
                  </div>
             </div>
+      </Modal>
+
+      {/* Notification Permission Modal */}
+      <Modal isOpen={showNotificationPermissionModal} onClose={handleDenyNotificationPermission}>
+        <div className="p-6 text-center">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
+            notificationPermissionError ? 'bg-red-100 dark:bg-red-900/30' : 'bg-teal-100 dark:bg-teal-900/30'
+          }`}>
+            {notificationPermissionError ? (
+              <LuTriangleAlert size={32} className="text-red-600 dark:text-red-400"/>
+            ) : (
+              <LuBell size={32} className="text-teal-600 dark:text-teal-400"/>
+            )}
+          </div>
+          <h2 className="text-xl font-semibold text-slate-800  mb-2">
+            {notificationPermissionError ? 'Permission Error' : 'Enable Notifications'}
+          </h2>
+          
+          {notificationPermissionError ? (
+            <>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3 text-left">
+                  <LuTriangleAlert size={20} className="text-red-600 flex-shrink-0 mt-0.5"/>
+                  <div className="text-sm text-red-700 ">
+                    <p className="font-medium mb-1">Unable to Enable Notifications</p>
+                    <p>{notificationPermissionError}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-4 text-left">
+                <p className="font-medium text-black dark:text-white mb-2 text-sm">How to fix this:</p>
+                <div className="space-y-3 text-sm text-black dark:text-slate-300">
+                  <div>
+                    <p className="font-medium text-black dark:text-white mb-1">Option 1: Via Address Bar (Quickest)</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-2 text-black dark:text-slate-300">
+                      <li>Look for the lock icon <LuShield className="inline" size={14}/> or site info icon in your browser's address bar</li>
+                      <li>Click on it to open the permissions menu</li>
+                      <li>Find "Notifications" in the list</li>
+                      <li>Change it from "Block" to "Allow"</li>
+                      <li>Close this modal and try again (no refresh needed)</li>
+                    </ol>
+                  </div>
+                  <div className="border-t dark:border-slate-600 pt-3">
+                    <p className="font-medium text-black dark:text-white mb-1">Option 2: Via Browser Settings</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-2 text-black dark:text-slate-300">
+                      <li>Open your browser settings</li>
+                      <li>Search for "notifications" or "site settings"</li>
+                      <li>Find this website in the blocked list</li>
+                      <li>Change permission to "Allow"</li>
+                      <li>Return here and try again</li>
+                    </ol>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2 mt-2">
+                    <div className="flex items-start gap-2">
+                      <LuInfo size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"/>
+                      <p className="text-xs text-amber-900 dark:text-amber-300">
+                        <strong>Note:</strong> Once you've changed the permission, you don't need to refresh the page. Just close this modal and toggle the notification setting again.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={handleDenyNotificationPermission} 
+                className="btn-primary w-full"
+              >
+                I've Updated the Settings - Close
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                To receive {pendingNotificationToggle?.key === 'desktopNotifications' ? 'desktop' : 'chat'} notifications, 
+                you need to allow notifications in your browser.
+              </p>
+              <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3 text-left">
+                  <LuInfo size={20} className=" mt-0.5"/>
+                  <div className="text-sm text-slate-600 dark:text-slate-400">
+                    <p className="font-medium mb-1">What happens next?</p>
+                    <p>Your browser will ask for permission to show notifications. Click "Allow" to enable notifications for this site.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={handleDenyNotificationPermission} 
+                  className="btn-secondary flex-1"
+                  disabled={isRequestingPermission}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleApproveNotificationPermission} 
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  disabled={isRequestingPermission}
+                >
+                  {isRequestingPermission ? (
+                    <>
+                      <LuLoader className="animate-spin" size={16}/>
+                      Processing...
+                    </>
+                  ) : (
+                    'Continue'
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
 
     </div>

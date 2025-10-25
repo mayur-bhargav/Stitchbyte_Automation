@@ -14,6 +14,217 @@ interface NodeEditorProps {
   onClose: () => void;
 }
 
+// Integration event definitions
+const getIntegrationEvents = (integrationId: string): { value: string; label: string }[] => {
+  const eventMap: Record<string, { value: string; label: string }[]> = {
+    // E-commerce platforms
+    shopify: [
+      { value: 'order_created', label: 'Order Created' },
+      { value: 'order_updated', label: 'Order Updated' },
+      { value: 'order_cancelled', label: 'Order Cancelled' },
+      { value: 'order_fulfilled', label: 'Order Fulfilled' },
+      { value: 'product_created', label: 'Product Created' },
+      { value: 'product_updated', label: 'Product Updated' },
+      { value: 'customer_created', label: 'Customer Created' },
+      { value: 'cart_abandoned', label: 'Cart Abandoned' }
+    ],
+    woocommerce: [
+      { value: 'order_completed', label: 'Order Completed' },
+      { value: 'order_processing', label: 'Order Processing' },
+      { value: 'order_failed', label: 'Order Failed' },
+      { value: 'order_cancelled', label: 'Order Cancelled' },
+      { value: 'product_purchased', label: 'Product Purchased' },
+      { value: 'cart_abandoned', label: 'Cart Abandoned' },
+      { value: 'payment_received', label: 'Payment Received' },
+      { value: 'customer_registered', label: 'Customer Registered' }
+    ],
+    magento: [
+      { value: 'order_placed', label: 'Order Placed' },
+      { value: 'order_updated', label: 'Order Updated' },
+      { value: 'shipment_created', label: 'Shipment Created' },
+      { value: 'invoice_generated', label: 'Invoice Generated' },
+      { value: 'customer_registered', label: 'Customer Registered' },
+      { value: 'product_created', label: 'Product Created' }
+    ],
+    bigcommerce: [
+      { value: 'order_created', label: 'Order Created' },
+      { value: 'order_updated', label: 'Order Updated' },
+      { value: 'order_shipped', label: 'Order Shipped' },
+      { value: 'customer_created', label: 'Customer Created' },
+      { value: 'product_updated', label: 'Product Updated' }
+    ],
+    
+    // CRM platforms
+    salesforce: [
+      { value: 'lead_created', label: 'Lead Created' },
+      { value: 'lead_updated', label: 'Lead Updated' },
+      { value: 'opportunity_created', label: 'Opportunity Created' },
+      { value: 'contact_created', label: 'Contact Created' },
+      { value: 'deal_closed', label: 'Deal Closed' }
+    ],
+    hubspot: [
+      { value: 'contact_created', label: 'Contact Created' },
+      { value: 'deal_created', label: 'Deal Created' },
+      { value: 'deal_won', label: 'Deal Won' },
+      { value: 'contact_updated', label: 'Contact Updated' },
+      { value: 'form_submitted', label: 'Form Submitted' }
+    ],
+    pipedrive: [
+      { value: 'deal_created', label: 'Deal Created' },
+      { value: 'deal_won', label: 'Deal Won' },
+      { value: 'deal_lost', label: 'Deal Lost' },
+      { value: 'person_created', label: 'Person Created' },
+      { value: 'activity_scheduled', label: 'Activity Scheduled' }
+    ],
+    zoho: [
+      { value: 'lead_created', label: 'Lead Created' },
+      { value: 'contact_created', label: 'Contact Created' },
+      { value: 'deal_created', label: 'Deal Created' },
+      { value: 'deal_closed', label: 'Deal Closed' }
+    ],
+    
+    // Productivity platforms
+    notion: [
+      { value: 'page_created', label: 'Page Created' },
+      { value: 'page_updated', label: 'Page Updated' },
+      { value: 'database_item_created', label: 'Database Item Created' },
+      { value: 'database_item_updated', label: 'Database Item Updated' }
+    ],
+    sheets: [
+      { value: 'row_added', label: 'Row Added' },
+      { value: 'row_updated', label: 'Row Updated' },
+      { value: 'row_deleted', label: 'Row Deleted' },
+      { value: 'spreadsheet_modified', label: 'Spreadsheet Modified' }
+    ],
+    excel: [
+      { value: 'file_modified', label: 'File Modified' },
+      { value: 'row_inserted', label: 'Row Inserted' },
+      { value: 'row_updated', label: 'Row Updated' },
+      { value: 'worksheet_added', label: 'Worksheet Added' }
+    ],
+    airtable: [
+      { value: 'record_created', label: 'Record Created' },
+      { value: 'record_updated', label: 'Record Updated' },
+      { value: 'record_deleted', label: 'Record Deleted' }
+    ],
+    
+    // Payment platforms
+    stripe: [
+      { value: 'payment_received', label: 'Payment Received' },
+      { value: 'payment_failed', label: 'Payment Failed' },
+      { value: 'subscription_created', label: 'Subscription Created' },
+      { value: 'subscription_cancelled', label: 'Subscription Cancelled' },
+      { value: 'invoice_paid', label: 'Invoice Paid' },
+      { value: 'refund_processed', label: 'Refund Processed' }
+    ],
+    paypal: [
+      { value: 'payment_completed', label: 'Payment Completed' },
+      { value: 'payment_pending', label: 'Payment Pending' },
+      { value: 'payment_refunded', label: 'Payment Refunded' },
+      { value: 'subscription_created', label: 'Subscription Created' }
+    ],
+    razorpay: [
+      { value: 'payment_captured', label: 'Payment Captured' },
+      { value: 'payment_failed', label: 'Payment Failed' },
+      { value: 'order_paid', label: 'Order Paid' },
+      { value: 'refund_processed', label: 'Refund Processed' }
+    ],
+    
+    // Marketing platforms
+    mailchimp: [
+      { value: 'subscriber_added', label: 'Subscriber Added' },
+      { value: 'subscriber_updated', label: 'Subscriber Updated' },
+      { value: 'campaign_sent', label: 'Campaign Sent' },
+      { value: 'unsubscribed', label: 'Unsubscribed' }
+    ],
+    klaviyo: [
+      { value: 'profile_created', label: 'Profile Created' },
+      { value: 'email_opened', label: 'Email Opened' },
+      { value: 'email_clicked', label: 'Email Clicked' },
+      { value: 'subscribed', label: 'Subscribed' }
+    ],
+    'facebook-ads': [
+      { value: 'lead_generated', label: 'Lead Generated' },
+      { value: 'form_submitted', label: 'Form Submitted' },
+      { value: 'ad_clicked', label: 'Ad Clicked' }
+    ],
+    'google-ads': [
+      { value: 'conversion_tracked', label: 'Conversion Tracked' },
+      { value: 'lead_generated', label: 'Lead Generated' },
+      { value: 'form_submitted', label: 'Form Submitted' }
+    ],
+    
+    // Support platforms
+    zendesk: [
+      { value: 'ticket_created', label: 'Ticket Created' },
+      { value: 'ticket_updated', label: 'Ticket Updated' },
+      { value: 'ticket_solved', label: 'Ticket Solved' },
+      { value: 'ticket_closed', label: 'Ticket Closed' }
+    ],
+    freshdesk: [
+      { value: 'ticket_created', label: 'Ticket Created' },
+      { value: 'ticket_updated', label: 'Ticket Updated' },
+      { value: 'ticket_resolved', label: 'Ticket Resolved' }
+    ],
+    intercom: [
+      { value: 'conversation_started', label: 'Conversation Started' },
+      { value: 'conversation_closed', label: 'Conversation Closed' },
+      { value: 'user_created', label: 'User Created' },
+      { value: 'user_tagged', label: 'User Tagged' }
+    ]
+  };
+
+  return eventMap[integrationId] || [];
+};
+
+// Get event descriptions
+const getEventDescription = (integrationId: string, eventValue: string): string => {
+  const descriptions: Record<string, Record<string, string>> = {
+    shopify: {
+      order_created: 'Triggers when a new order is placed in your Shopify store',
+      order_updated: 'Triggers when an existing order is modified',
+      order_cancelled: 'Triggers when an order is cancelled',
+      order_fulfilled: 'Triggers when an order is fulfilled and shipped',
+      product_created: 'Triggers when a new product is added',
+      product_updated: 'Triggers when product details are modified',
+      customer_created: 'Triggers when a new customer account is created',
+      cart_abandoned: 'Triggers when a customer abandons their shopping cart'
+    },
+    woocommerce: {
+      order_completed: 'Triggers when an order is marked as completed',
+      order_processing: 'Triggers when an order status changes to processing',
+      order_failed: 'Triggers when an order payment fails',
+      order_cancelled: 'Triggers when a customer or admin cancels an order',
+      product_purchased: 'Triggers when a specific product is purchased',
+      cart_abandoned: 'Triggers when cart is abandoned for specified time',
+      payment_received: 'Triggers when payment is successfully processed',
+      customer_registered: 'Triggers when a new customer registers'
+    },
+    notion: {
+      page_created: 'Triggers when a new page is created in your workspace',
+      page_updated: 'Triggers when an existing page is edited',
+      database_item_created: 'Triggers when a new item is added to a database',
+      database_item_updated: 'Triggers when a database item is modified'
+    },
+    sheets: {
+      row_added: 'Triggers when a new row is added to the spreadsheet',
+      row_updated: 'Triggers when an existing row is modified',
+      row_deleted: 'Triggers when a row is deleted',
+      spreadsheet_modified: 'Triggers on any change to the spreadsheet'
+    },
+    stripe: {
+      payment_received: 'Triggers when a payment is successfully received',
+      payment_failed: 'Triggers when a payment attempt fails',
+      subscription_created: 'Triggers when a new subscription is created',
+      subscription_cancelled: 'Triggers when a subscription is cancelled',
+      invoice_paid: 'Triggers when an invoice is paid',
+      refund_processed: 'Triggers when a refund is processed'
+    }
+  };
+
+  return descriptions[integrationId]?.[eventValue] || 'Triggers when this event occurs in the integration';
+};
+
 const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose }) => {
   const [nodeData, setNodeData] = useState(node.data);
   const [errors, setErrors] = useState<string[]>([]);
@@ -75,6 +286,14 @@ const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose }) => {
       case 'trigger':
         if (nodeData.triggerType === 'keyword' && (!nodeData.keywords || nodeData.keywords.length === 0)) {
           errors.push('At least one keyword is required');
+        }
+        if (nodeData.triggerType === 'integration') {
+          if (!nodeData.integrationId) {
+            errors.push('Integration platform is required');
+          }
+          if (!nodeData.integrationEvent) {
+            errors.push('Trigger event is required');
+          }
         }
         break;
     }
@@ -143,8 +362,113 @@ const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose }) => {
                 <option value="welcome_message">Welcome Message</option>
                 <option value="postback">Postback</option>
                 <option value="schedule">Schedule</option>
+                <option value="integration">Integration Event</option>
               </select>
             </div>
+
+            {nodeData.triggerType === 'integration' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Integration Platform
+                  </label>
+                  <select
+                    value={nodeData.integrationId || ''}
+                    onChange={(e) => {
+                      const selectedOption = e.target.options[e.target.selectedIndex];
+                      updateField('integrationId', e.target.value);
+                      updateField('integrationName', selectedOption.text);
+                      updateField('integrationEvent', ''); // Reset event when platform changes
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select Integration</option>
+                    
+                    {/* E-commerce */}
+                    <optgroup label="E-commerce">
+                      <option value="shopify">Shopify</option>
+                      <option value="woocommerce">WooCommerce</option>
+                      <option value="magento">Magento</option>
+                      <option value="bigcommerce">BigCommerce</option>
+                    </optgroup>
+                    
+                    {/* CRM */}
+                    <optgroup label="CRM">
+                      <option value="salesforce">Salesforce</option>
+                      <option value="hubspot">HubSpot</option>
+                      <option value="pipedrive">Pipedrive</option>
+                      <option value="zoho">Zoho CRM</option>
+                    </optgroup>
+                    
+                    {/* Productivity */}
+                    <optgroup label="Productivity">
+                      <option value="notion">Notion</option>
+                      <option value="sheets">Google Sheets</option>
+                      <option value="excel">Excel</option>
+                      <option value="airtable">Airtable</option>
+                    </optgroup>
+                    
+                    {/* Payment */}
+                    <optgroup label="Payment">
+                      <option value="stripe">Stripe</option>
+                      <option value="paypal">PayPal</option>
+                      <option value="razorpay">Razorpay</option>
+                    </optgroup>
+                    
+                    {/* Marketing */}
+                    <optgroup label="Marketing">
+                      <option value="mailchimp">Mailchimp</option>
+                      <option value="klaviyo">Klaviyo</option>
+                      <option value="facebook-ads">Facebook Ads</option>
+                      <option value="google-ads">Google Ads</option>
+                    </optgroup>
+                    
+                    {/* Support */}
+                    <optgroup label="Support">
+                      <option value="zendesk">Zendesk</option>
+                      <option value="freshdesk">Freshdesk</option>
+                      <option value="intercom">Intercom</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                {nodeData.integrationId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Trigger Event
+                    </label>
+                    <select
+                      value={nodeData.integrationEvent || ''}
+                      onChange={(e) => {
+                        const selectedOption = e.target.options[e.target.selectedIndex];
+                        updateField('integrationEvent', e.target.value);
+                        updateField('integrationEventLabel', selectedOption.text);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Select Event</option>
+                      {getIntegrationEvents(nodeData.integrationId).map((event) => (
+                        <option key={event.value} value={event.value}>
+                          {event.label}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {nodeData.integrationEvent && (
+                      <p className="mt-2 text-sm text-gray-500">
+                        {getEventDescription(nodeData.integrationId, nodeData.integrationEvent)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> Make sure the integration is connected in the Integrations Marketplace before using this trigger.
+                  </p>
+                </div>
+              </>
+            )}
 
             {nodeData.triggerType === 'keyword' && (
               <div>
@@ -576,6 +900,10 @@ function getNodeTypeLabel(type: string): string {
 function getNodeLabel(type: string, data: any): string {
   switch (type) {
     case 'trigger':
+      if (data.triggerType === 'integration' && data.integrationName) {
+        const eventLabel = data.integrationEventLabel || data.integrationEvent || 'event';
+        return `Trigger: ${data.integrationName} - ${eventLabel}`;
+      }
       if (data.triggerType === 'keyword' && data.keywords?.length > 0) {
         return `Trigger: ${data.keywords.slice(0, 2).join(', ')}${data.keywords.length > 2 ? '...' : ''}`;
       }

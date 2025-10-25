@@ -5,6 +5,7 @@
 'use client';
 
 import React from 'react';
+import { Handle, Position } from 'reactflow';
 
 interface ConditionNodeProps {
   data: {
@@ -106,21 +107,28 @@ const ConditionNode: React.FC<ConditionNodeProps> = ({ data, id }) => {
       </div>
 
       {/* Connection handles */}
-      <div 
-        className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-yellow-500 border-2 border-white rounded-full"
-        style={{ pointerEvents: 'all' }}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="condition-input"
+        className="w-6 h-6 bg-yellow-500 border-2 border-white"
+        style={{ top: -12 }}
       />
       {/* TRUE path - right side */}
-      <div 
-        className="absolute -bottom-2 left-1/4 transform -translate-x-1/2 w-4 h-4 bg-green-500 border-2 border-white rounded-full"
-        style={{ pointerEvents: 'all' }}
-        title="TRUE path"
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="condition-true"
+        className="w-6 h-6 bg-green-500 border-2 border-white"
+        style={{ bottom: -12, left: '25%' }}
       />
       {/* FALSE path - left side */}
-      <div 
-        className="absolute -bottom-2 right-1/4 transform translate-x-1/2 w-4 h-4 bg-red-500 border-2 border-white rounded-full"
-        style={{ pointerEvents: 'all' }}
-        title="FALSE path"
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="condition-false"
+        className="w-6 h-6 bg-red-500 border-2 border-white"
+        style={{ bottom: -12, left: '75%' }}
       />
     </div>
   );

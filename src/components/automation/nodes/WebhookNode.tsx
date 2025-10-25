@@ -5,6 +5,7 @@
 'use client';
 
 import React from 'react';
+import { Handle, Position } from 'reactflow';
 
 interface WebhookNodeProps {
   data: {
@@ -98,8 +99,21 @@ const WebhookNode: React.FC<WebhookNodeProps> = ({ data, id }) => {
         </div>
       </div>
       
-      {/* Connection handle */}
-      <div className="absolute w-3 h-3 bg-orange-500 border-2 border-white rounded-full -right-1.5 top-1/2 transform -translate-y-1/2"></div>
+      {/* Connection handles */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="webhook-input"
+        className="w-6 h-6 bg-orange-500 border-2 border-white"
+        style={{ top: -12 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="webhook-output"
+        className="w-6 h-6 bg-orange-500 border-2 border-white"
+        style={{ bottom: -12 }}
+      />
     </div>
   );
 };

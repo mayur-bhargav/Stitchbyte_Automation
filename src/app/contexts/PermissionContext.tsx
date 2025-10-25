@@ -39,22 +39,33 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     try {
       setLoading(true);
       
-      console.log("🔍 PermissionContext: User data:", {
-        isTeamMember: user.isTeamMember,
-        role: user.role,
-        permissions: user.permissions
-      });
+      // If user has a role already set (from login), use it immediately
+      if (user.role) {
+        setUserRole(user.role);
+        
+        // If it's owner or admin, give full permissions immediately
+        if (user.role === 'owner' || user.role === 'admin') {
+          setPermissions([
+            'view_dashboard', 'manage_team', 'manage_campaigns', 'send_messages',
+            'manage_broadcasts', 'view_analytics', 'manage_settings', 'manage_billing',
+            'export_data', 'manage_templates', 'manage_contacts', 'view_logs',
+            'manage_webhooks', 'manage_integrations', 'approve_campaigns',
+            'approve_messages', 'approve_broadcasts', 'manage_roles', 'delete_campaigns',
+            'manage_automations', 'access_api', 'manage_segments', 'view_reports',
+            'manage_notifications'
+          ]);
+          setLoading(false);
+          return;
+        }
+      }
       
       // If user is a team member and already has permissions in their user data, use those
       if (user.isTeamMember && user.permissions && user.permissions.length > 0) {
-        console.log("✅ Using permissions from user context:", user.permissions);
         setUserRole(user.role || 'employee');
         setPermissions(user.permissions);
         setLoading(false);
         return;
       }
-      
-      console.log("🔄 Fetching permissions from API...");
       
       // Otherwise, try to fetch from API endpoints
       const [roleResponse, permissionsResponse] = await Promise.all([
@@ -63,12 +74,10 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       ]);
       
       if (roleResponse && permissionsResponse) {
-        console.log("✅ Got permissions from API:", permissionsResponse);
         setUserRole(roleResponse.role);
         setPermissions(permissionsResponse || []);
       } else {
         // If user is not found in team members, assume they are the main account owner
-        console.log("✅ Setting owner permissions as fallback");
         setUserRole('owner');
         setPermissions([
           'view_dashboard', 'manage_team', 'manage_campaigns', 'send_messages',
@@ -109,14 +118,26 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   }, [user?.id]);
 
   const hasPermission = (permission: string): boolean => {
+    // Owner and admin roles have all permissions
+    if (userRole === 'owner' || userRole === 'admin') {
+      return true;
+    }
     return permissions.includes(permission);
   };
 
   const hasAnyPermission = (requiredPermissions: string[]): boolean => {
+    // Owner and admin roles have all permissions
+    if (userRole === 'owner' || userRole === 'admin') {
+      return true;
+    }
     return requiredPermissions.some(permission => permissions.includes(permission));
   };
 
   const hasAllPermissions = (requiredPermissions: string[]): boolean => {
+    // Owner and admin roles have all permissions
+    if (userRole === 'owner' || userRole === 'admin') {
+      return true;
+    }
     return requiredPermissions.every(permission => permissions.includes(permission));
   };
 

@@ -6,6 +6,7 @@ import { usePermissions } from '../contexts/PermissionContext';
 import { ApprovalWrapper } from '../components/ApprovalWrapper';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { apiService } from '../services/apiService';
+import { getApiBaseUrl } from '../config/backend';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -181,7 +182,7 @@ function BroadcastsPage() {
 
   const deleteBroadcast = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/broadcasts/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/broadcasts/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -194,7 +195,7 @@ function BroadcastsPage() {
 
   const sendBroadcast = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/broadcasts/${id}/send`, {
+      const response = await fetch(`${getApiBaseUrl()}/broadcasts/${id}/send`, {
         method: 'POST'
       });
       if (response.ok) {
