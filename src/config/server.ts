@@ -9,7 +9,7 @@
  */
 
 // Get the server URI from environment variable or use default
-export const SERVER_URI = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+export const SERVER_URI = 'https://automationwhats.stitchbyte.in';
 
 // Export as default for convenience
 export default SERVER_URI;
