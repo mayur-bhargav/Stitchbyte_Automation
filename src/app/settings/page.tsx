@@ -26,10 +26,11 @@ interface WhatsAppConnection {
   phoneNumberId: string;
 }
 
-const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || '1717883002200842';
-const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'https://sutomation.stitchbyte.in/auth/whatsapp-callback';
-const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management,pages_manage_metadata';
-const STATE = 'secure_random_state_123';
+// Hardcoded OAuth configuration - working setup with setup_type=seamless
+const META_APP_ID = '1717883002200842';
+const REDIRECT_URI = 'https://automationwhats.stitchbyte.in/api/auth/meta/callback';
+const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
+const STATE = 'stitchbyte_csrf_token';
 
 // Embedded Signup extras parameter
 // This function creates the extras with user's phone number
@@ -263,6 +264,7 @@ export default function SettingsPage() {
     setError("");
 
     try {
+        // Cleanup old config if reconnecting
         if (isReconnect) {
             try {
                 await apiService.deleteWhatsAppConfig();
@@ -271,22 +273,31 @@ export default function SettingsPage() {
             }
         }
         
-        const stateData = { csrf: STATE, userId: user.id, companyId: user.companyId, email: user.email, reconnect: isReconnect };
+        // Create state with user info
+        const stateData = { 
+          csrf: STATE, 
+          userId: user.id, 
+          companyId: user.companyId, 
+          email: user.email, 
+          reconnect: isReconnect 
+        };
         const encodedState = btoa(JSON.stringify(stateData));
         
-        try {
-            const response: any = await apiService.getMetaOAuthUrl();
-            if (response?.oauth_url) {
-                window.location.href = response.oauth_url;
-                return;
-            }
-        } catch (backendError) {
-            console.warn('Backend OAuth URL failed, falling back to direct URL:', backendError);
-        }
-
-        // Fallback: Use WhatsApp Embedded Signup with setup_type=seamless
+        // Create extras with business and phone setup
         const embeddedExtras = createEmbeddedSignupExtras(user.email, undefined);
-        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&display=popup&setup_type=seamless&extras=${embeddedExtras}`;
+        
+        // Hardcoded working OAuth URL with setup_type=seamless
+        const metaLoginUrl = 
+          `https://www.facebook.com/v19.0/dialog/oauth?` +
+          `client_id=${META_APP_ID}&` +
+          `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+          `scope=${SCOPE}&` +
+          `response_type=code&` +
+          `state=${encodedState}&` +
+          `display=popup&` +
+          `setup_type=seamless&` +
+          `extras=${embeddedExtras}`;
+        
         window.location.href = metaLoginUrl;
 
     } catch (error) {
