@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { 
   MdSearch, 
   MdFilterList, 
@@ -21,6 +21,9 @@ import {
   MdClear,
   MdCalendarToday
 } from "react-icons/md";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 interface LogEntry {
   _id?: string;
@@ -48,7 +51,7 @@ interface FilterState {
   messageType: 'all' | 'text' | 'template' | 'media';
 }
 
-export default function LogsPage() {
+function LogsPageContent() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -1051,7 +1054,7 @@ export default function LogsPage() {
               </div>
             </div>
             
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+                        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setDeleteModal(null)}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -1069,5 +1072,20 @@ export default function LogsPage() {
         </div>
       )}
     </section>
+  );
+}
+
+export default function LogsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading logs...</p>
+        </div>
+      </div>
+    }>
+      <LogsPageContent />
+    </Suspense>
   );
 }

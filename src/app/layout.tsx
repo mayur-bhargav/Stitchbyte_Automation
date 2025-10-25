@@ -8,6 +8,10 @@ import { ChatProvider } from "./contexts/ChatContext";
 import { PermissionProvider } from "./contexts/PermissionContext";
 import SubscriptionGuard from "./components/SubscriptionGuard";
 
+// Force dynamic rendering for all pages
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
