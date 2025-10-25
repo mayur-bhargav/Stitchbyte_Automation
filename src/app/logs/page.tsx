@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useState, useEffect, useRef } from "react";
+import { SERVER_URI } from "@/config/server";
 import { 
   MdSearch, 
   MdFilterList, 
@@ -98,7 +99,7 @@ function LogsPageContent() {
   const fetchLogs = async () => {
     setLogsLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/logs");
+      const res = await fetch(`${SERVER_URI}/logs`);
       if (!res.ok) throw new Error('Failed to fetch logs');
       const data = await res.json();
       const logsData = data.logs || [];
@@ -316,7 +317,7 @@ function LogsPageContent() {
     setReplyError("");
     try {
       // Send as a simple text message
-      const res = await fetch("http://localhost:8000/send-message", {
+      const res = await fetch(`${SERVER_URI}/send-message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

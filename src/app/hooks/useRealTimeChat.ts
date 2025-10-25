@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useCallback, useRef } from 'react';
 import { useChatContext } from '../contexts/ChatContext';
+import { SERVER_URI } from '@/config/server';
 
 type Contact = {
   phone: string;
@@ -80,7 +81,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
       if (!token) return;
 
       // Fetch current contacts with message counts
-      const response = await fetch('http://localhost:8000/chat/contacts', {
+      const response = await fetch(`${SERVER_URI}/chat/contacts`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -127,7 +128,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
               // Fetch the latest message for this contact to check direction
               const checkMessageDirection = async () => {
                 try {
-                  const messageResponse = await fetch(`http://localhost:8000/chat/messages/${encodeURIComponent(currentContact.phone)}`, {
+                  const messageResponse = await fetch(`${SERVER_URI}/chat/messages/${encodeURIComponent(currentContact.phone)}`, {
                     headers: {
                       'Authorization': `Bearer ${token}`,
                       'Content-Type': 'application/json'
@@ -184,7 +185,7 @@ export const useRealTimeChat = (options: UseRealTimeChatOptions = {}) => {
 
             const checkNewContactMessage = async () => {
               try {
-                const messageResponse = await fetch(`http://localhost:8000/chat/messages/${encodeURIComponent(currentContact.phone)}`, {
+                const messageResponse = await fetch(`${SERVER_URI}/chat/messages/${encodeURIComponent(currentContact.phone)}`, {
                   headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

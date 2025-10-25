@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { SERVER_URI } from "@/config/server";
 import { 
   MdArrowBack, 
   MdMonitor,
@@ -85,7 +86,7 @@ export default function StatusPage() {
       setLoading(true);
       
       // Fetch health data
-      const healthResponse = await fetch('http://localhost:8000/health');
+      const healthResponse = await fetch(`${SERVER_URI}/health`);
       if (healthResponse.ok) {
         const healthData = await healthResponse.json();
         setHealthData(healthData);
@@ -143,7 +144,7 @@ export default function StatusPage() {
       
       // Try to fetch additional system status if available
       try {
-        const response = await fetch('http://localhost:8000/system-status');
+        const response = await fetch(`${SERVER_URI}/system-status`);
         const data = await response.json();
         
         // Update services from API data if available (this will override health services)
@@ -206,8 +207,8 @@ export default function StatusPage() {
   const fetchRecentEvents = async (filterType: string = 'all') => {
     try {
       const endpoint = filterType === 'all' 
-        ? 'http://localhost:8000/status/recent-events' 
-        : `http://localhost:8000/status/recent-events/${filterType}`;
+        ? `${SERVER_URI}/status/recent-events` 
+        : `${SERVER_URI}/status/recent-events/${filterType}`;
       
       // console.log('Fetching events from:', endpoint);
       const response = await fetch(endpoint);

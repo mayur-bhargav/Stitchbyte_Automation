@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useRouter } from "next/navigation";
+import { SERVER_URI } from "@/config/server";
 
 // Type definitions
 interface Button {
@@ -219,7 +220,7 @@ export default function CreateTemplatePage() {
     }
     
     try {
-      const res = await fetch("http://localhost:8000/submit-template-with-file", {
+      const res = await fetch(`${SERVER_URI}/submit-template-with-file`, {
         method: "POST",
         body: formData, // Browser automatically sets Content-Type with boundary for FormData
       });

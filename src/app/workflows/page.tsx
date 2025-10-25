@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { apiService } from "../services/apiService";
 import CreateWorkflowModal from "./CreateWorkflowModal";
+import { SERVER_URI } from "@/config/server";
 
 type Workflow = {
   _id: string;
@@ -54,7 +55,7 @@ export default function WorkflowsPage() {
       const workflow = workflows.find(w => w._id === workflowId);
       if (!workflow) return;
 
-      const response = await fetch(`http://localhost:8000/workflows/${workflowId}`, {
+      const response = await fetch(`${SERVER_URI}/workflows/${workflowId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

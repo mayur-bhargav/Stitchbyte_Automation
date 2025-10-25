@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SERVER_URI } from "@/config/server";
 
 type Automation = {
   _id: string;
@@ -33,7 +34,7 @@ export default function CreateTriggerModal({ automations, onClose, onSuccess }: 
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/triggers", {
+      const response = await fetch(`${SERVER_URI}/triggers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

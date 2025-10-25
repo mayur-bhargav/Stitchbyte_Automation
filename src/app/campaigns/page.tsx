@@ -27,6 +27,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import { useUser } from '../contexts/UserContext';
 import { apiService } from '../services/apiService';
 import SegmentModal from '../../components/campaigns/SegmentModal';
+import { SERVER_URI } from '@/config/server';
 
 // Types
 interface Segment {
@@ -955,7 +956,7 @@ export default function CampaignsPage() {
       const token = localStorage.getItem('token');
       
       // Use Campaign Execution Engine API endpoint
-      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/start`, {
+      const response = await fetch(`${SERVER_URI}/campaigns/${campaignId}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -997,7 +998,7 @@ export default function CampaignsPage() {
           const token = localStorage.getItem('token');
           
           // Use Campaign Execution Engine API endpoint
-          const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/stop`, {
+          const response = await fetch(`${SERVER_URI}/campaigns/${campaignId}/stop`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1036,7 +1037,7 @@ export default function CampaignsPage() {
       const token = localStorage.getItem('token');
       
       // Use Campaign Execution Engine API endpoint
-      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/stop`, {
+      const response = await fetch(`${SERVER_URI}/campaigns/${campaignId}/stop`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1068,7 +1069,7 @@ export default function CampaignsPage() {
       const token = localStorage.getItem('token');
       
       // Use Campaign Execution Engine API endpoint
-      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/start`, {
+      const response = await fetch(`${SERVER_URI}/campaigns/${campaignId}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1101,7 +1102,7 @@ export default function CampaignsPage() {
       const token = localStorage.getItem('token');
       
       // Use Campaign Execution Engine status API endpoint
-      const response = await fetch(`http://localhost:8000/campaigns/${campaignId}/status`, {
+      const response = await fetch(`${SERVER_URI}/campaigns/${campaignId}/status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

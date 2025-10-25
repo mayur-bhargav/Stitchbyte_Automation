@@ -4,6 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useChatContext } from "../../contexts/ChatContext";
 import { useRealTimeChat } from "../../hooks/useRealTimeChat";
 import { motion, AnimatePresence } from "framer-motion";
+import { SERVER_URI } from "@/config/server";
 
 // Helper components for better code structure
 // (These are defined below the main component)
@@ -57,10 +58,10 @@ export default function ChatConversation() {
   const loadMessages = useCallback(async () => {
     // This logic remains the same
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/chat/messages/${encodeURIComponent(phone)}`, {
+      const response = await fetch(`${SERVER_URI}/chat/messages/${encodeURIComponent(phone)}`, {
         headers: {
-          ...(token && { Authorization: `Bearer ${token}` })
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
       });
       const data = await response.json();
@@ -74,7 +75,7 @@ export default function ChatConversation() {
     // This logic remains the same
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/chat/contact/${encodeURIComponent(phone)}`, {
+      const response = await fetch(`${SERVER_URI}/chat/contact/${encodeURIComponent(phone)}`, {
         headers: {
           ...(token && { Authorization: `Bearer ${token}` })
         }
@@ -145,7 +146,7 @@ export default function ChatConversation() {
     if (!newMessage.trim() && !mediaFile) return;
     setSending(true);
 
-    const endpoint = mediaFile ? "http://localhost:8000/chat/send-media" : "http://localhost:8000/chat/send-text";
+    const endpoint = mediaFile ? `${SERVER_URI}/chat/send-media` : `${SERVER_URI}/chat/send-text`;
     let body: any;
     const headers: any = {};
     const token = localStorage.getItem('token');
