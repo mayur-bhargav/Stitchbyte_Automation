@@ -32,29 +32,58 @@ const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business
 const STATE = 'secure_random_state_123';
 // WhatsApp Embedded Signup Configuration ID
 const CONFIG_ID = '714413008094076';
-// Embedded Signup extras parameter like AiSensy - complete business setup
-// action=create forces the "Add new number" flow
-const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent(JSON.stringify({
-  sessionInfoVersion: "3",
-  feature: "whatsapp_embedded_signup",
-  features: [
-    { name: "marketing_messages_lite" },
-    { name: "will_be_partner_certified" }
-  ],
-  setup: {
-    action: "create",
-    business: {
-      isWebsiteRequired: false,
-      name: "Stitchbyte",
-      timezone: "UTC+05:30"
-    },
-    phone: {
-      displayName: "Stitchbyte",
-      category: "",
-      description: ""
+// Embedded Signup extras parameter - EXACT AiSensy replica
+// This function creates the extras with user's phone number
+const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
+  // Parse phone number for business.phone object
+  let phoneCode = 91; // Default to India
+  let phoneNumber = "";
+  
+  if (userPhone) {
+    // Remove any + or spaces
+    const cleanPhone = userPhone.replace(/[\s\-\+]/g, "");
+    // If starts with country code, extract it
+    if (cleanPhone.startsWith("91") && cleanPhone.length > 10) {
+      phoneCode = 91;
+      phoneNumber = cleanPhone; // Full number with country code
+    } else {
+      phoneNumber = `${phoneCode}${cleanPhone}`;
     }
   }
-}));
+  
+  return encodeURIComponent(JSON.stringify({
+    sessionInfoVersion: "3",
+    feature: "whatsapp_embedded_signup",
+    features: [
+      { name: "marketing_messages_lite" },
+      { name: "will_be_partner_certified" }
+    ],
+    setup: {
+      business: {
+        isWebsiteRequired: false,
+        name: "Stitchbyte",
+        email: userEmail,
+        phone: {
+          code: phoneCode,
+          number: phoneNumber
+        },
+        address: {
+          streetAddress1: "",
+          city: "",
+          state: "",
+          zipPostal: "",
+          country: ""
+        },
+        timezone: "UTC+05:30"
+      },
+      phone: {
+        displayName: "Stitchbyte",
+        category: "",
+        description: ""
+      }
+    }
+  }));
+};
 
 // ============================================================================
 // Reusable UI Components
@@ -249,8 +278,9 @@ export default function SettingsPage() {
             console.warn('Backend OAuth URL failed, falling back to direct URL:', backendError);
         }
 
-        // Fallback: Use AiSensy-style embedded signup with complete business setup and config_id
-        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&config_id=${CONFIG_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&display=popup&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
+        // Fallback: Use AiSensy-style embedded signup with user's phone and email
+        const embeddedExtras = createEmbeddedSignupExtras(user.email, user.phone);
+        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&config_id=${CONFIG_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&display=popup&extras=${embeddedExtras}`;
         window.location.href = metaLoginUrl;
 
     } catch (error) {
