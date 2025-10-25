@@ -26,8 +26,9 @@ interface WhatsAppConnection {
   phoneNumberId: string;
 }
 
-// Hardcoded OAuth configuration - working setup with setup_type=seamless
+// Hardcoded OAuth configuration - using config_id
 const META_APP_ID = '1717883002200842';
+const CONFIG_ID = '829144995929928'; // Meta Embedded Signup Configuration ID
 const REDIRECT_URI = 'https://automationwhats.stitchbyte.in/api/auth/meta/callback';
 const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
 const STATE = 'stitchbyte_csrf_token';
@@ -286,16 +287,16 @@ export default function SettingsPage() {
         // Create extras with business and phone setup
         const embeddedExtras = createEmbeddedSignupExtras(user.email, undefined);
         
-        // Hardcoded working OAuth URL with setup_type=seamless
+        // Hardcoded OAuth URL with config_id
         const metaLoginUrl = 
           `https://www.facebook.com/v19.0/dialog/oauth?` +
           `client_id=${META_APP_ID}&` +
+          `config_id=${CONFIG_ID}&` +
           `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
           `scope=${SCOPE}&` +
           `response_type=code&` +
           `state=${encodedState}&` +
           `display=popup&` +
-          `setup_type=seamless&` +
           `extras=${embeddedExtras}`;
         
         window.location.href = metaLoginUrl;
