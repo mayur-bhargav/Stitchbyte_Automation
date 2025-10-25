@@ -51,6 +51,12 @@ const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
     }
   }
   
+  // CRITICAL: Must have a phone number for WhatsApp Embedded Signup to work
+  if (!phoneNumber) {
+    console.warn(`⚠️ User ${userEmail} has no phone number, using default for WhatsApp signup`);
+    phoneNumber = "919119200819"; // Default Indian number format
+  }
+  
   return encodeURIComponent(JSON.stringify({
     sessionInfoVersion: "3",
     feature: "whatsapp_embedded_signup",
@@ -65,7 +71,7 @@ const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
         email: userEmail,
         phone: {
           code: phoneCode,
-          number: phoneNumber
+          number: phoneNumber  // MUST have a value - AiSensy always includes this
         },
         address: {
           streetAddress1: "",
@@ -77,7 +83,7 @@ const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
         timezone: "UTC+05:30"
       },
       phone: {
-        displayName: "Stitchbyte",
+        displayName: "Stitchbyte",  // MUST have displayName - AiSensy uses business name
         category: "",
         description: ""
       }
