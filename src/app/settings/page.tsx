@@ -286,16 +286,14 @@ export default function SettingsPage() {
         // Create extras with business and phone setup
         const embeddedExtras = createEmbeddedSignupExtras(user.email, undefined);
         
-        // EXACT working OAuth URL with setup_type=seamless
+        // EXACT REPLICA of AiSensy OAuth URL - v14.0, no scope, no setup_type
         const metaLoginUrl = 
-          `https://www.facebook.com/v19.0/dialog/oauth?` +
+          `https://www.facebook.com/v14.0/dialog/oauth?` +
           `client_id=${META_APP_ID}&` +
           `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-          `scope=${SCOPE}&` +
-          `state=${encodedState}&` +
           `response_type=code&` +
           `display=popup&` +
-          `setup_type=seamless&` +
+          `state=${encodedState}&` +
           `extras=${embeddedExtras}`;
         
         window.location.href = metaLoginUrl;
