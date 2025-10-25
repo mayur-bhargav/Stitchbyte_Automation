@@ -1,10 +1,14 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { LuArrowLeft } from 'react-icons/lu';
 import EmailDashboard from '../../components/EmailDashboard';
 
-export default function SendEmailPage() {
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+function SendEmailContent() {
   const router = useRouter();
 
   const handleDisconnect = () => {
@@ -29,5 +33,20 @@ export default function SendEmailPage() {
       {/* Email Dashboard Component */}
       <EmailDashboard onDisconnect={handleDisconnect} hideHeader={true} />
     </div>
+  );
+}
+
+export default function SendEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SendEmailContent />
+    </Suspense>
   );
 }
