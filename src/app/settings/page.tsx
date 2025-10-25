@@ -26,7 +26,7 @@ interface WhatsAppConnection {
   phoneNumberId: string;
 }
 
-const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || '2303984949951970';
+const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || '1717883002200842';
 const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'http://localhost:3000/auth/whatsapp-callback';
 const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management,pages_manage_metadata';
 const STATE = 'secure_random_state_123';
