@@ -4,6 +4,8 @@
 
 [build.environment]
   NEXT_PUBLIC_API_BASE_URL = "https://automationwhats.stitchbyte.in"
+  # Disable secrets scanning for public environment variables
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_RAZORPAY_KEY_ID,NEXT_PUBLIC_STRIPE_PUBLIC_KEY"
 
 [[redirects]]
   from = "/*"
