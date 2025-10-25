@@ -670,6 +670,14 @@ class ApiService {
           return null;
         }
         
+        if (response.status === 429) {
+          // Rate limit - redirect to rate limit error page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/error-pages/rate-limit';
+          }
+          return null;
+        }
+        
         if (response.status === 404) {
           // Not found - return null for optional endpoints
           // console.log(`Optional endpoint ${endpoint} not found (404), returning null`);
