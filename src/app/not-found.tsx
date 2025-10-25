@@ -1,11 +1,22 @@
 'use client';
 
-import { LuSearch, LuArrowLeft } from 'react-icons/lu';
-import { FaHome } from 'react-icons/fa';
+import { LuSearch, LuArrowLeft, LuLayoutDashboard, LuFileText, LuSend, LuSettings } from 'react-icons/lu';
+import { HiHome } from 'react-icons/hi2';
 import { useRouter } from 'next/navigation';
+import { useUser } from './contexts/UserContext';
 
 export default function NotFound() {
   const router = useRouter();
+  const { user } = useUser();
+
+  const handleHomeClick = () => {
+    // If user is logged in, go to dashboard, otherwise go to landing page
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      router.push('/');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center px-4">
@@ -47,10 +58,10 @@ export default function NotFound() {
             </button>
             
             <button
-              onClick={() => router.push('/')}
+              onClick={handleHomeClick}
               className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-gray-900 to-gray-700 text-white rounded-2xl font-bold hover:from-gray-800 hover:to-gray-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
-              <FaHome size={20} />
+              <HiHome size={20} />
               Go Home
             </button>
           </div>
@@ -64,36 +75,42 @@ export default function NotFound() {
           </p>
         </div>
 
-        {/* Popular Links */}
-        <div className="mt-8">
-          <p className="text-center text-sm text-gray-600 mb-4 font-medium">Popular Pages:</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <button
-              onClick={() => router.push('/email-sender/dashboard')}
-              className="px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
-            >
-              📧 Dashboard
-            </button>
-            <button
-              onClick={() => router.push('/email-sender/templates')}
-              className="px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
-            >
-              📝 Templates
-            </button>
-            <button
-              onClick={() => router.push('/email-sender/send')}
-              className="px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
-            >
-              📨 Send Email
-            </button>
-            <button
-              onClick={() => router.push('/email-sender/settings')}
-              className="px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
-            >
-              ⚙️ Settings
-            </button>
+        {/* Popular Links - Only show if user is logged in */}
+        {user && (
+          <div className="mt-8">
+            <p className="text-center text-sm text-gray-600 mb-4 font-medium">Popular Pages:</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
+              >
+                <LuLayoutDashboard size={16} />
+                Dashboard
+              </button>
+              <button
+                onClick={() => router.push('/templates')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
+              >
+                <LuFileText size={16} />
+                Templates
+              </button>
+              <button
+                onClick={() => router.push('/campaigns')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
+              >
+                <LuSend size={16} />
+                Campaigns
+              </button>
+              <button
+                onClick={() => router.push('/settings')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-xl text-sm text-gray-700 border border-gray-200 hover:bg-white hover:shadow-md transition-all"
+              >
+                <LuSettings size={16} />
+                Settings
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
