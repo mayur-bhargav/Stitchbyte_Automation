@@ -29,66 +29,17 @@ interface WhatsAppConnection {
 // Hardcoded OAuth configuration - EXACT working setup with setup_type=seamless
 const META_APP_ID = '1717883002200842';
 const REDIRECT_URI = 'https://automationwhats.stitchbyte.in/api/auth/meta/callback';
-const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
+const CONFIG_ID = '829144999529928'; // Working config_id from Meta
 const STATE = 'stitchbyte_csrf_token';
 
-// Embedded Signup extras parameter
-// This function creates the extras with user's phone number
-const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
-  // Parse phone number for business.phone object
-  let phoneCode = 91; // Default to India
-  let phoneNumber = "";
-  
-  if (userPhone) {
-    // Remove any + or spaces
-    const cleanPhone = userPhone.replace(/[\s\-\+]/g, "");
-    // CRITICAL: Phone number must include country code (e.g., 919119200819, not 9119200819)
-    if (cleanPhone.startsWith("91")) {
-      // Already has country code
-      phoneNumber = cleanPhone;
-    } else {
-      // Add country code
-      phoneNumber = `91${cleanPhone}`;
-    }
-  }
-  
-  // CRITICAL: Must have a phone number for WhatsApp Embedded Signup to work
-  if (!phoneNumber) {
-    console.warn(`⚠️ User ${userEmail} has no phone number, using default for WhatsApp signup`);
-    phoneNumber = "919119200819"; // Default Indian number format with country code
-  }
-  
+// Embedded Signup extras parameter - SIMPLIFIED version that actually works
+const createEmbeddedSignupExtras = () => {
   return encodeURIComponent(JSON.stringify({
     sessionInfoVersion: "3",
-    feature: "whatsapp_embedded_signup",
+    version: "v3",
     features: [
-      { name: "marketing_messages_lite" },
-      { name: "will_be_partner_certified" }
-    ],
-    setup: {
-      business: {
-        isWebsiteRequired: false,
-        name: "Stitchbyte",
-        email: userEmail,
-        phone: {
-          code: phoneCode,
-          number: phoneNumber  // MUST have a value - AiSensy always includes this
-        },
-        address: {
-          streetAddress1: "",
-          city: "",
-          state: "",
-          zipPostal: "",
-          country: ""
-        },
-        timezone: "UTC+05:30"
-      },
-      phone: {
-        displayName: "Stitchbyte",  // MUST have displayName - AiSensy uses business name
-        category: "",
-        description: ""
-      }
-    }
+      { name: "marketing_messages_lite" }
+    ]
   }));
 };
 
@@ -283,16 +234,20 @@ export default function SettingsPage() {
         };
         const encodedState = btoa(JSON.stringify(stateData));
         
-        // Create extras with business and phone setup
-        const embeddedExtras = createEmbeddedSignupExtras(user.email, undefined);
+        // Create extras with simplified structure that works
+        const embeddedExtras = createEmbeddedSignupExtras();
         
-        // EXACT REPLICA of AiSensy OAuth URL - v14.0, no scope, no setup_type
+        // EXACT REPLICA of Meta's working embedded signup URL
         const metaLoginUrl = 
-          `https://www.facebook.com/v14.0/dialog/oauth?` +
+          `https://www.facebook.com/v24.0/dialog/oauth?` +
+          `display=popup&` +
           `client_id=${META_APP_ID}&` +
           `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+          `config_id=${CONFIG_ID}&` +
           `response_type=code&` +
-          `display=popup&` +
+          `auth_type&` +
+          `fallback_redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+          `override_default_response_type=true&` +
           `state=${encodedState}&` +
           `extras=${embeddedExtras}`;
         
