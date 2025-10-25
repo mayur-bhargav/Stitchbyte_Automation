@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PUBLIC_API_BASE_URL = "https://automationwhats.stitchbyte.in"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
