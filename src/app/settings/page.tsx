@@ -33,6 +33,7 @@ const STATE = 'secure_random_state_123';
 // WhatsApp Embedded Signup Configuration ID
 const CONFIG_ID = '714413008094076';
 // Embedded Signup extras parameter like AiSensy - complete business setup
+// action=create forces the "Add new number" flow
 const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent(JSON.stringify({
   sessionInfoVersion: "3",
   feature: "whatsapp_embedded_signup",
@@ -41,6 +42,7 @@ const EMBEDDED_SIGNUP_EXTRAS = encodeURIComponent(JSON.stringify({
     { name: "will_be_partner_certified" }
   ],
   setup: {
+    action: "create",
     business: {
       isWebsiteRequired: false,
       name: "Stitchbyte",
