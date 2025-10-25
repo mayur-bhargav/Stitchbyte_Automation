@@ -229,8 +229,8 @@ export default function SettingsPage() {
 
         // Fallback: Use embedded signup flow to create NEW WhatsApp Business Account
         // This skips showing existing business accounts and forces account creation with phone number setup
-        // auth_type=rerequest bypasses the reconnect flow
-        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&auth_type=rerequest&setup_type=seamless&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
+        // auth_type=reauthenticate forces complete fresh login
+        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&auth_type=reauthenticate&setup_type=seamless&extras=${EMBEDDED_SIGNUP_EXTRAS}`;
         window.location.href = metaLoginUrl;
 
     } catch (error) {
