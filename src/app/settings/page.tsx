@@ -30,9 +30,8 @@ const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || '2303984949951970';
 const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI || 'http://localhost:3000/auth/whatsapp-callback';
 const SCOPE = 'whatsapp_business_management,whatsapp_business_messaging,business_management,pages_manage_metadata';
 const STATE = 'secure_random_state_123';
-// WhatsApp Embedded Signup Configuration ID
-const CONFIG_ID = '714413008094076';
-// Embedded Signup extras parameter - EXACT AiSensy replica
+
+// Embedded Signup extras parameter
 // This function creates the extras with user's phone number
 const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
   // Parse phone number for business.phone object
@@ -42,19 +41,20 @@ const createEmbeddedSignupExtras = (userEmail: string, userPhone?: string) => {
   if (userPhone) {
     // Remove any + or spaces
     const cleanPhone = userPhone.replace(/[\s\-\+]/g, "");
-    // If starts with country code, extract it
-    if (cleanPhone.startsWith("91") && cleanPhone.length > 10) {
-      phoneCode = 91;
-      phoneNumber = cleanPhone; // Full number with country code
+    // CRITICAL: Phone number must include country code (e.g., 919119200819, not 9119200819)
+    if (cleanPhone.startsWith("91")) {
+      // Already has country code
+      phoneNumber = cleanPhone;
     } else {
-      phoneNumber = `${phoneCode}${cleanPhone}`;
+      // Add country code
+      phoneNumber = `91${cleanPhone}`;
     }
   }
   
   // CRITICAL: Must have a phone number for WhatsApp Embedded Signup to work
   if (!phoneNumber) {
     console.warn(`⚠️ User ${userEmail} has no phone number, using default for WhatsApp signup`);
-    phoneNumber = "919119200819"; // Default Indian number format
+    phoneNumber = "919119200819"; // Default Indian number format with country code
   }
   
   return encodeURIComponent(JSON.stringify({
@@ -284,9 +284,9 @@ export default function SettingsPage() {
             console.warn('Backend OAuth URL failed, falling back to direct URL:', backendError);
         }
 
-        // Fallback: Use AiSensy-style embedded signup with user's phone and email
-        const embeddedExtras = createEmbeddedSignupExtras(user.email, user.phone);
-        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&config_id=${CONFIG_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&display=popup&extras=${embeddedExtras}`;
+        // Fallback: Use WhatsApp Embedded Signup with setup_type=seamless
+        const embeddedExtras = createEmbeddedSignupExtras(user.email, undefined);
+        const metaLoginUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPE}&response_type=code&state=${encodedState}&display=popup&setup_type=seamless&extras=${embeddedExtras}`;
         window.location.href = metaLoginUrl;
 
     } catch (error) {
