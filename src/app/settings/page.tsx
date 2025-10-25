@@ -33,12 +33,13 @@ const CONFIG_ID = '829144999529928'; // Working config_id from Meta
 const STATE = 'stitchbyte_csrf_token';
 
 // Embedded Signup extras parameter - SIMPLIFIED version that actually works
+// Using app_only_install for direct app installation
 const createEmbeddedSignupExtras = () => {
   return encodeURIComponent(JSON.stringify({
     sessionInfoVersion: "3",
     version: "v3",
     features: [
-      { name: "marketing_messages_lite" }
+      { name: "app_only_install" }
     ]
   }));
 };
