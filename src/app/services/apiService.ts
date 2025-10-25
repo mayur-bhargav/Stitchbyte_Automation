@@ -560,6 +560,13 @@ class ApiService {
           this.logout();
           return null;
         }
+        if (response.status === 429) {
+          // Rate limit - redirect to rate limit error page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/error-pages/rate-limit';
+          }
+          throw new Error('Rate limit exceeded');
+        }
         throw new Error('Failed to get user info');
       }
 
