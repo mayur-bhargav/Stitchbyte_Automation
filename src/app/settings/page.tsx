@@ -400,11 +400,15 @@ export default function SettingsPage() {
       console.log('📥 Response status:', response.status);
       console.log('📥 Response data:', data);
       
-      // Check if PIN is required
-      if (response.status === 400 && data.detail?.error === 'PIN_REQUIRED') {
+      // Check if PIN is required (check both possible response structures)
+      const isPinRequired = (response.status === 400) && 
+        (data.detail?.error === 'PIN_REQUIRED' || data.error?.error === 'PIN_REQUIRED');
+      
+      if (isPinRequired) {
         console.log('🔑 PIN required - showing modal');
+        const errorMessage = data.detail?.message || data.error?.message || "Two-step verification PIN required.";
         setShowPinModal(true);
-        setError(data.detail.message || "Two-step verification PIN required.");
+        setError(errorMessage);
         setVerifying(false);
         return;
       }
