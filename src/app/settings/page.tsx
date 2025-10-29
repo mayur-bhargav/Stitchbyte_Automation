@@ -173,6 +173,8 @@ export default function SettingsPage() {
   const [verifying, setVerifying] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState("");
+  const [showBusinessModal, setShowBusinessModal] = useState(false);
+  const [businessMetaUrl, setBusinessMetaUrl] = useState<string | null>(null);
 
   const handleSignOut = () => {
     logout();
@@ -412,6 +414,21 @@ export default function SettingsPage() {
         setVerifying(false);
         return;
       }
+
+      // Check if a business action / permission is required
+      const isBusinessActionRequired = (response.status === 403 || response.status === 400) &&
+        (data.detail?.error === 'BUSINESS_ACTION_REQUIRED' || data.error?.error === 'BUSINESS_ACTION_REQUIRED');
+
+      if (isBusinessActionRequired) {
+        console.log('🚧 Business action required - showing guidance modal');
+        const errorMessage = data.detail?.message || data.error?.message || "Business manager action required on Meta.";
+        const metaUrl = data.detail?.meta_url || data.error?.meta_url || null;
+        setBusinessMetaUrl(metaUrl);
+        setShowBusinessModal(true);
+        setError(errorMessage);
+        setVerifying(false);
+        return;
+      }
       
       if (data.success && data.verified) {
         setSuccess(data.message || "Phone number verified successfully! You can now send messages and create templates.");
@@ -441,6 +458,37 @@ export default function SettingsPage() {
     } else {
       console.log('❌ Invalid PIN length');
       setError("Please enter a valid 6-digit PIN");
+    }
+  };
+
+  const handleBusinessCompleted = async () => {
+    // User clicked "I've completed" after visiting Meta Business Manager
+    console.log('🔁 User confirmed they completed business action; re-checking verification status');
+    try {
+      setVerifying(true);
+      setError("");
+      const resp = await fetch(buildApiUrl('/whatsapp/verification-status'), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const resData = await resp.json();
+      console.log('📥 Verification-status response:', resData);
+      if (resData.success && resData.status === 'verified') {
+        setShowBusinessModal(false);
+        setBusinessMetaUrl(null);
+        setSuccess(resData.message || 'Verification completed.');
+        await fetchConnection(true);
+      } else {
+        setError(resData.message || 'Not verified yet. Please follow the instructions on Meta and try again.');
+      }
+    } catch (err) {
+      console.error('Error re-checking verification status:', err);
+      setError('Failed to re-check verification status. Please try again.');
+    } finally {
+      setVerifying(false);
+      setTimeout(() => { setSuccess(""); setError(""); }, 6000);
     }
   };
 
@@ -687,6 +735,59 @@ export default function SettingsPage() {
                   </span>
                 ) : (
                   'Verify'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Business Action Modal */}
+      {showBusinessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <LuTriangleAlert className="text-red-600" size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Business Action Required</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  We couldn't complete registration because we don't have the necessary permissions on Meta.
+                  Please follow the link below to review your Business Manager / WhatsApp account settings and grant the required permissions.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 mb-2">Open Meta Business Manager:</p>
+              {businessMetaUrl ? (
+                <a href={businessMetaUrl} target="_blank" rel="noreferrer" className="text-[#2A8B8A] underline break-words">{businessMetaUrl}</a>
+              ) : (
+                <a href="https://business.facebook.com/" target="_blank" rel="noreferrer" className="text-[#2A8B8A] underline">https://business.facebook.com/</a>
+              )}
+              <p className="text-xs text-gray-500 mt-2">Suggested steps: Check WhatsApp Accounts, System Users, Business Verification, and Roles.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowBusinessModal(false); setBusinessMetaUrl(null); }}
+                disabled={verifying}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBusinessCompleted}
+                disabled={verifying}
+                className="flex-1 px-4 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <LuLoader className="animate-spin" size={16} />
+                    Checking...
+                  </span>
+                ) : (
+                  "I've completed"
                 )}
               </button>
             </div>
