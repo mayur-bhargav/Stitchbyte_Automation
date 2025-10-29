@@ -374,7 +374,7 @@ export default function SettingsPage() {
     setSuccess("");
     
     try {
-      const response = await fetch(buildApiUrl('/api/whatsapp/verify-phone'), {
+      const response = await fetch(buildApiUrl('/whatsapp/verify-phone'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
