@@ -16,6 +16,13 @@ import {
   LuX,
   LuPower,
 } from 'react-icons/lu';
+import { buildApiUrl } from '@/config/server';
+
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
 
 interface WhatsAppConnection {
   phoneNumber: string;
@@ -28,8 +35,9 @@ interface WhatsAppConnection {
 
 // Hardcoded OAuth configuration - EXACT working setup with setup_type=seamless
 const META_APP_ID = '1717883002200842';
-const REDIRECT_URI = 'https://automationwhats.stitchbyte.in/api/auth/meta/callback';
-const CONFIG_ID = '829144999529928'; // Working config_id from Meta
+// USE FRONTEND CALLBACK PAGE - This allows us to capture WABA data from sessionStorage
+const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI ?? 'https://automationwhats.stitchbyte.in/auth/meta-callback';
+const CONFIG_ID = '829144999529928'; // Mandatory config_id for Embedded Signup
 const STATE = 'stitchbyte_csrf_token';
 
 // Embedded Signup extras parameter - SIMPLIFIED version that actually works
@@ -224,7 +232,15 @@ export default function SettingsPage() {
                 console.warn('Cleanup warning (non-critical):', cleanupError);
             }
         }
+          debugLog('🚀 Launching Meta OAuth with Embedded Signup (POPUP MODE)');
         
+        // Check if Facebook SDK is loaded
+        if (typeof window.FB === 'undefined') {
+          setError('Facebook SDK not loaded. Please refresh the page.');
+          setLoading(false);
+          return;
+        }
+
         // Create state with user info
         const stateData = { 
           csrf: STATE, 
@@ -234,25 +250,80 @@ export default function SettingsPage() {
           reconnect: isReconnect 
         };
         const encodedState = btoa(JSON.stringify(stateData));
-        
-        // Create extras with simplified structure that works
-        const embeddedExtras = createEmbeddedSignupExtras();
-        
-        // EXACT REPLICA of Meta's working embedded signup URL
-        const metaLoginUrl = 
-          `https://www.facebook.com/v24.0/dialog/oauth?` +
-          `display=popup&` +
-          `client_id=${META_APP_ID}&` +
-          `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-          `config_id=${CONFIG_ID}&` +
-          `response_type=code&` +
-          `auth_type&` +
-          `fallback_redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-          `override_default_response_type=true&` +
-          `state=${encodedState}&` +
-          `extras=${embeddedExtras}`;
-        
-        window.location.href = metaLoginUrl;
+
+        // Use FB.login() in POPUP mode - this is what captures WABA data!
+        window.FB.login((response: any) => {
+          debugLog('🔔 FB.login() callback fired');
+          debugLog('📦 Response:', response);
+          
+          if (response.authResponse) {
+            const code = response.authResponse.code;
+            debugLog('✅ Authorization code:', code);
+            
+            // Check if we have WABA data in sessionStorage (captured via postMessage)
+            const wabaId = sessionStorage.getItem('waba_id');
+            const phoneNumberId = sessionStorage.getItem('phone_number_id');
+            const businessId = sessionStorage.getItem('business_id');
+            
+            debugLog('📋 Captured WABA data:', { wabaId, phoneNumberId, businessId });
+            
+            if (wabaId && phoneNumberId) {
+              // Send to exchange-code endpoint with WABA data
+              debugLog('✅ WABA data found - calling exchange-code endpoint');
+              const exchangeUrl = buildApiUrl(
+                `/api/auth/meta/exchange-code?code=${encodeURIComponent(code)}&waba_id=${encodeURIComponent(wabaId)}&phone_number_id=${encodeURIComponent(phoneNumberId)}${businessId ? `&business_id=${encodeURIComponent(businessId)}` : ''}&state=${encodedState}`
+              );
+              window.location.href = exchangeUrl;
+            } else {
+              // Fallback to regular callback endpoint
+              debugLog('⚠️  No WABA data - falling back to regular callback');
+              const callbackUrl = buildApiUrl(`/api/auth/meta/callback?code=${encodeURIComponent(code)}&state=${encodedState}`);
+              window.location.href = callbackUrl;
+            }
+            
+            // Clear sessionStorage
+            sessionStorage.removeItem('waba_id');
+            sessionStorage.removeItem('phone_number_id');
+            sessionStorage.removeItem('business_id');
+          } else {
+            debugLog('❌ No authResponse - login failed or cancelled');
+            setError('WhatsApp connection cancelled or failed.');
+            setLoading(false);
+          }
+        }, {
+          config_id: CONFIG_ID,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: {
+            "version": "v3",
+            "setup": {
+              "business": {
+                "id": null,
+                "name": null,
+                "email": null,
+                "phone": {"code": null, "number": null},
+                "website": null,
+                "address": {
+                  "streetAddress1": null,
+                  "streetAddress2": null,
+                  "city": null,
+                  "state": null,
+                  "zipPostal": null,
+                  "country": null
+                },
+                "timezone": null
+              },
+              "phone": {
+                "displayName": null,
+                "category": null,
+                "description": null
+              },
+              "preVerifiedPhone": {"ids": null},
+              "solutionID": null,
+              "whatsAppBusinessAccount": {"ids": null}
+            }
+          }
+        });
 
     } catch (error) {
       console.error('Error initiating Meta OAuth:', error);

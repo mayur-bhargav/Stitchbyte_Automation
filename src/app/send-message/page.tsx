@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useBalance, MESSAGE_COST } from "../contexts/BalanceContext";
 import { useUser } from '../contexts/UserContext';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -23,6 +24,12 @@ type Template = {
     type: string;
     handle: string;
   };
+  buttons?: Array<{
+    type: string;
+    text?: string;
+    url?: string;
+    [key: string]: unknown;
+  }>;
 };
 
 type AccountLimits = {
@@ -59,6 +66,7 @@ type MessageUsage = {
 };
 
 function SendMessage() {
+  const router = useRouter();
   const { user } = useUser();
   const [phone, setPhone] = useState("");
   const [phones, setPhones] = useState<string[]>([]);
@@ -572,15 +580,50 @@ function SendMessage() {
                 }
               }
               
-              comps = [
-                {
+              // Extract body variables (from template body text)
+              const bodyText = selectedTpl.body || selectedTpl.content || '';
+              const bodyVarMatches = bodyText.match(/\{\{(\d+)\}\}/g) || [];
+              const bodyVarIndices = bodyVarMatches.map(m => parseInt(m.replace(/[{}]/g, '')));
+              
+              // Build body component if there are body variables
+              if (bodyVarIndices.length > 0) {
+                comps.push({
                   type: "body",
-                  parameters: selectedTpl.variables.map((v) => ({ 
-                    type: "text", 
-                    text: processedVariableValues[v] || "" 
-                  }))
-                }
-              ];
+                  parameters: bodyVarIndices.map(index => {
+                    const varKey = `{{${index}}}`;
+                    return {
+                      type: "text",
+                      text: processedVariableValues[varKey] || ""
+                    };
+                  })
+                });
+              }
+              
+              // Check if template has buttons with URL variables
+              if (selectedTpl.buttons && selectedTpl.buttons.length > 0) {
+                selectedTpl.buttons.forEach((button: any, buttonIndex: number) => {
+                  if (button.type === 'url' && button.url) {
+                    // Extract variables from button URL
+                    const urlVarMatches = button.url.match(/\{\{(\d+)\}\}/g) || [];
+                    if (urlVarMatches.length > 0) {
+                      const buttonParams = urlVarMatches.map((match: string) => {
+                        const varKey = match; // e.g., "{{1}}"
+                        return {
+                          type: "text",
+                          text: processedVariableValues[varKey] || ""
+                        };
+                      });
+                      
+                      comps.push({
+                        type: "button",
+                        sub_type: "url",
+                        index: buttonIndex.toString(),
+                        parameters: buttonParams
+                      });
+                    }
+                  }
+                });
+              }
             } else {
               try {
                 comps = components ? JSON.parse(components) : [];
@@ -707,6 +750,232 @@ function SendMessage() {
     
     setLoading(false);
   };
+
+  // Check if WABA is connected
+  // Note: API returns {success: true, data: {...}} structure, so we need to access whatsappConfig.data
+  // Also, selected_option has 'id' field which is the waba_id
+  const configData = whatsappConfig?.data || whatsappConfig; // Handle both API response formats
+  
+  // Status can be either "connected_to_waba" or "connected" (when WABA is connected)
+  const isWABAConnected = (configData?.status === 'connected_to_waba' || configData?.status === 'connected') && 
+                          (configData?.selected_option?.id || configData?.selected_option?.waba_id);
+  
+  // Debug logging
+  console.log('🔍 WhatsApp Config:', whatsappConfig);
+  console.log('📦 Config Data:', configData);
+  console.log('📊 Status:', configData?.status);
+  console.log('🆔 Selected Option ID:', configData?.selected_option?.id);
+  console.log('🆔 Selected Option waba_id:', configData?.selected_option?.waba_id);
+  console.log('✅ WABA Connected:', isWABAConnected);
+  
+  // Check if there are active (APPROVED) templates (using existing approvedTemplates variable)
+  const hasActiveTemplates = approvedTemplates.length > 0;
+  
+  // Check if there are pending templates
+  const pendingTemplates = templates.filter((t: Template) => t.status === 'PENDING');
+  const hasPendingTemplates = pendingTemplates.length > 0;
+
+  // Show skeleton loader while loading config or templates
+  if (configLoading || templatesLoading) {
+    return (
+      <ProtectedRoute>
+        <PermissionGuard requiredPermission="send_messages">
+          <div className="flex items-center justify-center p-4">
+            <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-6 text-center">
+              {/* Skeleton Icon */}
+              <div className="mb-4 flex justify-center">
+                <div className="w-24 h-24 bg-gray-200 rounded-full animate-pulse"></div>
+              </div>
+              
+              {/* Skeleton Title */}
+              <div className="mb-3 flex justify-center">
+                <div className="h-6 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+              </div>
+              
+              {/* Skeleton Description */}
+              <div className="mb-4 space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6 mx-auto animate-pulse"></div>
+              </div>
+              
+              {/* Skeleton Features Box */}
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3 animate-pulse"></div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-200 rounded w-full animate-pulse"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full animate-pulse"></div>
+                  <div className="h-3 bg-gray-200 rounded w-4/5 animate-pulse"></div>
+                </div>
+              </div>
+              
+              {/* Skeleton Button */}
+              <div className="h-10 bg-gray-200 rounded-xl w-48 mx-auto animate-pulse"></div>
+            </div>
+          </div>
+        </PermissionGuard>
+      </ProtectedRoute>
+    );
+  }
+
+  // If not loading and WABA is not connected, show connection required page
+  if (!configLoading && !isWABAConnected) {
+    return (
+      <ProtectedRoute>
+        <PermissionGuard requiredPermission="send_messages">
+          <div className="flex items-center justify-center p-4">
+            <div className="max-w-xl w-full bg-white rounded-xl shadow-lg p-6 text-center">
+              {/* AI Generated Illustration */}
+              <div className="mb-4">
+                <svg className="w-20 h-20 mx-auto text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              
+              {/* Title */}
+              <h1 className="text-xl font-bold text-gray-900 mb-2">
+                Connect Your WhatsApp Business Account
+              </h1>
+              
+              {/* Description */}
+              <p className="text-sm text-gray-600 mb-4">
+                To start sending messages, you need to connect your WhatsApp Business Account first. 
+                It only takes a few minutes to get started!
+              </p>
+              
+              {/* Features List */}
+              <div className="bg-blue-50 rounded-lg p-3 mb-4 text-left">
+                <h3 className="font-semibold text-gray-900 mb-2 text-xs">What you'll get:</h3>
+                <ul className="space-y-1.5">
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">Official WhatsApp Business API access</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">Send messages to unlimited customers</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">Use message templates and automation</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">Track message delivery and engagement</span>
+                  </li>
+                </ul>
+              </div>
+              
+              {/* CTA Button */}
+              <button
+                onClick={() => router.push('/settings')}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 text-sm rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
+              >
+                Connect WhatsApp in Settings
+              </button>
+            </div>
+          </div>
+        </PermissionGuard>
+      </ProtectedRoute>
+    );
+  }
+
+  // If WABA is connected but no active templates, show template required page
+  if (!templatesLoading && isWABAConnected && !hasActiveTemplates) {
+    return (
+      <ProtectedRoute>
+        <PermissionGuard requiredPermission="send_messages">
+          <div className="flex items-center justify-center p-4">
+            <div className="max-w-xl w-full bg-white rounded-xl shadow-lg p-6 text-center">
+              {/* Template Icon */}
+              <div className="mb-4">
+                <svg className="w-20 h-20 mx-auto text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              
+              {/* Title */}
+              <h1 className="text-xl font-bold text-gray-900 mb-2">
+                {hasPendingTemplates ? 'Templates Under Review' : 'Create Your First Template'}
+              </h1>
+              
+              {/* Description */}
+              {hasPendingTemplates ? (
+                <div className="space-y-3 mb-4">
+                  <p className="text-sm text-gray-600">
+                    Your templates are currently being reviewed by WhatsApp. This usually takes 24-48 hours.
+                  </p>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="flex items-center justify-center mb-1.5">
+                      <svg className="w-4 h-4 text-yellow-600 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-semibold text-yellow-800 text-xs">Review in Progress</span>
+                    </div>
+                    <p className="text-yellow-700 text-xs">
+                      You have {pendingTemplates.length} template{pendingTemplates.length > 1 ? 's' : ''} pending approval.
+                      You'll be able to send messages once they're approved.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600 mb-4">
+                  Before you can send messages, you need to create and get approval for at least one message template.
+                  Templates ensure your messages comply with WhatsApp's policies.
+                </p>
+              )}
+              
+              {/* Info Box */}
+              <div className="bg-purple-50 rounded-lg p-3 mb-4 text-left">
+                <h3 className="font-semibold text-gray-900 mb-2 text-xs">About Message Templates:</h3>
+                <ul className="space-y-1.5">
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">Templates must be approved by WhatsApp (24-48 hours)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">You can create templates for greetings, notifications, and promotions</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-gray-700 text-xs">Templates can include variables for personalization</span>
+                  </li>
+                </ul>
+              </div>
+              
+              {/* CTA Button */}
+              <button
+                onClick={() => router.push('/templates')}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-5 text-sm rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
+              >
+                {hasPendingTemplates ? 'View Template Status' : 'Create Your First Template'}
+              </button>
+              
+              {!hasPendingTemplates && (
+                <p className="text-xs text-gray-500 mt-2.5">
+                  💡 Tip: Start with a simple greeting template to get approved quickly
+                </p>
+              )}
+            </div>
+          </div>
+        </PermissionGuard>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <>

@@ -1,6 +1,12 @@
 // Secure API service with user authentication
 import BACKEND_CONFIG from '../config/backend';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 class ApiService {
   // --- Advanced Campaign Management ---
   async getCampaigns(params?: { page?: number; limit?: number; status?: string }) {
@@ -979,6 +985,83 @@ class ApiService {
     return this.request('/whatsapp/status');
   }
 
+  // AI Follow-Up automation
+  async getAiFollowUpStatus<T = unknown>() {
+    return this.request<T>('/ai-followups/status');
+  }
+
+  async updateAiFollowUpSettings<T = unknown>(settings: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async previewAiFollowUp<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async scheduleAiFollowUp<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/schedule', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async analyzeAiFollowUp<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/analyze', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async smartScheduleAiFollowUp<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/schedule/smart', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async triggerAiFollowUpFailover<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/channel/failover', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async recordAiFollowUpFeedback<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/feedback', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getAiFollowUpContext<T = unknown>(contactId: string, threadId: string, limit: number = 30) {
+    const query = new URLSearchParams({ thread_id: threadId, limit: limit.toString() });
+    return this.request<T>(`/ai-followups/context/${contactId}?${query.toString()}`);
+  }
+
+  async upsertAiFollowUpContext<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/context', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getAiFollowUpFlow<T = unknown>() {
+    return this.request<T>('/ai-followups/flow');
+  }
+
+  async saveAiFollowUpFlow<T = unknown>(payload: Record<string, unknown>) {
+    return this.request<T>('/ai-followups/flow', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
   async evaluateConditions(conditionsData: any) {
     return this.request('/automations/conditions/evaluate', {
       method: 'POST',
@@ -1016,7 +1099,17 @@ class ApiService {
     user_phone?: string;
     automation_id?: string;
   }) {
-    const GEMINI_API_KEY = 'AIzaSyAQYZH3OOGzJ0TrIjTlIV_6aKvZRYYAvjQ';
+    const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      console.error('Gemini API key missing. Set NEXT_PUBLIC_GEMINI_API_KEY in your environment.');
+      return {
+        success: false,
+        error: 'Gemini API key missing. Configure NEXT_PUBLIC_GEMINI_API_KEY.',
+        fallback_response:
+          requestData.system_prompt ||
+          'I apologize, but I cannot process your request at the moment. Please contact our support team for assistance.'
+      };
+    }
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     // Build the system prompt with security restrictions
@@ -1228,9 +1321,9 @@ Please provide a helpful response following all security instructions above:`;
   }
 
   async createPaymentOrder(planId: string) {
-    console.log('💳 apiService: createPaymentOrder called for plan:', planId);
+    debugLog('💳 apiService: createPaymentOrder called for plan:', planId);
     this.loadToken();
-    console.log('🔑 apiService: Token for payment:', this.token ? `${this.token.substring(0, 20)}...` : 'NULL - NO TOKEN!');
+    debugLog('🔑 apiService: Token for payment:', this.token ? `${this.token.substring(0, 20)}...` : 'NULL - NO TOKEN!');
     
     return this.request('/create-payment-order', {
       method: 'POST',

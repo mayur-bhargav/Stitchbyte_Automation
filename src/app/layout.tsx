@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "./components/ClientLayout";
-import QuickActions from "./components/QuickActions";
+import FacebookSDK from "./components/FacebookSDK";
+import HelpBubble from "../components/HelpBubble";
 import { UserProvider } from "./contexts/UserContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import { PermissionProvider } from "./contexts/PermissionContext";
@@ -63,13 +64,14 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
         />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <FacebookSDK />
         <UserProvider>
           <ChatProvider>
             <PermissionProvider>
               <SubscriptionGuard>
                 <ClientLayout>
                   {children}
-                  <QuickActions />
+                  <HelpBubble />
                 </ClientLayout>
               </SubscriptionGuard>
             </PermissionProvider>

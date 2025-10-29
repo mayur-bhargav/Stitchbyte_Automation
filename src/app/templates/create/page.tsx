@@ -2,6 +2,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { SERVER_URI } from "@/config/server";
+import { apiService } from "@/app/services/apiService";
 
 // Type definitions
 interface Button {
@@ -220,23 +221,18 @@ export default function CreateTemplatePage() {
     }
     
     try {
-      const res = await fetch(`${SERVER_URI}/submit-template-with-file`, {
-        method: "POST",
-        body: formData, // Browser automatically sets Content-Type with boundary for FormData
-      });
+      const data = await apiService.postFormData('/templates/submit-template-with-file', formData);
       
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
+      if (data.success) {
         setSuccessMsg("Template submitted successfully!");
         setTimeout(() => router.push("/templates"), 1200);
       } else {
         console.error("Template submission error:", data);
         setErrorMsg(data.error || data.details?.error?.message || "Failed to submit template");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Network error:", err);
-      setErrorMsg("Failed to submit template. Please check your connection.");
+      setErrorMsg(err.message || "Failed to submit template. Please check your connection.");
     }
     setSubmitLoading(false);
   };

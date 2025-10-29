@@ -1,3 +1,5 @@
+import { SERVER_URL } from '@/config/server';
+
 // Configuration constants for backend integration
 export const BACKEND_CONFIG = {
   // Expected backend version for compatibility checks
@@ -7,7 +9,7 @@ export const BACKEND_CONFIG = {
   PREVIOUS_VERSION: '2.0.0',
   
   // API base URL
-  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+  BASE_URL: SERVER_URL,
   
   // Version compatibility settings
   VERSION_CHECK: {

@@ -4,6 +4,12 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 
+const logDebug = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 const firebaseConfig = {
   apiKey: "AIzaSyCnx0Cth8wr4DNnnIL9J2aeUDw6j8WCXU0",
   authDomain: "ganges-17474.firebaseapp.com",
@@ -40,26 +46,26 @@ export async function requestFCMToken(): Promise<string | null> {
   try {
     // Check if we're in a browser environment
     if (typeof window === 'undefined') {
-      console.log('Not in browser environment');
+      logDebug('Not in browser environment');
       return null;
     }
 
     // Check if notifications are supported
     if (!('Notification' in window)) {
-      console.log('This browser does not support notifications');
+      logDebug('This browser does not support notifications');
       return null;
     }
 
     // Check if permission is granted
     if (Notification.permission !== 'granted') {
-      console.log('Notification permission not granted');
+      logDebug('Notification permission not granted');
       return null;
     }
 
     // Check if messaging is supported
     const messagingSupported = await isSupported();
     if (!messagingSupported) {
-      console.log('Firebase messaging not supported in this browser');
+      logDebug('Firebase messaging not supported in this browser');
       return null;
     }
 
@@ -70,7 +76,7 @@ export async function requestFCMToken(): Promise<string | null> {
 
     // Register service worker
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log('Service Worker registered:', registration);
+    logDebug('Service Worker registered:', registration);
 
     // Wait for service worker to be ready
     await navigator.serviceWorker.ready;
@@ -82,10 +88,10 @@ export async function requestFCMToken(): Promise<string | null> {
     });
 
     if (token) {
-      console.log('✅ FCM Token obtained:', token.substring(0, 20) + '...');
+      logDebug('✅ FCM Token obtained:', token.substring(0, 20) + '...');
       return token;
     } else {
-      console.log('No registration token available');
+      logDebug('No registration token available');
       return null;
     }
   } catch (error) {
@@ -101,7 +107,7 @@ export async function requestFCMToken(): Promise<string | null> {
 export function setupForegroundMessageHandler(callback: (payload: any) => void) {
   if (messaging) {
     onMessage(messaging, (payload: any) => {
-      console.log('Foreground message received:', payload);
+      logDebug('Foreground message received:', payload);
       callback(payload);
       
       // Show notification

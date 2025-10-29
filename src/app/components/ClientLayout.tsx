@@ -35,7 +35,16 @@ import {
   LuPlus,
   LuClock,
   LuShield,
-  LuMail
+  LuMail,
+  LuLink,
+  LuMonitor,
+  LuFilter,
+  LuInstagram,
+  LuBot,
+  LuMessageCircle,
+  LuImage,
+  LuCalendar,
+  LuZap
 } from "react-icons/lu";
 
 // ============================================================================
@@ -60,6 +69,14 @@ const navConfig = [
     ],
   },
   {
+    title: "Tools",
+    items: [
+      { href: "/instagram", label: "Instagram Hub", icon: <LuInstagram size={20} />, permission: "view_dashboard" },
+      { href: "/whatsapp-link", label: "WhatsApp Link Generator", icon: <LuLink size={20} />, permission: "view_dashboard" },
+      { href: "/whatsapp-widget", label: "Website Widget", icon: <LuMonitor size={20} />, permission: "view_dashboard" },
+    ],
+  },
+  {
     title: "Automation",
     items: [
       { href: "/automations", label: "Automations", icon: <LuWand size={20} />, permission: "manage_integrations" },
@@ -71,7 +88,6 @@ const navConfig = [
     title: "Communication",
     items: [
       { href: "/chats", label: "Live Chats", icon: <LuMessageSquare size={20} />, notificationKey: "unreadChats", permission: "view_messages" },
-      { href: "/broadcasts", label: "Broadcasts", icon: <LuMegaphone size={20} />, permission: "view_broadcasts", comingSoon: true },
       { href: "/email-sender", label: "Email Sender", icon: <LuMail size={20} />, permission: "send_message" },
     ],
   },

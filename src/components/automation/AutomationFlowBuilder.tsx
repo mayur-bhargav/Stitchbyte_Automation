@@ -35,6 +35,12 @@ import AIResponseNode from './nodes/AIResponseNode';
 import TagNode from './nodes/TagNode';
 import DelayNode from './nodes/DelayNode';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 // Custom node types
 const nodeTypes = {
   trigger: AutomationTriggerNode,
@@ -128,12 +134,12 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
 
   // Debug: Log edges whenever they change
   useEffect(() => {
-    console.log('🔄 Edges updated:', edges.length, edges);
+    debugLog('🔄 Edges updated:', edges.length, edges);
   }, [edges]);
 
   const onConnect = useCallback(
     (params: Connection) => {
-      console.log('🔗 Connection attempt:', {
+      debugLog('🔗 Connection attempt:', {
         source: params.source,
         sourceHandle: params.sourceHandle,
         target: params.target,
@@ -153,7 +159,7 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
         return;
       }
       
-      console.log('✅ Nodes found:', {
+      debugLog('✅ Nodes found:', {
         source: sourceNode.type,
         target: targetNode.type
       });
@@ -180,13 +186,13 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
         data: { conditionType: 'always' }
       } as Edge;
       
-      console.log('🎨 Creating edge:', newEdge);
+      debugLog('🎨 Creating edge:', newEdge);
       setEdges((eds) => {
         const newEdges = addEdge(newEdge, eds);
-        console.log('📊 All edges after add:', newEdges);
+        debugLog('📊 All edges after add:', newEdges);
         return newEdges;
       });
-      console.log('✅ Edge added:', newEdge.id);
+      debugLog('✅ Edge added:', newEdge.id);
     },
     [nodes, setEdges]
   );
@@ -226,7 +232,7 @@ const AutomationFlowBuilderComponent: React.FC<AutomationFlowBuilderProps> = ({
         },
       };
 
-      console.log('🆕 Adding new node:', newNodeId, 'type:', type, 'nodeId:', nodeId);
+      debugLog('🆕 Adding new node:', newNodeId, 'type:', type, 'nodeId:', nodeId);
       setNodes((nds) => nds.concat(newNode));
     },
     [reactFlowInstance, setNodes, handleNodeEdit, handleNodeDelete]

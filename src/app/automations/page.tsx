@@ -8,7 +8,6 @@ import { apiService } from '../services/apiService';
 
 // Import Material Design icons
 import {
-  MdAdd,
   MdAutoAwesome,
   MdSettings,
   MdPlayArrow,
@@ -17,7 +16,10 @@ import {
   MdEdit,
   MdChat,
   MdWarning,
-  MdCheckCircle
+  MdCheckCircle,
+  MdSmartToy,
+  MdAddCircleOutline,
+  MdViewModule
 } from "react-icons/md";
 
 interface Automation {
@@ -192,21 +194,29 @@ export default function AutomationsPage() {
         </div>
         
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <button
+            onClick={() => router.push('/automations/ai-follow-up')}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-colors"
+          >
+            <MdSmartToy className="text-lg" />
+            <span className="text-sm sm:text-base">AI Follow-Up Automation</span>
+          </button>
+
           <button
             onClick={() => router.push('/automations/new?mode=builder')}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-colors"
           >
-            <MdSettings className="text-lg" />
-            <span>Create Automation</span>
+            <MdAddCircleOutline className="text-lg" />
+            <span className="text-sm sm:text-base">Create Automation</span>
           </button>
           
           <button
             onClick={() => router.push('/automations/new')}
             className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center space-x-2 transition-colors"
           >
-            <MdAdd className="text-lg" />
-            <span>Browse Templates</span>
+            <MdViewModule className="text-lg" />
+            <span className="text-sm sm:text-base">Browse Templates</span>
           </button>
         </div>
       </div>
@@ -277,6 +287,12 @@ export default function AutomationsPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No automations yet</h3>
             <p className="text-gray-600 mb-6">Get started by creating your first automation or using a template.</p>
             <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => router.push('/automations/ai-follow-up')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                AI Follow-Up Automation
+              </button>
               <button
                 onClick={() => router.push('/automations/new?mode=builder')}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
