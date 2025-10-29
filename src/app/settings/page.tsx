@@ -31,6 +31,14 @@ interface WhatsAppConnection {
   accountId: string;
   wabaId: string;
   phoneNumberId: string;
+  phoneVerified?: boolean;
+  phoneVerificationStatus?: string;
+  verificationDetails?: {
+    verified_name?: string;
+    display_phone_number?: string;
+    name_status?: string;
+    quality_rating?: string;
+  };
 }
 
 // Hardcoded OAuth configuration - EXACT working setup with setup_type=seamless
@@ -161,6 +169,7 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState("");
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [showReconnectModal, setShowReconnectModal] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const handleSignOut = () => {
     logout();
@@ -186,6 +195,9 @@ export default function SettingsPage() {
           accountId: option.account_id || 'N/A',
           wabaId: option.waba_id || 'N/A',
           phoneNumberId: phone?.id || 'N/A',
+          phoneVerified: config.data.phone_verified || false,
+          phoneVerificationStatus: config.data.phone_verification_status || 'pending',
+          verificationDetails: config.data.verification_details || {}
         });
         if (isRefresh) {
             setSuccess("Configuration refreshed successfully.");
@@ -349,6 +361,42 @@ export default function SettingsPage() {
     }
   };
 
+  const handleVerifyPhone = async () => {
+    if (!user) return;
+    
+    setVerifying(true);
+    setError("");
+    setSuccess("");
+    
+    try {
+      const response = await fetch(buildApiUrl('/api/whatsapp/verify-phone'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.verified) {
+        setSuccess(data.message || "Phone number verified successfully! You can now send messages and create templates.");
+        // Refresh connection to get updated status
+        await fetchConnection(true);
+      } else if (data.success && data.status === 'pending') {
+        setError(data.message || "Phone registered but verification is still pending. Please try again in a few minutes.");
+      } else {
+        setError(data.detail || data.message || "Phone verification failed. Please try again.");
+      }
+    } catch (error: any) {
+      console.error('Error verifying phone:', error);
+      setError("Failed to verify phone number. Please try again.");
+    } finally {
+      setVerifying(false);
+      setTimeout(() => { setSuccess(""); setError(""); }, 6000);
+    }
+  };
+
   if (!user || loading && !connection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -423,7 +471,51 @@ export default function SettingsPage() {
                         <InfoRow label="Display Name" value={connection.displayName} />
                         <InfoRow label="Phone Number" value={connection.phoneNumber} isMono />
                         <InfoRow label="Connection Status" value={<span className="font-semibold capitalize text-emerald-700">{connection.status}</span>} />
+                        <InfoRow label="Verification Status" value={
+                            connection.phoneVerified ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
+                                    <LuCheck size={12} /> Verified
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
+                                    <LuTriangleAlert size={12} /> Pending Verification
+                                </span>
+                            )
+                        } />
                     </div>
+
+                    {/* Verification Warning Banner */}
+                    {!connection.phoneVerified && (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-start gap-3">
+                                <LuTriangleAlert className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+                                <div className="flex-1">
+                                    <h4 className="text-sm font-semibold text-yellow-800">Phone Verification Required</h4>
+                                    <p className="text-xs text-yellow-700 mt-1">
+                                        You must verify your phone number before you can send messages or create templates. 
+                                        Click the button below to complete verification.
+                                    </p>
+                                    <button 
+                                        onClick={handleVerifyPhone} 
+                                        disabled={verifying || loading}
+                                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#2A8B8A] hover:bg-[#238080] rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {verifying ? (
+                                            <>
+                                                <LuLoader className="animate-spin" size={16} />
+                                                Verifying...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LuCheck size={16} />
+                                                Verify Phone Number
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="pt-4 border-t border-slate-200">
                         <p className="text-xs text-slate-400 mb-2 font-semibold uppercase">Manage Connection</p>
