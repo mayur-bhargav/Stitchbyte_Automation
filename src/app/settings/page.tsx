@@ -15,6 +15,7 @@ import {
   LuLoader,
   LuX,
   LuPower,
+  LuShield,
 } from 'react-icons/lu';
 import { buildApiUrl } from '@/config/server';
 
@@ -170,6 +171,8 @@ export default function SettingsPage() {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [showReconnectModal, setShowReconnectModal] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState("");
 
   const handleSignOut = () => {
     logout();
@@ -366,7 +369,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleVerifyPhone = async () => {
+  const handleVerifyPhone = async (pinValue?: string) => {
     if (!user) return;
     
     setVerifying(true);
@@ -374,18 +377,34 @@ export default function SettingsPage() {
     setSuccess("");
     
     try {
+      const payload: { pin?: string } = {};
+      if (pinValue) {
+        payload.pin = pinValue;
+      }
+      
       const response = await fetch(buildApiUrl('/whatsapp/verify-phone'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify(payload)
       });
       
       const data = await response.json();
       
+      // Check if PIN is required
+      if (response.status === 400 && data.detail?.error === 'PIN_REQUIRED') {
+        setShowPinModal(true);
+        setError(data.detail.message || "Two-step verification PIN required.");
+        setVerifying(false);
+        return;
+      }
+      
       if (data.success && data.verified) {
         setSuccess(data.message || "Phone number verified successfully! You can now send messages and create templates.");
+        setShowPinModal(false);
+        setPin("");
         // Refresh connection to get updated status
         await fetchConnection(true);
       } else if (data.success && data.status === 'pending') {
@@ -399,6 +418,14 @@ export default function SettingsPage() {
     } finally {
       setVerifying(false);
       setTimeout(() => { setSuccess(""); setError(""); }, 6000);
+    }
+  };
+  
+  const handlePinSubmit = () => {
+    if (pin && pin.length === 6) {
+      handleVerifyPhone(pin);
+    } else {
+      setError("Please enter a valid 6-digit PIN");
     }
   };
 
@@ -501,7 +528,7 @@ export default function SettingsPage() {
                                         Click the button below to complete verification.
                                     </p>
                                     <button 
-                                        onClick={handleVerifyPhone} 
+                                        onClick={() => handleVerifyPhone()} 
                                         disabled={verifying || loading}
                                         className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#2A8B8A] hover:bg-[#238080] rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -585,6 +612,72 @@ export default function SettingsPage() {
         isLoading={loading}
         variant="primary"
       />
+      
+      {/* PIN Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <LuShield className="text-yellow-600" size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Two-Step Verification Required</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your WhatsApp Business Account has two-step verification enabled. 
+                  Please enter your 6-digit PIN to complete verification.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                6-Digit PIN
+              </label>
+              <input
+                type="text"
+                maxLength={6}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent text-center text-2xl tracking-widest"
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Find your PIN in WhatsApp Business Manager → Account Settings → Two-step verification
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPinModal(false);
+                  setPin("");
+                  setVerifying(false);
+                }}
+                disabled={verifying}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePinSubmit}
+                disabled={verifying || pin.length !== 6}
+                className="flex-1 px-4 py-2 bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <LuLoader className="animate-spin" size={16} />
+                    Verifying...
+                  </span>
+                ) : (
+                  'Verify'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
