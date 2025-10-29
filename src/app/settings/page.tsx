@@ -188,6 +188,11 @@ export default function SettingsPage() {
       if (config?.data?.selected_option) {
         const option = config.data.selected_option;
         const phone = config.data.selected_phone;
+        
+        debugLog('📊 Config data:', config.data);
+        debugLog('🔐 Phone verified:', config.data.phone_verified);
+        debugLog('📋 Verification status:', config.data.phone_verification_status);
+        
         setConnection({
           phoneNumber: phone?.display_phone_number || 'N/A',
           displayName: phone?.verified_name || option.business_name || 'N/A',
@@ -195,7 +200,7 @@ export default function SettingsPage() {
           accountId: option.account_id || 'N/A',
           wabaId: option.waba_id || 'N/A',
           phoneNumberId: phone?.id || 'N/A',
-          phoneVerified: config.data.phone_verified || false,
+          phoneVerified: config.data.phone_verified === true,
           phoneVerificationStatus: config.data.phone_verification_status || 'pending',
           verificationDetails: config.data.verification_details || {}
         });
@@ -485,7 +490,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Verification Warning Banner */}
-                    {!connection.phoneVerified && (
+                    {!connection.phoneVerified && connection.phoneVerificationStatus !== 'verified' && (
                         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <div className="flex items-start gap-3">
                                 <LuTriangleAlert className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
