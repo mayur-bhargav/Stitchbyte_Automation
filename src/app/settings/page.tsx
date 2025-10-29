@@ -376,11 +376,15 @@ export default function SettingsPage() {
     setError("");
     setSuccess("");
     
+    console.log('🔐 Verifying phone with PIN:', pinValue ? '******' : 'No PIN provided');
+    
     try {
       const payload: { pin?: string } = {};
       if (pinValue) {
         payload.pin = pinValue;
       }
+      
+      console.log('📤 Sending payload:', { ...payload, pin: payload.pin ? '******' : undefined });
       
       const response = await fetch(buildApiUrl('/whatsapp/verify-phone'), {
         method: 'POST',
@@ -393,8 +397,12 @@ export default function SettingsPage() {
       
       const data = await response.json();
       
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response data:', data);
+      
       // Check if PIN is required
       if (response.status === 400 && data.detail?.error === 'PIN_REQUIRED') {
+        console.log('🔑 PIN required - showing modal');
         setShowPinModal(true);
         setError(data.detail.message || "Two-step verification PIN required.");
         setVerifying(false);
@@ -422,9 +430,12 @@ export default function SettingsPage() {
   };
   
   const handlePinSubmit = () => {
+    console.log('📌 PIN submit clicked. PIN length:', pin.length);
     if (pin && pin.length === 6) {
+      console.log('✅ PIN valid, calling handleVerifyPhone');
       handleVerifyPhone(pin);
     } else {
+      console.log('❌ Invalid PIN length');
       setError("Please enter a valid 6-digit PIN");
     }
   };
