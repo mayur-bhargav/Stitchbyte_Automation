@@ -49,14 +49,14 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI ?? 'https://autom
 const CONFIG_ID = '829144999529928'; // Mandatory config_id for Embedded Signup
 const STATE = 'stitchbyte_csrf_token';
 
-// Embedded Signup extras parameter - SIMPLIFIED version that actually works
-// Using app_only_install for direct app installation
+// Embedded Signup extras parameter - Using marketing_messages_lite for automatic Cloud API registration
+// This feature automatically registers the phone number with Cloud API (no PIN required!)
 const createEmbeddedSignupExtras = () => {
   return encodeURIComponent(JSON.stringify({
     sessionInfoVersion: "3",
     version: "v3",
     features: [
-      { name: "app_only_install" }
+      { name: "marketing_messages_lite" }
     ]
   }));
 };
