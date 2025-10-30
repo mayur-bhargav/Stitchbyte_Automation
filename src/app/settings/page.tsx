@@ -743,29 +743,47 @@ export default function SettingsPage() {
       )}
       {/* Business Action Modal */}
       {showBusinessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8">
             <div className="flex items-start gap-3 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <LuTriangleAlert className="text-red-600" size={24} />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">Business Action Required</h3>
+                <h3 className="text-lg font-semibold text-gray-900">System User Permissions Required</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  We couldn't complete registration because we don't have the necessary permissions on Meta.
-                  Please follow the link below to review your Business Manager / WhatsApp account settings and grant the required permissions.
+                  Meta rejected the registration because the System User doesn't have the required permissions. 
+                  Follow these steps to grant full access:
                 </p>
               </div>
             </div>
 
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">📋 Step-by-Step Instructions:</h4>
+              <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                <li>Open <a href={businessMetaUrl || "https://business.facebook.com/settings/whatsapp-business-accounts"} target="_blank" rel="noreferrer" className="underline font-semibold">Business Settings → WhatsApp Accounts</a></li>
+                <li>Click on your WhatsApp account (<strong>StitchByte</strong>)</li>
+                <li>Go to the <strong>"System users"</strong> tab</li>
+                <li>Find the System User used for your API connection</li>
+                <li>Click on it and ensure it has <strong>"Full control"</strong> permission</li>
+                <li>If missing: Click <strong>"Add People"</strong> → Select your System User → Grant <strong>"Full control"</strong></li>
+                <li><strong>Important:</strong> If you just updated permissions, generate a <strong>new access token</strong> and reconnect</li>
+              </ol>
+            </div>
+
             <div className="mb-4">
-              <p className="text-sm text-gray-700 mb-2">Open Meta Business Manager:</p>
+              <p className="text-xs text-gray-600 mb-2">
+                <strong>Direct Link:</strong>
+              </p>
               {businessMetaUrl ? (
-                <a href={businessMetaUrl} target="_blank" rel="noreferrer" className="text-[#2A8B8A] underline break-words">{businessMetaUrl}</a>
+                <a href={businessMetaUrl} target="_blank" rel="noreferrer" className="text-[#2A8B8A] underline break-words text-sm">
+                  {businessMetaUrl}
+                </a>
               ) : (
-                <a href="https://business.facebook.com/" target="_blank" rel="noreferrer" className="text-[#2A8B8A] underline">https://business.facebook.com/</a>
+                <a href="https://business.facebook.com/settings/whatsapp-business-accounts" target="_blank" rel="noreferrer" className="text-[#2A8B8A] underline text-sm">
+                  https://business.facebook.com/settings/whatsapp-business-accounts
+                </a>
               )}
-              <p className="text-xs text-gray-500 mt-2">Suggested steps: Check WhatsApp Accounts, System Users, Business Verification, and Roles.</p>
             </div>
 
             <div className="flex gap-3">
@@ -774,7 +792,7 @@ export default function SettingsPage() {
                 disabled={verifying}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
               >
-                Cancel
+                Close
               </button>
               <button
                 onClick={handleBusinessCompleted}
@@ -787,7 +805,7 @@ export default function SettingsPage() {
                     Checking...
                   </span>
                 ) : (
-                  "I've completed"
+                  "✓ I've completed these steps"
                 )}
               </button>
             </div>
