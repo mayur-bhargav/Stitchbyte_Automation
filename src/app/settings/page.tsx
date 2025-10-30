@@ -379,36 +379,38 @@ export default function SettingsPage() {
       setError("");
       setSuccess("");
       
-      // Fetch the config to get access_token and phone_number_id
-      const config = await apiService.getWhatsAppConfig(user.companyId);
+      console.log('🔗 Fetching register URL from backend...');
       
-      console.log('📊 Full config response:', config);
-      console.log('📊 Config data:', config?.data);
+      // Call backend to get the pre-built registration URL
+      const response = await fetch(buildApiUrl('/whatsapp/get-register-url'), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       
-      const accessToken = config?.data?.access_token;
-      const phoneNumberId = config?.data?.selected_phone?.phone_number_id || config?.data?.selected_phone?.id;
+      const data = await response.json();
       
-      console.log('🔑 Access Token:', accessToken ? 'Found ✓' : 'Missing ✗');
-      console.log('📱 Phone Number ID:', phoneNumberId || 'Missing');
+      console.log('� Backend response:', data);
       
-      if (!accessToken || !phoneNumberId) {
-        console.error('❌ Missing data:', { 
-          hasAccessToken: !!accessToken, 
-          hasPhoneNumberId: !!phoneNumberId,
-          configData: config?.data 
-        });
-        setError("Missing access token or phone number ID. Please reconnect WhatsApp.");
+      if (!data.success || !data.register_url) {
+        setError(data.detail || data.message || "Failed to get registration URL");
         setVerifying(false);
         return;
       }
       
-      // Open Meta's register endpoint directly in a new tab
-      const registerUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/register?access_token=${accessToken}&messaging_product=whatsapp${pinValue ? `&pin=${pinValue}` : ''}`;
+      // If PIN is provided, append it to the URL
+      let finalUrl = data.register_url;
+      if (pinValue) {
+        finalUrl += `&pin=${pinValue}`;
+        console.log('📌 Added PIN to URL');
+      }
       
-      console.log('🔗 Opening Meta register endpoint:', `https://graph.facebook.com/v19.0/${phoneNumberId}/register`);
-      console.log('🔗 Full URL (token hidden):', registerUrl.replace(accessToken, 'HIDDEN'));
+      console.log('🔗 Opening Meta register endpoint:', `https://graph.facebook.com/v19.0/${data.phone_number_id}/register`);
+      console.log('� Opening URL in new tab...');
       
-      window.open(registerUrl, '_blank');
+      // Open the URL in a new tab
+      window.open(finalUrl, '_blank');
       
       setSuccess("✅ Opened Meta registration page in a new tab. Check the new tab to see Meta's response!");
       
