@@ -374,19 +374,29 @@ export default function SettingsPage() {
   const handleVerifyPhone = async (pinValue?: string) => {
     if (!user) return;
     
-    // Get access token and phone number ID from connection
-    const token = localStorage.getItem('token');
-    
     try {
       setVerifying(true);
       setError("");
+      setSuccess("");
       
       // Fetch the config to get access_token and phone_number_id
       const config = await apiService.getWhatsAppConfig(user.companyId);
+      
+      console.log('📊 Full config response:', config);
+      console.log('📊 Config data:', config?.data);
+      
       const accessToken = config?.data?.access_token;
-      const phoneNumberId = config?.data?.selected_phone?.id || config?.data?.selected_phone?.phone_number_id;
+      const phoneNumberId = config?.data?.selected_phone?.phone_number_id || config?.data?.selected_phone?.id;
+      
+      console.log('🔑 Access Token:', accessToken ? 'Found ✓' : 'Missing ✗');
+      console.log('📱 Phone Number ID:', phoneNumberId || 'Missing');
       
       if (!accessToken || !phoneNumberId) {
+        console.error('❌ Missing data:', { 
+          hasAccessToken: !!accessToken, 
+          hasPhoneNumberId: !!phoneNumberId,
+          configData: config?.data 
+        });
         setError("Missing access token or phone number ID. Please reconnect WhatsApp.");
         setVerifying(false);
         return;
@@ -396,10 +406,11 @@ export default function SettingsPage() {
       const registerUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/register?access_token=${accessToken}&messaging_product=whatsapp${pinValue ? `&pin=${pinValue}` : ''}`;
       
       console.log('🔗 Opening Meta register endpoint:', `https://graph.facebook.com/v19.0/${phoneNumberId}/register`);
+      console.log('🔗 Full URL (token hidden):', registerUrl.replace(accessToken, 'HIDDEN'));
       
       window.open(registerUrl, '_blank');
       
-      setSuccess("Opened Meta registration page in a new tab. Check the response and let us know what you see!");
+      setSuccess("✅ Opened Meta registration page in a new tab. Check the new tab to see Meta's response!");
       
     } catch (error: any) {
       console.error('Error opening registration URL:', error);
