@@ -374,79 +374,39 @@ export default function SettingsPage() {
   const handleVerifyPhone = async (pinValue?: string) => {
     if (!user) return;
     
-    setVerifying(true);
-    setError("");
-    setSuccess("");
-    
-    console.log('🔐 Verifying phone with PIN:', pinValue ? '******' : 'No PIN provided');
+    // Get access token and phone number ID from connection
+    const token = localStorage.getItem('token');
     
     try {
-      const payload: { pin?: string } = {};
-      if (pinValue) {
-        payload.pin = pinValue;
-      }
+      setVerifying(true);
+      setError("");
       
-      console.log('📤 Sending payload:', { ...payload, pin: payload.pin ? '******' : undefined });
+      // Fetch the config to get access_token and phone_number_id
+      const config = await apiService.getWhatsAppConfig(user.companyId);
+      const accessToken = config?.data?.access_token;
+      const phoneNumberId = config?.data?.selected_phone?.id || config?.data?.selected_phone?.phone_number_id;
       
-      const response = await fetch(buildApiUrl('/whatsapp/verify-phone'), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await response.json();
-      
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response data:', data);
-      
-      // Check if PIN is required (check both possible response structures)
-      const isPinRequired = (response.status === 400) && 
-        (data.detail?.error === 'PIN_REQUIRED' || data.error?.error === 'PIN_REQUIRED');
-      
-      if (isPinRequired) {
-        console.log('🔑 PIN required - showing modal');
-        const errorMessage = data.detail?.message || data.error?.message || "Two-step verification PIN required.";
-        setShowPinModal(true);
-        setError(errorMessage);
-        setVerifying(false);
-        return;
-      }
-
-      // Check if a business action / permission is required
-      const isBusinessActionRequired = (response.status === 403 || response.status === 400) &&
-        (data.detail?.error === 'BUSINESS_ACTION_REQUIRED' || data.error?.error === 'BUSINESS_ACTION_REQUIRED');
-
-      if (isBusinessActionRequired) {
-        console.log('🚧 Business action required - showing guidance modal');
-        const errorMessage = data.detail?.message || data.error?.message || "Business manager action required on Meta.";
-        const metaUrl = data.detail?.meta_url || data.error?.meta_url || null;
-        setBusinessMetaUrl(metaUrl);
-        setShowBusinessModal(true);
-        setError(errorMessage);
+      if (!accessToken || !phoneNumberId) {
+        setError("Missing access token or phone number ID. Please reconnect WhatsApp.");
         setVerifying(false);
         return;
       }
       
-      if (data.success && data.verified) {
-        setSuccess(data.message || "Phone number verified successfully! You can now send messages and create templates.");
-        setShowPinModal(false);
-        setPin("");
-        // Refresh connection to get updated status
-        await fetchConnection(true);
-      } else if (data.success && data.status === 'pending') {
-        setError(data.message || "Phone registered but verification is still pending. Please try again in a few minutes.");
-      } else {
-        setError(data.detail || data.message || "Phone verification failed. Please try again.");
-      }
+      // Open Meta's register endpoint directly in a new tab
+      const registerUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/register?access_token=${accessToken}&messaging_product=whatsapp${pinValue ? `&pin=${pinValue}` : ''}`;
+      
+      console.log('🔗 Opening Meta register endpoint:', `https://graph.facebook.com/v19.0/${phoneNumberId}/register`);
+      
+      window.open(registerUrl, '_blank');
+      
+      setSuccess("Opened Meta registration page in a new tab. Check the response and let us know what you see!");
+      
     } catch (error: any) {
-      console.error('Error verifying phone:', error);
-      setError("Failed to verify phone number. Please try again.");
+      console.error('Error opening registration URL:', error);
+      setError("Failed to open registration URL. Check console for details.");
     } finally {
       setVerifying(false);
-      setTimeout(() => { setSuccess(""); setError(""); }, 6000);
+      setTimeout(() => { setSuccess(""); setError(""); }, 10000);
     }
   };
   
