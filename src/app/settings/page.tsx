@@ -379,44 +379,62 @@ export default function SettingsPage() {
       setError("");
       setSuccess("");
       
-      console.log('🔗 Fetching register URL from backend...');
+      // Build request payload
+      const payload: { pin?: string } = {};
+      if (pinValue) {
+        payload.pin = pinValue;
+      }
       
-      // Call backend to get the pre-built registration URL
-      const response = await fetch(buildApiUrl('/whatsapp/get-register-url'), {
-        method: 'GET',
+      // Call backend verification API
+      const response = await fetch(buildApiUrl('/whatsapp/verify-phone'), {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
       
       const data = await response.json();
       
-      console.log('� Backend response:', data);
-      
-      if (!data.success || !data.register_url) {
-        setError(data.detail || data.message || "Failed to get registration URL");
+      // Handle error responses
+      if (!response.ok) {
+        const errorDetail = data.detail || data;
+        
+        // Check for PIN required
+        if (errorDetail.error === 'PIN_REQUIRED') {
+          setShowPinModal(true);
+          setVerifying(false);
+          return;
+        }
+        
+        // Check for business action required
+        if (errorDetail.error === 'BUSINESS_ACTION_REQUIRED') {
+          setBusinessMetaUrl(errorDetail.meta_url || 'https://business.facebook.com/settings/whatsapp-business-accounts');
+          setShowBusinessModal(true);
+          setVerifying(false);
+          return;
+        }
+        
+        // Generic error
+        setError(errorDetail.message || "Phone verification failed");
         setVerifying(false);
         return;
       }
       
-      // If PIN is provided, append it to the URL
-      let finalUrl = data.register_url;
-      if (pinValue) {
-        finalUrl += `&pin=${pinValue}`;
-        console.log('📌 Added PIN to URL');
+      // Success!
+      if (data.success) {
+        setShowPinModal(false);
+        setPin('');
+        setSuccess(data.message || "Phone verified successfully!");
+        await fetchConnection(true);
+      } else {
+        setError(data.message || "Verification failed");
       }
       
-      console.log('🔗 Opening Meta register endpoint:', `https://graph.facebook.com/v19.0/${data.phone_number_id}/register`);
-      console.log('� Opening URL in new tab...');
-      
-      // Open the URL in a new tab
-      window.open(finalUrl, '_blank');
-      
-      setSuccess("✅ Opened Meta registration page in a new tab. Check the new tab to see Meta's response!");
-      
     } catch (error: any) {
-      console.error('Error opening registration URL:', error);
-      setError("Failed to open registration URL. Check console for details.");
+      console.error('Error verifying phone:', error);
+      setError("Failed to verify phone. Check console for details.");
     } finally {
       setVerifying(false);
       setTimeout(() => { setSuccess(""); setError(""); }, 10000);
