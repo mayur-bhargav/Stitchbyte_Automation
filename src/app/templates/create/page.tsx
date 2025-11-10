@@ -73,7 +73,7 @@ export default function CreateTemplatePage() {
     footer: "",
     samples: [],
     buttons: [],
-    variableType: "none",
+    variableType: "numbered",
   });
   const [headerFile, setHeaderFile] = React.useState<File | null>(null);
   const [formErrors, setFormErrors] = React.useState<FormErrors>({});
@@ -81,6 +81,7 @@ export default function CreateTemplatePage() {
   const [successMsg, setSuccessMsg] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState("");
   const [step, setStep] = React.useState(1);
+  const [aiEnhancing, setAiEnhancing] = React.useState(false);
 
   // Function to sanitize template name (same logic as backend)
   const sanitizeTemplateName = (name: string): string => {
@@ -122,8 +123,7 @@ export default function CreateTemplatePage() {
   const nameNeedsSanitization = form.name && sanitizedName !== form.name;
 
   const variableType = form.variableType;
-  const variableWarning = variableType === 'named' ? 'Meta only accepts numbered variables like {{"{{1}}"}, {{"{{2}}"}}. Please update your template.' : '';
-  const variableMatches = variableType === 'none' ? [] : (form.body.match(/{{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*}}/g) || []);
+  const variableMatches = variableType === 'none' ? [] : (form.body.match(/{{\s*\d+\s*}}/g) || []);
 
   React.useEffect(() => {
     if (variableMatches.length !== (form.samples?.length || 0)) {
@@ -237,8 +237,83 @@ export default function CreateTemplatePage() {
     setSubmitLoading(false);
   };
 
+  const enhanceWithAI = async () => {
+    if (!form.body.trim()) {
+      alert("Please enter some body text first!");
+      return;
+    }
+
+    setAiEnhancing(true);
+    setErrorMsg("");
+    try {
+      const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSyApla1pWS_4AvRjM3n4fr5whPT59su7aKI";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `You are a professional marketing copywriter. Enhance the following WhatsApp message template to make it more attractive and engaging for customers. Use a Gen Z tone (casual, authentic, conversational) but DO NOT use any emojis. Keep it professional yet relatable. 
+
+IMPORTANT: You MUST use ONLY numbered variables like {{1}}, {{2}}, {{3}}, etc. NEVER use named variables like {{name}} or {{customer_name}}. Meta WhatsApp API only supports numbered placeholders.
+
+Original template:
+${form.body}
+
+Enhanced template (no emojis, Gen Z tone, use ONLY numbered variables like {{1}}, {{2}}):`,
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      const data = await response.json();
+      
+      console.log("Gemini API Response:", data);
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || `API Error: ${response.status}`);
+      }
+      
+      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+        const enhancedText = data.candidates[0].content.parts[0].text.trim();
+        
+        // Extract variables from the enhanced text (numbered only)
+        const newVariables = enhancedText.match(/{{\s*\d+\s*}}/g) || [];
+        
+        // Create empty samples for all detected variables
+        const newSamples = newVariables.map((_v: string, i: number) => form.samples?.[i] || "");
+        
+        setForm(prev => ({
+          ...prev,
+          body: enhancedText,
+          samples: newSamples
+        }));
+        setSuccessMsg("Template enhanced with AI! ✨ Please add sample values for variables.");
+        setTimeout(() => setSuccessMsg(""), 5000);
+      } else if (data.error) {
+        throw new Error(data.error.message || "Invalid API response");
+      } else {
+        throw new Error("Invalid response from AI - no content generated");
+      }
+    } catch (err: any) {
+      console.error("AI enhancement error:", err);
+      setErrorMsg(`AI Enhancement failed: ${err.message}`);
+      setTimeout(() => setErrorMsg(""), 5000);
+    }
+    setAiEnhancing(false);
+  };
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F0F6FF' }}>
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -256,7 +331,7 @@ export default function CreateTemplatePage() {
         </div>
         
         {/* Main Content */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-white/50 flex overflow-hidden">
+        <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-white/30 flex overflow-hidden">
         
         <div className="flex-1 p-8">
           {/* Stepper */}
@@ -316,24 +391,6 @@ export default function CreateTemplatePage() {
                 </div>
               </div>
               
-              <div>
-                <div className="font-medium mb-2 text-black">Variable Type</div>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="variableType" value="numbered" checked={variableType === 'numbered'} onChange={handleFormChange} className="accent-[#2A8B8A] w-4 h-4" />
-                    <span className="text-black">Numbered ({'{{1}}'}, {'{{2}}'})</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="variableType" value="named" checked={variableType === 'named'} onChange={handleFormChange} className="accent-[#2A8B8A] w-4 h-4" />
-                    <span className="text-black">Named ({'{{name}}'}, {'{{code}}'})</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="variableType" value="none" checked={variableType === 'none'} onChange={handleFormChange} className="accent-[#2A8B8A] w-4 h-4" />
-                    <span className="text-black">None</span>
-                  </label>
-                </div>
-              </div>
-              
               <div className="flex justify-between mt-8">
                 <button type="button" className="bg-gray-200 text-gray-600 font-semibold px-6 py-2 rounded-xl transition-all duration-200" onClick={() => router.push("/templates")}>
                   Cancel
@@ -349,14 +406,21 @@ export default function CreateTemplatePage() {
             <form onSubmit={e => { e.preventDefault(); setStep(3); }} className="space-y-6">
               <div>
                 <label className="block font-medium mb-1 text-black">Template Name</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  value={form.name} 
-                  onChange={handleFormChange} 
-                  className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:border-[#2A8B8A] focus:bg-white outline-none transition text-black placeholder-black" 
-                  placeholder="Enter template name (e.g., Order Confirmation)"
-                />
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                  </div>
+                  <input 
+                    type="text" 
+                    name="name" 
+                    value={form.name} 
+                    onChange={handleFormChange} 
+                    className="w-full border border-gray-200 rounded-xl p-2.5 pl-11 bg-gray-50 focus:border-[#2A8B8A] focus:bg-white outline-none transition text-black placeholder-gray-400" 
+                    placeholder="Enter template name (e.g., Order Confirmation)"
+                  />
+                </div>
                 {nameNeedsSanitization && (
                   <div className="text-black text-xs mt-1">
                     <span className="text-black">Will be saved as:</span> <code className="bg-blue-50 px-1 rounded">{sanitizedName}</code>
@@ -368,29 +432,49 @@ export default function CreateTemplatePage() {
               
               <div>
                 <label className="block font-medium mb-1 text-black">Header Variable Type</label>
-                <select 
-                  name="headerVarType" 
-                  value={form.headerVarType || "none"} 
-                  onChange={handleHeaderVarTypeChange} 
-                  className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:border-[#2A8B8A] focus:bg-white outline-none transition text-black"
-                >
-                  {HEADER_VARIABLE_TYPES.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                  </div>
+                  <select 
+                    name="headerVarType" 
+                    value={form.headerVarType || "none"} 
+                    onChange={handleHeaderVarTypeChange} 
+                    className="w-full border border-gray-200 rounded-xl p-2.5 pl-11 bg-gray-50 focus:border-[#2A8B8A] focus:bg-white outline-none transition text-black appearance-none"
+                  >
+                    {HEADER_VARIABLE_TYPES.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                  </div>
+                </div>
               </div>
               
               <div>
                 {form.headerVarType === 'text' ? (
                   <>
                     <label className="block font-medium mb-1 text-black">Header <span className="text-xs text-black">(optional)</span></label>
-                    <input 
-                      type="text" 
-                      name="header" 
-                      value={form.header} 
-                      onChange={handleFormChange} 
-                      className="w-full border border-gray-200 rounded-lg p-2.5 bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-black" 
-                    />
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                        </svg>
+                      </div>
+                      <input 
+                        type="text" 
+                        name="header" 
+                        value={form.header} 
+                        onChange={handleFormChange} 
+                        className="w-full border border-gray-200 rounded-lg p-2.5 pl-11 bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-gray-400" 
+                        placeholder="Enter header text"
+                      />
+                    </div>
                   </>
                 ) : form.headerVarType === 'image' ? (
                   <>
@@ -457,45 +541,95 @@ export default function CreateTemplatePage() {
             <div>
               <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} className="space-y-5">
                 <div>
-                  <label className="block font-medium mb-1 text-black">Body</label>
-                  <textarea 
-                    name="body" 
-                    value={form.body} 
-                    onChange={handleFormChange} 
-                    className="w-full border border-gray-200 rounded-lg p-2.5 min-h-[80px] bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-black" 
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-medium text-black">Body</label>
+                    <button
+                      type="button"
+                      onClick={enhanceWithAI}
+                      disabled={aiEnhancing || !form.body.trim()}
+                      className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      {aiEnhancing ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Enhancing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                          </svg>
+                          <span>✨ Enhance with AI</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute left-3 top-3 text-gray-400">
+                      <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+                      </svg>
+                    </div>
+                    <textarea 
+                      name="body" 
+                      value={form.body} 
+                      onChange={handleFormChange} 
+                      className="w-full border border-gray-200 rounded-lg p-2.5 pl-11 min-h-[80px] bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-gray-400" 
+                      placeholder="Enter your message body text... Use numbered variables like {{1}}, {{2}}, {{3}}"
+                    />
+                  </div>
                   {formErrors.body && <div className="text-red-500 text-xs mt-1">{formErrors.body}</div>}
+                  {successMsg && <div className="text-green-600 text-sm mt-2 font-medium">✨ {successMsg}</div>}
+                  {errorMsg && <div className="text-red-500 text-sm mt-2 font-medium">⚠️ {errorMsg}</div>}
                 </div>
                 
                 {variableMatches.length > 0 && (
                   <div className="mt-6">
                     <div className="font-semibold text-lg mb-1 text-black">Samples for body content</div>
-                    <div className="text-black mb-4 text-base">To help us review your message template, please add an example for each variable in your body text.</div>
+                    <div className="text-black mb-4 text-base">To help us review your message template, please add an example for each variable in your body text. Use numbered variables like {'{{'}1{'}}'},  {'{{'}2{'}}'}, etc.</div>
                     {variableMatches.map((v, idx) => (
                       <div key={v} className="flex items-center gap-3 mb-3">
                         <span className="text-black text-base min-w-[120px]">{v}</span>
-                        <input
-                          type="text"
-                          className="flex-1 border border-gray-200 rounded-lg p-2.5 bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-black"
-                          placeholder={`Enter content for ${v}`}
-                          value={form.samples?.[idx] || ""}
-                          onChange={e => handleSampleChange(idx, e.target.value)}
-                          required
-                        />
+                        <div className="relative flex-1">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                            </svg>
+                          </div>
+                          <input
+                            type="text"
+                            className="w-full border border-gray-200 rounded-lg p-2.5 pl-11 bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-gray-400"
+                            placeholder={`Enter content for ${v}`}
+                            value={form.samples?.[idx] || ""}
+                            onChange={e => handleSampleChange(idx, e.target.value)}
+                            required
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
                 
                 <div>
-                                    <label className="block font-medium mb-1 text-black">Footer <span className="text-xs text-black">(optional)</span></label>
-                  <input 
-                    type="text" 
-                    name="footer" 
-                    value={form.footer} 
-                    onChange={handleFormChange} 
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-black" 
-                  />
+                  <label className="block font-medium mb-1 text-black">Footer <span className="text-xs text-black">(optional)</span></label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M4 18h16v2H4zm0-5h16v2H4zm0-7v2h16V6z"/>
+                      </svg>
+                    </div>
+                    <input 
+                      type="text" 
+                      name="footer" 
+                      value={form.footer} 
+                      onChange={handleFormChange} 
+                      className="w-full border border-gray-200 rounded-lg p-2.5 pl-11 bg-gray-50 focus:border-blue-500 focus:bg-white outline-none transition text-black placeholder-gray-400" 
+                      placeholder="Enter footer text (optional)"
+                    />
+                  </div>
                 </div>
 
                 {/* Buttons Section */}
@@ -528,39 +662,65 @@ export default function CreateTemplatePage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-black mb-1">Button Type</label>
-                          <select
-                            value={button.type}
-                            onChange={(e) => updateButton(index, 'type', e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:border-blue-500 outline-none transition text-black"
-                          >
-                            <option value="QUICK_REPLY" className="text-black">Quick Reply</option>
-                            <option value="URL" className="text-black">Website URL</option>
-                          </select>
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                              </svg>
+                            </div>
+                            <select
+                              value={button.type}
+                              onChange={(e) => updateButton(index, 'type', e.target.value)}
+                              className="w-full border border-gray-200 rounded-lg p-2 pl-10 bg-white focus:border-blue-500 outline-none transition text-black appearance-none"
+                            >
+                              <option value="QUICK_REPLY" className="text-black">Quick Reply</option>
+                              <option value="URL" className="text-black">Website URL</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M7 10l5 5 5-5z"/>
+                              </svg>
+                            </div>
+                          </div>
                         </div>
                         
                         <div>
                           <label className="block text-sm font-medium text-black mb-1">Button Text</label>
-                          <input
-                            type="text"
-                            value={button.text}
-                            onChange={(e) => updateButton(index, 'text', e.target.value)}
-                            placeholder="Button text (max 20 chars)"
-                            maxLength={20}
-                            className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:border-blue-500 outline-none transition text-black placeholder-black"
-                          />
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                              </svg>
+                            </div>
+                            <input
+                              type="text"
+                              value={button.text}
+                              onChange={(e) => updateButton(index, 'text', e.target.value)}
+                              placeholder="Button text (max 20 chars)"
+                              maxLength={20}
+                              className="w-full border border-gray-200 rounded-lg p-2 pl-10 bg-white focus:border-blue-500 outline-none transition text-black placeholder-gray-400"
+                            />
+                          </div>
                         </div>
                       </div>
                       
                       {button.type === 'URL' && (
                         <div className="mt-3">
                           <label className="block text-sm font-medium text-black mb-1">Website URL</label>
-                          <input
-                            type="url"
-                            value={button.url || ''}
-                            onChange={(e) => updateButton(index, 'url', e.target.value)}
-                            placeholder="https://example.com"
-                            className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:border-blue-500 outline-none transition text-black placeholder-black"
-                          />
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+                              </svg>
+                            </div>
+                            <input
+                              type="url"
+                              value={button.url || ''}
+                              onChange={(e) => updateButton(index, 'url', e.target.value)}
+                              placeholder="https://example.com"
+                              className="w-full border border-gray-200 rounded-lg p-2 pl-10 bg-white focus:border-blue-500 outline-none transition text-black placeholder-gray-400"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -580,7 +740,7 @@ export default function CreateTemplatePage() {
                   <button 
                     type="submit" 
                     className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white font-semibold px-6 py-2 rounded-xl shadow-lg transition-all duration-200 disabled:opacity-60" 
-                    disabled={submitLoading || variableType === 'named'}
+                    disabled={submitLoading}
                   >
                     Submit to Meta
                   </button>
@@ -593,7 +753,6 @@ export default function CreateTemplatePage() {
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 whitespace-pre-line text-base text-black">
                     {form.body}
                   </div>
-                  {variableWarning && <div className="text-red-500 text-xs mt-2 font-semibold">{variableWarning}</div>}
                 </div>
                 
                 <div className="mb-4">
@@ -610,13 +769,6 @@ export default function CreateTemplatePage() {
                   <div className="font-medium text-black">Header Variable Type</div>
                   <div className="text-base text-black font-semibold">
                     {HEADER_VARIABLE_TYPES.find(opt => opt.value === (form.headerVarType || "none"))?.label}
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <div className="font-medium text-black">Variable Type</div>
-                  <div className="text-base text-black font-semibold">
-                    {variableType === 'none' ? 'None' : variableType.charAt(0).toUpperCase() + variableType.slice(1)}
                   </div>
                 </div>
                 
@@ -672,7 +824,7 @@ export default function CreateTemplatePage() {
         </div>
         
         {/* Right: Live Preview */}
-        <div className="hidden lg:flex flex-col bg-white/50 backdrop-blur-sm min-w-[400px] border-l border-white/50 p-8">
+        <div className="hidden lg:flex flex-col bg-white/30 backdrop-blur-sm min-w-[400px] border-l border-white/30 p-8">
           <h3 className="text-lg font-semibold mb-4 text-black">Live Preview</h3>
           
           {/* iPhone WhatsApp Replica */}

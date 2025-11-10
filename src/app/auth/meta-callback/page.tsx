@@ -1,20 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { SERVER_URL, buildApiUrl } from '@/config/server';
+import { buildApiUrl } from '@/config/server';
+import { WhatsAppPINModal } from '@/components/WhatsAppPINModal';
+import { apiService } from '@/app/services/apiService';
 
 export default function MetaCallbackPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState('Processing...');
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [authCode, setAuthCode] = useState('');
+  const [authState, setAuthState] = useState('');
+  const [wabaData, setWabaData] = useState<any>(null);
 
   useEffect(() => {
     const processCallback = async () => {
-      // Backend API URL - must be determined at runtime
-      const apiUrl = SERVER_URL;
-      console.log('🔧 Using API URL:', apiUrl);
-      
       // Get OAuth parameters from URL
       const code = searchParams.get('code');
       const state = searchParams.get('state');
@@ -106,17 +108,22 @@ export default function MetaCallbackPage() {
       }
 
       // Retrieve WABA data from sessionStorage (set by message event listener)
-      const wabaData = {
+      const wabaDataFromSession = {
         waba_id: sessionStorage.getItem('waba_id'),
         phone_number_id: sessionStorage.getItem('phone_number_id'),
         business_id: sessionStorage.getItem('business_id')
       };
 
-      console.log('📞 WABA data from sessionStorage:', wabaData);
+      console.log('📞 WABA data from sessionStorage:', wabaDataFromSession);
+      
+      // Store for PIN modal if needed
+      setAuthCode(code);
+      setAuthState(state);
+      setWabaData(wabaDataFromSession);
 
       // If we have WABA data, use the exchange-code endpoint
       // Otherwise, use the traditional callback endpoint
-      if (wabaData.waba_id || wabaData.phone_number_id) {
+      if (wabaDataFromSession.waba_id || wabaDataFromSession.phone_number_id) {
         console.log('✅ Using exchange-code endpoint with WABA data');
         setStatus('Setting up WhatsApp with captured data...');
 
@@ -129,14 +136,32 @@ export default function MetaCallbackPage() {
             body: JSON.stringify({
               code,
               state,
-              waba_id: wabaData.waba_id,
-              phone_number_id: wabaData.phone_number_id,
-              business_id: wabaData.business_id
+              waba_id: wabaDataFromSession.waba_id,
+              phone_number_id: wabaDataFromSession.phone_number_id,
+              business_id: wabaDataFromSession.business_id
             })
           });
 
           const result = await response.json();
           console.log('Exchange result:', result);
+
+          // NEW Phase 2: Handle 409 PIN required response
+          if (response.status === 409) {
+            console.log('⚠️ PIN required for registration');
+            setStatus('Two-step verification required');
+            setShowPinModal(true);
+            return;
+          }
+
+          // Handle 502 registration failure
+          if (response.status === 502) {
+            console.error('❌ Registration failed:', result);
+            setStatus('Registration failed. Please try again.');
+            setTimeout(() => {
+              router.push(`/settings?error=registration_failed&message=${encodeURIComponent(result.error || 'Unknown error')}`);
+            }, 2000);
+            return;
+          }
 
           if (result.success) {
             // Clear sessionStorage
@@ -173,6 +198,44 @@ export default function MetaCallbackPage() {
     processCallback();
   }, [searchParams, router]);
 
+  // NEW Phase 2: Handle PIN submission
+  const handlePinSubmit = async (pin: string) => {
+    setStatus('Verifying PIN and completing registration...');
+    
+    try {
+      const result = await apiService.registerWhatsAppPhone(pin);
+      
+      if ((result as any).success || (result as any).registered) {
+        // Success - clear session storage and redirect
+        sessionStorage.removeItem('waba_id');
+        sessionStorage.removeItem('phone_number_id');
+        sessionStorage.removeItem('business_id');
+        sessionStorage.removeItem('embedded_signup_data');
+        
+        setShowPinModal(false);
+        setStatus('Registration complete! Redirecting...');
+        
+        setTimeout(() => {
+          router.push('/settings?success=whatsapp_registered');
+        }, 1000);
+        
+        return { success: true, message: 'Registration successful!' };
+      }
+      
+      return { 
+        success: false, 
+        message: (result as any).message || 'Registration failed' 
+      };
+      
+    } catch (error: any) {
+      console.error('PIN verification error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to verify PIN'
+      };
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
@@ -186,6 +249,17 @@ export default function MetaCallbackPage() {
           <p className="text-gray-600">{status}</p>
         </div>
       </div>
+      
+      {/* NEW Phase 2: PIN Modal */}
+      <WhatsAppPINModal
+        isOpen={showPinModal}
+        onClose={() => {
+          setShowPinModal(false);
+          router.push('/settings?error=pin_required');
+        }}
+        onSubmit={handlePinSubmit}
+        phoneNumber={wabaData?.phone_number_id}
+      />
     </div>
   );
 }

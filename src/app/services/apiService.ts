@@ -835,17 +835,71 @@ class ApiService {
 
   // Messages methods
   async sendMessage(messageData: any) {
-    return this.request('/send-message', {
-      method: 'POST',
-      body: JSON.stringify(messageData),
-    });
+    try {
+      return await this.request('/send-message', {
+        method: 'POST',
+        body: JSON.stringify(messageData),
+      });
+    } catch (error: any) {
+      // Enhanced error handling for Phase 2
+      return this._handleMessageError(error);
+    }
   }
 
   async sendBulkMessage(messageData: any) {
-    return this.request('/send-bulk-message', {
-      method: 'POST',
-      body: JSON.stringify(messageData),
-    });
+    try {
+      return await this.request('/send-bulk-message', {
+        method: 'POST',
+        body: JSON.stringify(messageData),
+      });
+    } catch (error: any) {
+      // Enhanced error handling for Phase 2
+      return this._handleMessageError(error);
+    }
+  }
+
+  // NEW Phase 2: Enhanced error handler for message sending
+  private _handleMessageError(error: any): never {
+    const errorData = error.response?.data?.detail || error.response?.data || error;
+    
+    // Check for registration errors
+    if (errorData.code === 'WABA_NOT_REGISTERED') {
+      const enhancedError: any = new Error(
+        errorData.message || 'WhatsApp number not registered. Please complete registration in Settings.'
+      );
+      enhancedError.code = 'WABA_NOT_REGISTERED';
+      enhancedError.redirectTo = '/settings';
+      enhancedError.action = 'register';
+      enhancedError.userMessage = 'Your WhatsApp number needs to be registered before you can send messages. Click here to complete registration.';
+      throw enhancedError;
+    }
+    
+    // Check for connection errors
+    if (errorData.code === 'WABA_NOT_CONNECTED') {
+      const enhancedError: any = new Error(
+        errorData.message || 'WhatsApp not connected. Please connect your account in Settings.'
+      );
+      enhancedError.code = 'WABA_NOT_CONNECTED';
+      enhancedError.redirectTo = '/settings';
+      enhancedError.action = 'connect';
+      enhancedError.userMessage = 'Please connect your WhatsApp Business Account in Settings first.';
+      throw enhancedError;
+    }
+    
+    // Check for Meta API error 133010 (fallback)
+    if (errorData.error_code === 133010 || errorData.code === 133010) {
+      const enhancedError: any = new Error(
+        'WhatsApp account not registered with Meta Cloud API. Please register in Settings.'
+      );
+      enhancedError.code = 'WABA_NOT_REGISTERED';
+      enhancedError.redirectTo = '/settings';
+      enhancedError.action = 'register';
+      enhancedError.userMessage = 'Registration required. Click here to complete WhatsApp registration.';
+      throw enhancedError;
+    }
+    
+    // Re-throw original error if not a registration issue
+    throw error;
   }
 
   async getMessageLogs() {
@@ -1320,14 +1374,14 @@ Please provide a helpful response following all security instructions above:`;
     });
   }
 
-  async createPaymentOrder(planId: string) {
-    debugLog('💳 apiService: createPaymentOrder called for plan:', planId);
+  async createPaymentOrder(planId: string, billingCycle: 'monthly' | 'yearly' = 'monthly') {
+    debugLog('💳 apiService: createPaymentOrder called for plan:', planId, 'billing cycle:', billingCycle);
     this.loadToken();
     debugLog('🔑 apiService: Token for payment:', this.token ? `${this.token.substring(0, 20)}...` : 'NULL - NO TOKEN!');
     
     return this.request('/create-payment-order', {
       method: 'POST',
-      body: JSON.stringify({ plan_id: planId }),
+      body: JSON.stringify({ plan_id: planId, billing_cycle: billingCycle }),
     });
   }
 
@@ -1339,11 +1393,18 @@ Please provide a helpful response following all security instructions above:`;
     razorpay_order_id?: string;
     razorpay_signature?: string;
     stripe_payment_id?: string;
+    billing_cycle?: 'monthly' | 'yearly';
   }) {
     // Use a more forgiving request that doesn't auto-redirect on 401
     return this.requestWithoutAutoRedirect('/api/verify-payment', {
       method: 'POST',
       body: JSON.stringify(paymentData),
+    });
+  }
+
+  async getPaymentMethods() {
+    return this.request('/payments/payment-methods', {
+      method: 'GET',
     });
   }
 
@@ -1510,6 +1571,20 @@ Please provide a helpful response following all security instructions above:`;
   async deleteWhatsAppConfig() {
     return this.request('/whatsapp/config', {
       method: 'DELETE',
+    });
+  }
+
+  // NEW Phase 2: WhatsApp Registration methods
+  async getWhatsAppRegistrationStatus() {
+    return this.request('/whatsapp/registration-status', {
+      method: 'GET',
+    });
+  }
+
+  async registerWhatsAppPhone(pin?: string) {
+    return this.request('/whatsapp/register', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
     });
   }
 

@@ -52,11 +52,9 @@ export default function SubscriptionGuard({ children }: SubscriptionGuardProps) 
       return;
     }
 
-    // If has valid subscription but on select-plan page, redirect to dashboard
-    if (hasValidSubscription && pathname === '/select-plan') {
-      router.push('/dashboard');
-      return;
-    }
+    // Allow users to visit select-plan page anytime (for upgrades, plan changes, etc.)
+    // Do NOT redirect users away from select-plan if they have a valid subscription
+    // This allows them to upgrade, change billing cycles, or modify their plan
   }, [isClient, isLoading, isAuthenticated, hasValidSubscription, needsPlanSelection, pathname, router]);
 
   // Always render children immediately for public routes to prevent hydration mismatch

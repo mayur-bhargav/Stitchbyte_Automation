@@ -10,6 +10,7 @@ interface User {
   lastName: string;
   companyName: string;
   role: 'owner' | 'admin' | 'user' | 'viewer' | 'manager' | 'team_lead' | 'senior' | 'employee' | 'intern' | 'bde' | 'digital_marketer';
+  profilePicture?: string;
   subscription?: {
     plan_id: string;
     plan_name: string;

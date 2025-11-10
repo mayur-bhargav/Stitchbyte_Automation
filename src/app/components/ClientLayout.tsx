@@ -7,6 +7,7 @@ import { BalanceProvider, useBalance } from "../contexts/BalanceContext";
 import { useUser } from "../contexts/UserContext";
 import { usePermissions } from "../contexts/PermissionContext";
 import { useChatContext } from "../contexts/ChatContext";
+import { useDashboard } from "../contexts/DashboardContext";
 import { apiService } from "../services/apiService";
 import AddBalanceModal from "./AddBalanceModal";
 import { useThemeToggle, useThemeWatcher, getThemeColors } from "../hooks/useThemeToggle";
@@ -44,7 +45,15 @@ import {
   LuMessageCircle,
   LuImage,
   LuCalendar,
-  LuZap
+  LuZap,
+  LuBell,
+  LuBellRing,
+  LuSearch,
+  LuX,
+  LuCheck,
+  LuCircleCheck,
+  LuInfo,
+  LuCircle
 } from "react-icons/lu";
 
 // ============================================================================
@@ -209,6 +218,360 @@ const BalanceHeader = ({ onTopUpClick }: { onTopUpClick: () => void }) => {
 
 
 // ============================================================================
+// Dropdown Components for Search and Notifications
+// ============================================================================
+
+const SearchFilterDropdown = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { searchQuery, setSearchQuery, dateFilter, setDateFilter, statusFilter, setStatusFilter } = useDashboard();
+  const { darkMode } = useThemeWatcher();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const hasActiveFilters = searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all';
+  
+  const clearFilters = () => {
+    setSearchQuery('');
+    setDateFilter('all');
+    setStatusFilter('all');
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      ref={dropdownRef}
+      className="absolute top-full right-0 mt-2 w-[600px] rounded-xl border shadow-xl z-50"
+      style={{
+        backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+        borderColor: darkMode ? '#475569' : '#e2e8f0'
+      }}
+    >
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2"
+              style={{ color: darkMode ? '#f1f5f9' : '#1e293b' }}>
+            <LuFilter size={20} />
+            Search & Filter
+          </h3>
+          <button
+            onClick={onClose}
+            className="hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded"
+            style={{ color: darkMode ? '#94a3b8' : '#64748b' }}
+          >
+            <LuX size={20} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {/* Search Input */}
+          <div>
+            <label className="block text-sm font-medium mb-2"
+                   style={{ color: darkMode ? '#cbd5e1' : '#475569' }}>
+              Search
+            </label>
+            <div className="relative">
+              <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2" 
+                        size={18}
+                        style={{ color: darkMode ? '#64748b' : '#94a3b8' }} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search campaigns, contacts..."
+                className="w-full pl-10 pr-4 py-2 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent"
+                style={{
+                  backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+                  borderColor: darkMode ? '#475569' : '#cbd5e1',
+                  color: darkMode ? '#f1f5f9' : '#1e293b',
+                  border: '1px solid'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Date Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2"
+                   style={{ color: darkMode ? '#cbd5e1' : '#475569' }}>
+              Date Range
+            </label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent"
+              style={{
+                backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+                borderColor: darkMode ? '#475569' : '#cbd5e1',
+                color: darkMode ? '#f1f5f9' : '#1e293b',
+                border: '1px solid'
+              }}
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2"
+                   style={{ color: darkMode ? '#cbd5e1' : '#475569' }}>
+              Status
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent"
+              style={{
+                backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+                borderColor: darkMode ? '#475569' : '#cbd5e1',
+                color: darkMode ? '#f1f5f9' : '#1e293b',
+                border: '1px solid'
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="paused">Paused</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Active Filters & Clear */}
+        {hasActiveFilters && (
+          <div className="mt-4 flex items-center justify-between pt-4 border-t"
+               style={{ borderColor: darkMode ? '#475569' : '#e2e8f0' }}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm" style={{ color: darkMode ? '#94a3b8' : '#64748b' }}>
+                Active filters:
+              </span>
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] text-sm rounded-full">
+                  Search: "{searchQuery.substring(0, 20)}{searchQuery.length > 20 ? '...' : ''}"
+                  <button onClick={() => setSearchQuery('')} className="hover:bg-[#2A8B8A]/20 rounded-full p-0.5">
+                    <LuX size={14} />
+                  </button>
+                </span>
+              )}
+              {dateFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] text-sm rounded-full">
+                  Date: {dateFilter}
+                  <button onClick={() => setDateFilter('all')} className="hover:bg-[#2A8B8A]/20 rounded-full p-0.5">
+                    <LuX size={14} />
+                  </button>
+                </span>
+              )}
+              {statusFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] text-sm rounded-full">
+                  Status: {statusFilter}
+                  <button onClick={() => setStatusFilter('all')} className="hover:bg-[#2A8B8A]/20 rounded-full p-0.5">
+                    <LuX size={14} />
+                  </button>
+                </span>
+              )}
+            </div>
+            <button
+              onClick={clearFilters}
+              className="text-sm font-semibold text-[#2A8B8A] hover:underline"
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const NotificationsDropdown = ({ 
+  isOpen, 
+  onClose, 
+  notifications, 
+  markAsRead, 
+  markAllAsRead, 
+  clearNotification,
+  formatTimeAgo 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void;
+  notifications: any[];
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  clearNotification: (id: string) => void;
+  formatTimeAgo: (date: string | Date) => string;
+}) => {
+  const { unreadCount } = useDashboard();
+  const { darkMode } = useThemeWatcher();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      ref={dropdownRef}
+      className="absolute top-full right-0 mt-2 w-[450px] rounded-xl border shadow-xl overflow-hidden z-50"
+      style={{
+        backgroundColor: darkMode ? '#1e293b' : '#ffffff',
+        borderColor: darkMode ? '#475569' : '#e2e8f0'
+      }}
+    >
+      <div className="flex items-center justify-between p-4 border-b"
+           style={{
+             backgroundColor: darkMode ? '#0f172a' : '#f8fafc',
+             borderColor: darkMode ? '#475569' : '#e2e8f0'
+           }}>
+        <h3 className="text-lg font-semibold flex items-center gap-2"
+            style={{ color: darkMode ? '#f1f5f9' : '#1e293b' }}>
+          <LuBell size={20} />
+          Notifications
+          {unreadCount > 0 && (
+            <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
+              {unreadCount}
+            </span>
+          )}
+        </h3>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="text-sm font-semibold text-[#2A8B8A] hover:underline flex items-center gap-1"
+            >
+              <LuCheck size={16} />
+              Mark all read
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded"
+            style={{ color: darkMode ? '#94a3b8' : '#64748b' }}
+          >
+            <LuX size={20} />
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-[500px] overflow-y-auto">
+        {notifications.length === 0 ? (
+          <div className="text-center py-12">
+            <LuBell size={48} className="mx-auto mb-3"
+                    style={{ color: darkMode ? '#475569' : '#cbd5e1' }} />
+            <p className="font-medium" style={{ color: darkMode ? '#cbd5e1' : '#475569' }}>
+              No notifications
+            </p>
+            <p className="text-sm" style={{ color: darkMode ? '#64748b' : '#94a3b8' }}>
+              You're all caught up!
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y" style={{ borderColor: darkMode ? '#334155' : '#f1f5f9' }}>
+            {notifications.map((notif) => (
+              <div
+                key={notif.id}
+                className={`p-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                  !notif.read ? (darkMode ? 'bg-slate-800/50' : 'bg-blue-50/30') : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                    notif.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                    notif.type === 'warning' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                    notif.type === 'error' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                    'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                  }`}>
+                    {notif.type === 'success' && <LuCircleCheck size={20} />}
+                    {notif.type === 'warning' && <LuInfo size={20} />}
+                    {notif.type === 'error' && <LuCircle size={20} />}
+                    {notif.type === 'info' && <LuBell size={20} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-semibold" 
+                            style={{ color: darkMode ? '#f1f5f9' : '#1e293b' }}>
+                          {notif.title}
+                        </h4>
+                        <p className="text-sm mt-0.5" 
+                           style={{ color: darkMode ? '#cbd5e1' : '#475569' }}>
+                          {notif.message}
+                        </p>
+                        <p className="text-xs mt-1" 
+                           style={{ color: darkMode ? '#64748b' : '#94a3b8' }}>
+                          {formatTimeAgo(notif.timestamp)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => clearNotification(notif.id)}
+                        className="flex-shrink-0 hover:bg-slate-100 dark:hover:bg-slate-600 p-1 rounded"
+                        style={{ color: darkMode ? '#64748b' : '#94a3b8' }}
+                      >
+                        <LuX size={16} />
+                      </button>
+                    </div>
+                    {notif.action && (
+                      <button
+                        onClick={() => {
+                          markAsRead(notif.id);
+                          notif.action();
+                          onClose();
+                        }}
+                        className="mt-2 text-sm font-semibold text-[#2A8B8A] hover:underline"
+                      >
+                        Take Action →
+                      </button>
+                    )}
+                  </div>
+                  {!notif.read && (
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => markAsRead(notif.id)}
+                        className="text-xs hover:opacity-75"
+                        title="Mark as read"
+                      >
+                        <div className="w-2 h-2 bg-[#2A8B8A] rounded-full"></div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+// ============================================================================
 // Main Layout Component
 // ============================================================================
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -225,6 +588,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const { user, isAuthenticated, logout } = useUser();
   const { permissions, hasPermission } = usePermissions();
   const { totalUnreadCount } = useChatContext();
+  const { 
+    showNotifications, setShowNotifications, 
+    showSearchFilter, setShowSearchFilter, 
+    unreadCount, searchQuery, dateFilter, statusFilter,
+    notifications, setNotifications, setUnreadCount
+  } = useDashboard();
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const { darkMode } = useThemeWatcher();
   const colors = getThemeColors(darkMode);
@@ -317,6 +686,47 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, []);
 
   const isActiveRoute = (route: string) => isHydrated && pathname.startsWith(route);
+  
+  // Notification helper functions
+  const formatTimeAgo = (dateString: string | Date) => {
+    if (!dateString) return 'No time';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid time';
+      const now = new Date();
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+      
+      if (diffInMinutes < 1) return 'Just now';
+      if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+      if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+      return `${Math.floor(diffInMinutes / 1440)}d ago`;
+    } catch {
+      return 'Invalid time';
+    }
+  };
+
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      )
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+    setUnreadCount(0);
+  };
+
+  const clearNotification = (notificationId: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+    const notif = notifications.find(n => n.id === notificationId);
+    if (notif && !notif.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  };
+  
   const getPageTitle = () => {
       const allItems = navConfig.flatMap(g => g.items);
       const currentItem = allItems.find(item => pathname.startsWith(item.href));
@@ -480,7 +890,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}>
                 <img 
-                  src={`https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=E0F2F1&color=00796B&size=128`} 
+                  src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=E0F2F1&color=00796B&size=128`} 
                   alt="Avatar" 
                   className="w-10 h-10 rounded-full object-cover"
                 />
@@ -502,7 +912,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </aside>
 
         <main className="flex-1 ml-72">
-          <header className="backdrop-blur-md border-b px-8 py-6 sticky top-0 z-40 flex justify-between items-center"
+          <header className="backdrop-blur-md border-b px-8 py-6 sticky top-0 z-40 flex justify-between items-center relative"
                   style={{
                     backgroundColor: darkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.8)',
                     borderColor: darkMode ? '#475569' : '#e2e8f0',
@@ -512,7 +922,78 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                  style={{ color: darkMode ? '#f1f5f9' : '#1e293b' }}>
                {getPageTitle()}
              </h1>
-             <BalanceHeader onTopUpClick={() => setShowAddBalanceModal(true)} />
+             
+             <div className="flex items-center gap-4 relative">
+               {/* Show Search & Notifications only on dashboard */}
+               {pathname === '/dashboard' && (
+                 <>
+                   {/* Search & Filter Button */}
+                   <div className="relative">
+                     <button
+                       onClick={() => {
+                         setShowSearchFilter(!showSearchFilter);
+                         setShowNotifications(false); // Close notifications when opening search
+                       }}
+                       className={`relative p-2.5 rounded-lg transition-all ${
+                         (searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all')
+                           ? 'bg-[#2A8B8A] text-white shadow-md' 
+                           : darkMode
+                           ? 'bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600'
+                           : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                       }`}
+                       title="Search and Filter"
+                     >
+                       <LuSearch size={20} />
+                       {(searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all') && (
+                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+                       )}
+                     </button>
+                     
+                     {/* Search Filter Dropdown */}
+                     <SearchFilterDropdown 
+                       isOpen={showSearchFilter} 
+                       onClose={() => setShowSearchFilter(false)} 
+                     />
+                   </div>
+
+                   {/* Notifications Button */}
+                   <div className="relative">
+                     <button
+                       onClick={() => {
+                         setShowNotifications(!showNotifications);
+                         setShowSearchFilter(false); // Close search when opening notifications
+                       }}
+                       className={`relative p-2.5 rounded-lg transition-all ${
+                         darkMode
+                           ? 'bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600'
+                           : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                       }`}
+                       title="Notifications"
+                     >
+                       {unreadCount > 0 ? <LuBellRing size={20} className="text-[#2A8B8A]" /> : <LuBell size={20} />}
+                       {unreadCount > 0 && (
+                         <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px]">
+                           {unreadCount > 9 ? '9+' : unreadCount}
+                         </span>
+                       )}
+                     </button>
+                     
+                     {/* Notifications Dropdown */}
+                     <NotificationsDropdown 
+                       isOpen={showNotifications} 
+                       onClose={() => setShowNotifications(false)}
+                       notifications={notifications}
+                       markAsRead={markNotificationAsRead}
+                       markAllAsRead={markAllAsRead}
+                       clearNotification={clearNotification}
+                       formatTimeAgo={formatTimeAgo}
+                     />
+                   </div>
+                 </>
+               )}
+               
+               <BalanceHeader onTopUpClick={() => setShowAddBalanceModal(true)} />
+             </div>
           </header>
           <div className="p-8 min-h-screen" 
                style={{ backgroundColor: darkMode ? '#0f172a' : '#f8fafc' }}>

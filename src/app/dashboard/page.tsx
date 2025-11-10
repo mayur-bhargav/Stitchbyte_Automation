@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "../contexts/UserContext";
 import { useBalance } from "../contexts/BalanceContext";
 import { usePermissions } from "../contexts/PermissionContext";
+import { useDashboard } from "../contexts/DashboardContext";
 import { apiService } from "../services/apiService";
 import AddBalanceModal from "../components/AddBalanceModal";
 import {
@@ -29,7 +30,13 @@ import {
   LuPhone,
   LuInfo,
   LuCalendar,
-  LuClock
+  LuClock,
+  LuBell,
+  LuSearch,
+  LuFilter,
+  LuX,
+  LuCheck,
+  LuCreditCard
 } from "react-icons/lu";
 import { Line } from 'react-chartjs-2';
 import {
@@ -168,6 +175,15 @@ export default function Dashboard() {
   const { user } = useUser();
   const { balance } = useBalance();
   const { hasPermission } = usePermissions();
+  const { 
+    showNotifications, setShowNotifications, 
+    showSearchFilter, setShowSearchFilter,
+    notifications, setNotifications,
+    unreadCount, setUnreadCount,
+    searchQuery, setSearchQuery,
+    dateFilter, setDateFilter,
+    statusFilter, setStatusFilter
+  } = useDashboard();
   
   // Demo mode for screen recording (set to true when recording)
   const DEMO_MODE = false; // Set to true for Meta app review recording
@@ -217,6 +233,196 @@ export default function Dashboard() {
   // ============================================================================
   // HELPER FUNCTIONS
   // ============================================================================
+
+  // Notification Management
+  const generateNotifications = (data: any) => {
+    const notifs: any[] = [];
+    const now = new Date();
+
+    // Low balance notification
+    if (balance < 100) {
+      notifs.push({
+        id: `balance-${Date.now()}`,
+        type: 'warning',
+        title: 'Low Balance Alert',
+        message: `Your balance is ₹${balance.toFixed(2)}. Add funds to continue sending messages.`,
+        timestamp: now.toISOString(),
+        read: false,
+        action: () => setShowAddBalanceModal(true)
+      });
+    }
+
+    // WhatsApp not connected
+    if (!(data.whatsappProfile as any)?.connected) {
+      notifs.push({
+        id: `whatsapp-${Date.now()}`,
+        type: 'error',
+        title: 'WhatsApp Not Connected',
+        message: 'Connect your WhatsApp Business Account to start messaging.',
+        timestamp: now.toISOString(),
+        read: false,
+        action: connectWhatsApp
+      });
+    }
+
+    // Failed messages notification
+    if (data.stats.failedMessages > 0) {
+      notifs.push({
+        id: `failed-${Date.now()}`,
+        type: 'error',
+        title: 'Message Delivery Failed',
+        message: `${data.stats.failedMessages} messages failed to deliver. Check logs for details.`,
+        timestamp: now.toISOString(),
+        read: false,
+        action: () => router.push('/logs')
+      });
+    }
+
+    // Campaign completion notifications
+    if (data.campaigns?.campaigns) {
+      data.campaigns.campaigns.forEach((campaign: any) => {
+        if (campaign.status === 'completed' && campaign.completed_at) {
+          const completedDate = new Date(campaign.completed_at);
+          const hoursSinceCompletion = (now.getTime() - completedDate.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursSinceCompletion < 24) {
+            notifs.push({
+              id: `campaign-complete-${campaign.id}`,
+              type: 'success',
+              title: 'Campaign Completed',
+              message: `"${campaign.name}" finished sending to ${campaign.recipients?.length || 0} contacts.`,
+              timestamp: campaign.completed_at,
+              read: false,
+              action: () => router.push('/campaigns')
+            });
+          }
+        }
+      });
+    }
+
+    // Unread chats notification
+    if (data.stats.unreadChats > 0) {
+      notifs.push({
+        id: `unread-chats-${Date.now()}`,
+        type: 'info',
+        title: 'New Messages',
+        message: `You have ${data.stats.unreadChats} unread conversation${data.stats.unreadChats > 1 ? 's' : ''}.`,
+        timestamp: now.toISOString(),
+        read: false,
+        action: () => router.push('/chats')
+      });
+    }
+
+    // No payment method
+    if (!(data.metaPaymentMethods as any)?.payment_gateway?.enabled && hasPermission('view_billing')) {
+      notifs.push({
+        id: `payment-${Date.now()}`,
+        type: 'warning',
+        title: 'Payment Method Required',
+        message: 'Add a payment method to ensure uninterrupted service.',
+        timestamp: now.toISOString(),
+        read: false,
+        action: () => router.push('/billing')
+      });
+    }
+
+    // Sort by timestamp (newest first)
+    notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return notifs;
+  };
+
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      )
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+    setUnreadCount(0);
+  };
+
+  const clearNotification = (notificationId: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+    const notif = notifications.find(n => n.id === notificationId);
+    if (notif && !notif.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  // Search and Filter Functions
+  const applyFilters = (data: any) => {
+    let filteredCampaigns = data.campaigns?.campaigns || [];
+    let filteredChats = data.chatContacts?.contacts || [];
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      
+      filteredCampaigns = filteredCampaigns.filter((campaign: any) =>
+        campaign.name?.toLowerCase().includes(query) ||
+        campaign.description?.toLowerCase().includes(query)
+      );
+
+      filteredChats = filteredChats.filter((contact: any) =>
+        contact.name?.toLowerCase().includes(query) ||
+        contact.phone?.includes(query) ||
+        contact.lastMessage?.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const filterDate = new Date();
+
+      switch (dateFilter) {
+        case 'today':
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+      }
+
+      filteredCampaigns = filteredCampaigns.filter((campaign: any) => {
+        const campaignDate = new Date(campaign.created_at || campaign.scheduled_at);
+        return campaignDate >= filterDate;
+      });
+
+      filteredChats = filteredChats.filter((contact: any) => {
+        const chatDate = new Date(contact.lastMessageTime || contact.last_message_time);
+        return chatDate >= filterDate;
+      });
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filteredCampaigns = filteredCampaigns.filter((campaign: any) =>
+        campaign.status === statusFilter
+      );
+    }
+
+    return {
+      campaigns: { campaigns: filteredCampaigns },
+      chats: { contacts: filteredChats }
+    };
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setDateFilter('all');
+    setStatusFilter('all');
+  };
+
+  const hasActiveFilters = searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all';
 
   const formatDate = (dateString: string | Date) => {
     if (!dateString) return 'No date';
@@ -509,6 +715,21 @@ export default function Dashboard() {
         },
         isLoading: false
       }));
+
+      // Generate notifications after data is processed
+      const tempData = {
+        whatsappProfile: processWhatsAppConfig(whatsappConfigResponse),
+        metaPaymentMethods: safeSetData(metaPaymentResponse),
+        campaigns: campaignsData,
+        chatContacts: chatContactsData,
+        stats: {
+          failedMessages: messageUsageData?.data?.messages_failed || messageUsageData?.failed_messages || 0,
+          unreadChats: getUnreadChatsCount(chatContactsData)
+        }
+      };
+      const generatedNotifications = generateNotifications(tempData);
+      setNotifications(generatedNotifications);
+      setUnreadCount(generatedNotifications.filter(n => !n.read).length);
     } catch (error) {
       setDashboardData(prev => ({ ...prev, isLoading: false }));
     }
@@ -752,6 +973,9 @@ export default function Dashboard() {
   // REDESIGNED JSX & LAYOUT
   // ============================================================================
 
+  // Get filtered data
+  const filteredData = hasActiveFilters ? applyFilters(dashboardData) : { campaigns: dashboardData.campaigns, chats: dashboardData.chatContacts };
+
   return (
     <div className="min-h-screen bg-transparent text-slate-800">
       <div className="flex">
@@ -793,8 +1017,8 @@ export default function Dashboard() {
             
             {/* Main Content Row: Chart and Profile/Alerts */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Left Side: Message Usage Overview */}
-              <div className="lg:col-span-8">
+              {/* Left Side: Message Usage Overview + Account Overview */}
+              <div className="lg:col-span-8" style={{ marginTop: '25px' }}>
                 <Card title="Message Usage Overview" description="Weekly trend of messages sent" icon={<LuTrendingUp />}>
                   {dashboardData.stats.totalMessages === 0 ? (
                     <div className="h-64 flex items-center justify-center bg-slate-50 rounded-lg">
@@ -851,6 +1075,112 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </Card>
+
+                {/* Account Overview Card - Below Message Usage with 25px gap */}
+                <div style={{ marginTop: '25px' }}>
+                  <Card title="Account Overview" description="Your subscription and balance details" icon={<LuWallet />}>
+                  <div className="space-y-4">
+                    {/* Balance Section */}
+                    <div className="bg-gradient-to-br from-[#2A8B8A] to-[#238080] rounded-lg p-4 text-white">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm opacity-90">Current Balance</span>
+                        <LuWallet size={20} className="opacity-75" />
+                      </div>
+                      <div className="text-3xl font-bold mb-1">₹{balance.toFixed(2)}</div>
+                      {balance < 100 && (
+                        <div className="text-xs opacity-90 mb-3">⚠️ Balance is running low</div>
+                      )}
+                      {hasPermission('add_balance') && (
+                        <button
+                          onClick={() => setShowAddBalanceModal(true)}
+                          className="w-full bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <LuWallet size={16} />
+                          Add Funds
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Subscription Plan */}
+                    <div className="border border-slate-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-slate-700">Subscription Plan</h4>
+                        <LuCreditCard size={18} className="text-slate-400" />
+                      </div>
+                      {user && (user as any).subscription ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-500">Plan</span>
+                            <span className="text-sm font-medium text-slate-800">
+                              {(user as any).subscription.plan_name || 'Active'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-500">Status</span>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                              (user as any).subscription.status === 'active' 
+                                ? 'bg-emerald-100 text-emerald-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {(user as any).subscription.status === 'active' ? '✓ Active' : 'Inactive'}
+                            </span>
+                          </div>
+                          {(user as any).subscription.end_date && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-slate-500">Renewal</span>
+                              <span className="text-sm font-medium text-slate-800">
+                                {formatDate((user as any).subscription.end_date)}
+                              </span>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => router.push('/billing')}
+                            className="w-full mt-2 text-xs font-semibold text-[#2A8B8A] hover:text-[#238080] py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                          >
+                            Manage Subscription →
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center py-3">
+                          <p className="text-sm text-slate-600 mb-3">No active subscription</p>
+                          <button
+                            onClick={() => router.push('/select-plan')}
+                            className="text-xs font-semibold text-white bg-[#2A8B8A] hover:bg-[#238080] py-2 px-4 rounded-lg transition-colors"
+                          >
+                            Choose a Plan →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div className="border border-slate-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                        <LuActivity size={18} className="text-slate-400" />
+                        Quick Stats
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">Templates</span>
+                          <span className="text-sm font-bold text-slate-800">{dashboardData.stats.templates}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">Automations</span>
+                          <span className="text-sm font-bold text-slate-800">{dashboardData.stats.automations}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">Total Campaigns</span>
+                          <span className="text-sm font-bold text-slate-800">{dashboardData.stats.totalCampaigns}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">Broadcasts</span>
+                          <span className="text-sm font-bold text-slate-800">{dashboardData.stats.broadcasts}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+                </div>
               </div>
 
               {/* Right Side: Profile and Alerts */}
@@ -1035,60 +1365,18 @@ export default function Dashboard() {
                     )}
                   </div>
                 </Card>
-              </div>
-            </div>
 
-            {/* Secondary Row: Campaigns and Chats */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              {/* Active Campaigns */}
-              <Card title="Active Campaigns" description="Your currently running outreach efforts" icon={<LuRocket />}
-                headerRight={
-                  <button onClick={() => router.push('/campaigns')} className="text-sm font-semibold text-[#2A8B8A] hover:underline">
-                    View All <span className="ml-1">→</span>
-                  </button>
-                }
-              >
-                {(dashboardData.campaigns as any)?.campaigns?.filter((c: any) => c.status === 'active').length > 0 ? (
-                  <ul className="divide-y divide-slate-100">
-                    {(dashboardData.campaigns as any).campaigns.filter((c: any) => c.status === 'active').slice(0, 5).map((campaign: any, index: number) => (
-                      <li key={campaign.id || `campaign-${index}`} className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">{campaign.name}</p>
-                            <p className="text-xs text-slate-500">{campaign.recipients?.length || 0} recipients</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <span>
-                            {campaign.sent_count || 0} / {campaign.recipients?.length || campaign.total_count || 0} sent
-                          </span>
-                          <LuCalendar size={14} className="text-slate-400" />
-                          <span>{formatDate(campaign.scheduled_at || campaign.created_at)}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-center py-6">
-                    <LuRocket size={40} className="mx-auto text-slate-300 mb-3" />
-                    <p className="font-medium text-slate-700">No Active Campaigns</p>
-                    <p className="text-sm text-slate-500">Start a new campaign to reach your audience.</p>
-                  </div>
-                )}
-              </Card>
-
-              {/* Recent Chats */}
-              <Card title="Recent Chats" description={`Your latest conversations with contacts${dashboardData.stats.unreadChats > 0 ? ` (${dashboardData.stats.unreadChats} unread)` : ''}`} icon={<LuMessageCircle />}
+                {/* Recent Chats - Below Smart Alerts */}
+                <Card title="Recent Chats" description={`Your latest conversations with contacts${dashboardData.stats.unreadChats > 0 ? ` (${dashboardData.stats.unreadChats} unread)` : ''}`} icon={<LuMessageCircle />}
                 headerRight={
                   <button onClick={() => router.push('/chats')} className="text-sm font-semibold text-[#2A8B8A] hover:underline">
                     View All <span className="ml-1">→</span>
                   </button>
                 }
               >
-                {(dashboardData.chatContacts as any)?.contacts?.length > 0 ? (
+                {(filteredData.chats as any)?.contacts?.length > 0 ? (
                   <ul className="divide-y divide-slate-100">
-                    {deduplicateContacts((dashboardData.chatContacts as any).contacts).slice(0, 5).map((contact: any, index: number) => (
+                    {deduplicateContacts((filteredData.chats as any).contacts).slice(0, 5).map((contact: any, index: number) => (
                       <li key={`${contact.phone}-${index}`} className="flex items-center justify-between py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-sm font-semibold">
@@ -1116,11 +1404,63 @@ export default function Dashboard() {
                 ) : (
                   <div className="text-center py-6">
                     <LuMessageCircle size={40} className="mx-auto text-slate-300 mb-3" />
-                    <p className="font-medium text-slate-700">No Recent Chats</p>
-                    <p className="text-sm text-slate-500">Your latest conversations will appear here.</p>
+                    <p className="font-medium text-slate-700">
+                      {hasActiveFilters ? 'No chats match your filters' : 'No Recent Chats'}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {hasActiveFilters ? 'Try adjusting your search or filters.' : 'Your latest conversations will appear here.'}
+                    </p>
                   </div>
                 )}
               </Card>
+
+              {/* Campaigns Card - Below Recent Chats */}
+              <Card title="Active Campaigns" description={`${dashboardData.stats.activeCampaigns} active out of ${dashboardData.stats.totalCampaigns} total`} icon={<LuRocket />}
+                headerRight={
+                  <button onClick={() => router.push('/campaigns')} className="text-sm font-semibold text-[#2A8B8A] hover:underline">
+                    View All <span className="ml-1">→</span>
+                  </button>
+                }
+              >
+                {(filteredData.campaigns as any)?.length > 0 ? (
+                  <ul className="divide-y divide-slate-100">
+                    {(filteredData.campaigns as any).slice(0, 10).map((campaign: any, index: number) => (
+                      <li key={campaign.id || index} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-9 h-9 bg-gradient-to-br from-[#2A8B8A] to-[#238080] text-white rounded-lg flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                            <LuRocket size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{campaign.name}</p>
+                            <p className="text-xs text-slate-500">
+                              {campaign.status === 'active' ? '🟢 Active' : campaign.status === 'paused' ? '⏸️ Paused' : '⏹️ Stopped'}
+                              {campaign.total_messages > 0 && ` • ${campaign.total_messages} messages`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {campaign.status === 'active' && (
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-100 rounded-full">
+                              Running
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-center py-6">
+                    <LuRocket size={40} className="mx-auto text-slate-300 mb-3" />
+                    <p className="font-medium text-slate-700">
+                      {hasActiveFilters ? 'No campaigns match your filters' : 'No Active Campaigns'}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {hasActiveFilters ? 'Try adjusting your search or filters.' : 'Create your first campaign to get started.'}
+                    </p>
+                  </div>
+                )}
+              </Card>
+              </div>
             </div>
           </div>
         </main>

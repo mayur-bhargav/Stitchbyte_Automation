@@ -142,114 +142,104 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={onClose}
     >
-      {/* Close Button outside phone */}
+      {/* Close Button */}
       <button
-        className="absolute top-8 right-8 z-60 bg-white rounded-full shadow p-1 text-[#6C47FF] hover:text-red-500"
+        className="absolute top-6 right-6 z-60 bg-white/90 backdrop-blur-sm rounded-full shadow-lg p-3 text-gray-700 hover:bg-white hover:text-red-500 transition-all duration-200"
         onClick={onClose}
         aria-label="Close"
       >
-        <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="12" fill="#f0f2f5"/>
-          <path d="M8 8l8 8M16 8l-8 8" stroke="#6C47FF" strokeWidth="2" strokeLinecap="round"/>
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
         </svg>
       </button>
+
       <div className="relative" onClick={handlePhoneClick}>
-        {/* Phone Frame */}
-        <div className="relative w-[350px] h-[700px] rounded-[40px] bg-[#075e54] shadow-2xl overflow-hidden border-4 border-[#ece6ff]">
-          {/* iPhone Status Bar */}
-          <div className="absolute top-0 left-0 w-full flex items-center justify-between px-6 pt-3 z-30 text-[13px] font-medium text-[#fff] select-none">
+        {/* Modern Phone Frame */}
+        <div className="relative w-[380px] h-[780px] rounded-[50px] bg-gradient-to-b from-gray-900 to-black shadow-2xl overflow-hidden border-8 border-gray-900">
+          {/* Phone Notch */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-0 z-30 w-36 h-7 bg-black rounded-b-3xl flex items-center justify-center gap-2">
+            <div className="w-14 h-1 bg-gray-800 rounded-full"></div>
+            <div className="w-2 h-2 bg-gray-800 rounded-full"></div>
+          </div>
+
+          {/* Status Bar */}
+          <div className="absolute top-0 left-0 w-full flex items-center justify-between px-8 pt-2 z-20 text-xs font-medium text-white">
             <span>9:41</span>
             <div className="flex items-center gap-1">
-              {/* Cellular */}
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="2" y="14" width="2" height="4" rx="1" fill="#fff"/><rect x="6" y="12" width="2" height="6" rx="1" fill="#fff"/><rect x="10" y="10" width="2" height="8" rx="1" fill="#fff"/><rect x="14" y="8" width="2" height="10" rx="1" fill="#fff"/></svg>
-              {/* WiFi */}
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M3 8c4.5-4 9.5-4 14 0" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><path d="M6 11c2.5-2 5.5-2 8 0" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 14c1-1 2-1 3 0" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><circle cx="10" cy="16" r="1" fill="#fff"/></svg>
-              {/* Battery */}
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="18" height="12" rx="4" fill="#fff" stroke="#fff" strokeWidth="1.5"/><rect x="20" y="10" width="2" height="4" rx="1" fill="#fff"/><rect x="4" y="8" width="14" height="8" rx="2" fill="#b6e388"/></svg>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="white"><rect x="2" y="14" width="2" height="4" rx="1"/><rect x="6" y="12" width="2" height="6" rx="1"/><rect x="10" y="10" width="2" height="8" rx="1"/><rect x="14" y="8" width="2" height="10" rx="1"/></svg>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="white"><path d="M3 8c4.5-4 9.5-4 14 0M6 11c2.5-2 5.5-2 8 0M9 14c1-1 2-1 3 0"/><circle cx="10" cy="16" r="1"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M20 10h2v4h-2" fill="white"/></svg>
             </div>
           </div>
-          {/* iPhone Notch */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-6 z-20 w-24 h-6 bg-black flex items-center justify-center rounded-[16px]">
-            <div className="w-2 h-2 bg-[#222] rounded-full mx-1"></div>
-            <div className="w-10 h-1 bg-[#444] rounded-full mx-1"></div>
-          </div>
-          {/* WhatsApp Top Bar */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-[#075e54] h-[56px] rounded-t-[36px] mt-12">
-            <div className="w-9 h-9 rounded-full bg-[#25d366] flex items-center justify-center text-white font-bold text-lg">S</div>
-            <div>
-              <div className="text-white font-semibold text-base leading-tight">StitchByte</div>
+
+          {/* WhatsApp Header */}
+          <div className="flex items-center gap-3 px-5 py-3 bg-[#008069] mt-8 relative z-10">
+            <button className="text-white">
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <div className="w-10 h-10 rounded-full bg-[#25d366] flex items-center justify-center text-white font-bold">
+              S
+            </div>
+            <div className="flex-1">
+              <div className="text-white font-semibold text-base">StitchByte</div>
               <div className="text-[#d0f8ce] text-xs">online</div>
             </div>
-            <div className="ml-auto flex gap-2">
-              <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M12 19a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 12h6M12 16h6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M12 19a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 12H2m4-4H2m4 8H2" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
+            <button className="text-white">
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           </div>
-          {/* Chat area */}
-          <div className="flex flex-col gap-3 px-3 py-4 h-[calc(100%-56px-60px)] overflow-y-auto bg-[#ece5dd]">
-            {/* Received bubble */}
-            {/* <div className="flex items-end gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#25d366] flex items-center justify-center text-white font-bold text-base">S</div>
-              <div className="max-w-[70%]">
-                <div className="rounded-br-2xl rounded-tr-2xl rounded-tl-md bg-[#fff] text-[#222] px-4 py-3 text-[15px] shadow" style={{borderBottomLeftRadius: 8}}>
-                  {previewBody}
-                </div>
+
+          {/* Chat Background */}
+          <div className="flex flex-col gap-3 px-4 py-6 h-[calc(100%-140px)] overflow-y-auto bg-[#efeae2] relative">
+            {/* StitchByte Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-[40px] font-bold text-gray-300/20 select-none">
+                StitchByte
               </div>
-            </div> */}
-            <div className="flex items-end gap-2 justify-end">
-              <div className="max-w-[70%]">
-                <div className="rounded-bl-2xl rounded-tl-2xl rounded-tr-md bg-[#dcf8c6] text-[#222] px-4 py-3 text-[15px] shadow" style={{borderBottomRightRadius: 8}}>
+            </div>
+
+            {/* Message Bubble */}
+            <div className="flex items-end gap-2 justify-end relative z-10">
+              <div className="max-w-[85%]">
+                <div className="bg-[#d9fdd3] rounded-lg rounded-br-sm px-4 py-3 shadow-sm">
                   {/* Header Media */}
                   {hasHeaderMedia && (
-                    <div className="mb-3 -mx-4 -mt-3">
+                    <div className="mb-3 -mx-4 -mt-3 rounded-t-lg overflow-hidden">
                       {/* Image Media */}
                       {(detectedMediaType === 'image' || isImageHeader || (!detectedMediaType && headerMediaUrl && (headerMediaUrl.toLowerCase().includes('.jpg') || headerMediaUrl.toLowerCase().includes('.jpeg') || headerMediaUrl.toLowerCase().includes('.png') || headerMediaUrl.toLowerCase().includes('.gif') || headerMediaUrl.toLowerCase().includes('.webp')))) && (
                         <div className="relative">
                           <img 
                             src={headerMediaUrl || getSampleMediaUrl('image')} 
                             alt="Header Image" 
-                            className="w-full h-40 object-cover rounded-t-xl"
+                            className="w-full h-48 object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.src = 'https://via.placeholder.com/300x200/f0f0f0/888888?text=Image+Not+Found';
                             }}
                           />
-                          {/* WhatsApp-style image overlay */}
-                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span>Image</span>
-                          </div>
                         </div>
                       )}
                       
                       {/* Video Media */}
                       {(detectedMediaType === 'video' || (!detectedMediaType && headerMediaUrl && (headerMediaUrl.toLowerCase().includes('.mp4') || headerMediaUrl.toLowerCase().includes('.mov') || headerMediaUrl.toLowerCase().includes('.avi') || headerMediaUrl.toLowerCase().includes('.webm')))) && (
-                        <div className="relative w-full h-40 bg-gray-900 rounded-t-xl flex items-center justify-center overflow-hidden">
+                        <div className="relative w-full h-48 bg-black flex items-center justify-center overflow-hidden">
                           {headerMediaUrl ? (
                             <video 
                               src={headerMediaUrl} 
-                              className="w-full h-40 object-cover"
+                              className="w-full h-48 object-cover"
                               controls={false}
                               muted
-                              poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect width='100%25' height='100%25' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white'%3EVideo%3C/text%3E%3C/svg%3E"
                             />
-                          ) : (
-                            <svg width="60" height="60" fill="white" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z"/>
-                            </svg>
-                          )}
-                          {/* Video duration overlay */}
-                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                            0:30
-                          </div>
-                          {/* Play button overlay */}
+                          ) : null}
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-16 h-16 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                            <div className="w-14 h-14 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center">
                               <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z"/>
                               </svg>
@@ -260,36 +250,29 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                       
                       {/* Document Media */}
                       {(detectedMediaType === 'document' || (!detectedMediaType && headerMediaUrl && (headerMediaUrl.toLowerCase().includes('.pdf') || headerMediaUrl.toLowerCase().includes('.doc') || headerMediaUrl.toLowerCase().includes('.docx') || headerMediaUrl.toLowerCase().includes('.txt')))) && (
-                        <div className="w-full h-20 bg-white rounded-t-xl flex items-center justify-start px-4 border border-gray-200">
-                          <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                        <div className="w-full bg-white p-4 flex items-center gap-3">
+                          <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
                             <svg width="24" height="24" fill="#dc2626" viewBox="0 0 24 24">
                               <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                             </svg>
                           </div>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm text-gray-900 truncate">
                               {headerMediaUrl ? headerMediaUrl.split('/').pop() || 'Document.pdf' : 'Sample Document.pdf'}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {headerMediaUrl && headerMediaUrl.toLowerCase().includes('.pdf') ? 'PDF Document' : 'Document'}
-                            </div>
-                          </div>
-                          <div className="text-gray-400">
-                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                            </svg>
+                            <div className="text-xs text-gray-500">PDF Document</div>
                           </div>
                         </div>
                       )}
                       
                       {/* Location Media */}
                       {detectedMediaType === 'location' && (
-                        <div className="w-full h-32 bg-green-50 rounded-t-xl flex items-center justify-center border border-green-200">
+                        <div className="w-full h-32 bg-green-50 flex items-center justify-center">
                           <div className="text-center">
                             <svg width="40" height="40" fill="#059669" viewBox="0 0 24 24" className="mx-auto mb-2">
                               <path d="M12,2C8.13,2 5,5.13 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9C19,5.13 15.87,2 12,2M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5Z"/>
                             </svg>
-                            <div className="text-sm text-green-700 font-medium">Live Location</div>
+                            <div className="text-sm text-green-700 font-medium">Location</div>
                           </div>
                         </div>
                       )}
@@ -298,34 +281,33 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                   
                   {/* Header Text */}
                   {template.header && !isImageHeader && !template.header_media?.handle && (
-                    <div className="font-semibold text-[14px] mb-2 text-[#075e54]">
+                    <div className="font-bold text-sm mb-2 text-gray-900">
                       {template.header}
                     </div>
                   )}
                   
                   {/* Body */}
-                  <div className="mb-2 text-[15px] leading-relaxed">
+                  <div className="text-sm leading-relaxed text-gray-900 mb-1">
                     {previewBody}
                   </div>
                   
-                  {/* Message timestamp and status */}
-                  <div className="flex items-center justify-end gap-1 mt-2 mb-1">
-                    <span className="text-[11px] text-gray-500">
+                  {/* Timestamp */}
+                  <div className="flex items-center justify-end gap-1 mt-1">
+                    <span className="text-[11px] text-gray-600">
                       {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {/* WhatsApp double checkmark (delivered) */}
-                    <svg width="12" height="12" viewBox="0 0 16 11" fill="none">
-                      <path d="M11.071.99A1 1 0 00 9.657l.707.708zm-.707.708-5.364 5.364-.708-.707 5.364-5.364.708.707zm-6.778 4.95L2.172 5.236a1 1 0 00-1.414 1.414l1.414-1.414zm-.708.708 1.414 1.414a1 1 0 001.414 0l-1.414-1.414zm2.122 1.414L9.657 2.813a1 1 0 00-1.414-1.414L9.657 2.813z" fill="#53bdeb"/>
-                      <path d="M15.071.99a1 1 0 00-1.414 0l.707.708.707-.708zM14.364 1.698l-5.364 5.364-.708-.707 5.364-5.364.708.707zM2.172 5.236l1.414 1.414-.708.708-1.414-1.414.708-.708zm2.122 2.122L13.657 2.813a1 1 0 00-1.414-1.414l-9.363 4.545z" fill="#53bdeb"/>
+                    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11.071 0.99L10.364 1.698L5 7.062L5.708 7.77L11.071 2.406L11.779 1.698L11.071 0.99Z" fill="#4FC3F7"/>
+                      <path d="M6.586 8.484L5.879 7.776L2.879 4.776L2.172 5.483L5.172 8.483L6.586 8.484Z" fill="#4FC3F7"/>
+                      <path d="M15.071 0.99L14.364 1.698L9 7.062L9.708 7.77L15.071 2.406L15.779 1.698L15.071 0.99Z" fill="#4FC3F7"/>
+                      <path d="M13.657 2.813L9 7.47L8.293 6.762L12.95 2.105L13.657 2.813Z" fill="#4FC3F7"/>
                     </svg>
                   </div>
                   
                   {/* Buttons */}
                   {buttons && buttons.length > 0 && (
-                    <div className="mt-3 -mx-4 -mb-3">
-                      <div className="border-t border-gray-200"></div>
+                    <div className="mt-3 -mx-4 -mb-3 border-t border-gray-200">
                       {buttons.map((button: any, index: number) => {
-                        // Handle different button data structures
                         const buttonText = button.text || button.title || button.display_text || button.name || `Button ${index + 1}`;
                         const buttonType = button.type || button.button_type || 'QUICK_REPLY';
                         const buttonUrl = button.url || button.link || button.href;
@@ -335,39 +317,22 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                         const isPhoneButton = buttonType.toUpperCase().includes('PHONE') || buttonType.toUpperCase().includes('CALL') || buttonPhone;
                         
                         return (
-                          <div key={index}>
-                            <button
-                              className="w-full px-4 py-3 text-[13px] font-medium text-center bg-white hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0 flex items-center justify-center gap-2 text-[#075e54]"
-                            >
-                              {isUrlButton && (
-                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                                </svg>
-                              )}
-                              {isPhoneButton && (
-                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
-                                </svg>
-                              )}
-                              {!isUrlButton && !isPhoneButton && (
-                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                              )}
-                              <span className="flex-1 truncate">{buttonText}</span>
-                            </button>
-                            {/* Show URL or phone under button for additional context */}
-                            {(buttonUrl || buttonPhone) && (
-                              <div className="px-4 py-1 text-[10px] text-gray-500 bg-gray-50 text-center border-b border-gray-200 last:border-b-0">
-                                {buttonUrl && (
-                                  <div className="truncate">🔗 {buttonUrl}</div>
-                                )}
-                                {buttonPhone && (
-                                  <div>📞 {buttonPhone}</div>
-                                )}
-                              </div>
+                          <button
+                            key={index}
+                            className="w-full px-4 py-3 text-sm font-medium text-center text-[#008069] hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0 flex items-center justify-center gap-2"
+                          >
+                            {isUrlButton && (
+                              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                              </svg>
                             )}
-                          </div>
+                            {isPhoneButton && (
+                              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M6.62,10.79C8.06,13.62 10.38,15.94 13.21,17.38L15.41,15.18C15.69,14.9 16.08,14.82 16.43,14.93C17.55,15.3 18.75,15.5 20,15.5A1,1 0 0,1 21,16.5V20A1,1 0 0,1 20,21A17,17 0 0,1 3,4A1,1 0 0,1 4,3H7.5A1,1 0 0,1 8.5,4C8.5,5.25 8.7,6.45 9.07,7.57C9.18,7.92 9.1,8.31 8.82,8.59L6.62,10.79Z"/>
+                              </svg>
+                            )}
+                            <span className="truncate">{buttonText}</span>
+                          </button>
                         );
                       })}
                     </div>
@@ -375,20 +340,30 @@ function PhonePreviewModal({ template, onClose }: { template: any, onClose: () =
                   
                   {/* Footer */}
                   {template.footer && (
-                    <div className="text-[11px] text-gray-600 border-t border-gray-200 pt-2 mt-2 -mx-4 px-4 bg-gray-50">
+                    <div className="text-xs text-gray-600 border-t border-gray-200 pt-2 mt-2 -mx-4 px-4">
                       {template.footer}
                     </div>
                   )}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-[#ece5dd] flex items-center justify-center text-[#075e54] font-bold text-base border border-[#bdbdbd]">S</div>
             </div>
           </div>
-          {/* WhatsApp Input Bar */}
-          <div className="absolute bottom-0 left-0 w-full px-4 py-3 bg-[#f7f7f7] flex items-center gap-2 rounded-b-[36px] border-t border-[#ece6ff]">
-            <svg width="24" height="24" fill="#919191" viewBox="0 0 24 24"><path d="M12 22c5.522 0 10-4.477 10-10S17.522 2 12 2 2 6.477 2 12s4.478 10 10 10zm-1-7h2v2h-2v-2zm0-6h2v4h-2V9z"/></svg>
-            <div className="flex-1 bg-white rounded-full px-4 py-2 text-[#222] text-base">Type a message</div>
-            <svg width="24" height="24" fill="#25d366" viewBox="0 0 24 24"><path d="M2 21l21-9-21-9v7l15 2-15 2v7z"/></svg>
+
+          {/* Input Bar */}
+          <div className="absolute bottom-0 left-0 w-full px-3 py-2 bg-[#f0f2f5] flex items-center gap-2">
+            <button className="text-gray-600 p-1">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-3.204 1.362c-.026-.307-.131 5.218 6.063 5.551 6.066-.25 6.066-5.551 6.066-5.551-6.078 1.416-12.129 0-12.129 0zm11.363 1.108s-.669 1.959-5.051 1.959c-3.505 0-5.388-1.164-5.607-1.959 0 0 5.912 1.055 10.658 0zM11.804 1.011C5.609 1.011.978 6.033.978 12.228s4.826 10.761 11.021 10.761S23.02 18.423 23.02 12.228c.001-6.195-5.021-11.217-11.216-11.217zM12 21.354c-5.273 0-9.381-3.886-9.381-9.159s3.942-9.548 9.215-9.548 9.548 4.275 9.548 9.548c-.001 5.272-4.109 9.159-9.382 9.159zm3.108-9.751c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962z"/>
+              </svg>
+            </button>
+            <div className="flex-1 bg-white rounded-full px-4 py-2 text-sm text-gray-500">
+              Message
+            </div>
+            <button className="text-gray-600 p-1">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10h5v-2h-5c-4.34 0-8-3.66-8-8s3.66-8 8-8 8 3.66 8 8v1.43c0 .79-.71 1.57-1.5 1.57s-1.5-.78-1.5-1.57V12c0-2.76-2.24-5-5-5s-5 2.24-5 5 2.24 5 5 5c1.38 0 2.64-.56 3.54-1.47.65.89 1.77 1.47 2.96 1.47 1.97 0 3.5-1.6 3.5-3.57V12c0-5.52-4.48-10-10-10zm0 13c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -614,6 +589,16 @@ function TemplatesPage() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  const loadingSteps = [
+    { name: "Connecting", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+    { name: "Authenticating", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
+    { name: "Fetching Templates", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
+    { name: "Processing Data", icon: "M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" },
+    { name: "Ready", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }
+  ];
 
   React.useEffect(() => {
     if (user) {
@@ -625,8 +610,30 @@ function TemplatesPage() {
     if (!user) return;
     
     setTemplatesLoading(true);
+    setLoadingStep(0);
+    
+    // Animate through loading steps (2 seconds each)
+    const stepInterval = setInterval(() => {
+      setLoadingStep(prev => {
+        if (prev < 4) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 2000);
+
     try {
       const data = await apiService.getOptional('/templates');
+      
+      // Wait for minimum loading animation to complete (5 steps x 2 seconds = 10 seconds)
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      
+      clearInterval(stepInterval);
+      setLoadingStep(4); // Set to "Ready" step
+      
+      // Small delay before showing content
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       if (data) {
         const templatesData = data.templates || data || [];
         // Filter templates by user's company for security
@@ -636,12 +643,22 @@ function TemplatesPage() {
         setTemplates(userTemplates);
       } else {
         // Templates endpoint not available
-        // console.log('Templates endpoint not available, showing empty templates');
         setTemplates([]);
       }
+      setIsInitialLoad(false);
     } catch (error) {
-      // console.log('Templates endpoint failed, showing empty templates:', error);
-      setTemplates([]);
+      clearInterval(stepInterval);
+      // On error, keep looping through steps until retry (2 seconds each)
+      const retryInterval = setInterval(() => {
+        setLoadingStep(prev => (prev + 1) % 5);
+      }, 2000);
+      
+      // Retry after 10 seconds
+      setTimeout(() => {
+        clearInterval(retryInterval);
+        fetchTemplates();
+      }, 10000);
+      return;
     } finally {
       setTemplatesLoading(false);
     }
@@ -654,79 +671,229 @@ function TemplatesPage() {
 
   // --- UI ---
   return (
-    <section className="min-h-screen" style={{ fontFamily: FONT_FAMILY }}>
+    <section className="min-h-screen bg-gray-50" style={{ fontFamily: FONT_FAMILY }}>
+      {/* Show loading animation on initial load */}
+      {isInitialLoad && templatesLoading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="flex flex-col items-center gap-6">
+            {/* Circular Progress with Icon */}
+            <div className="relative w-32 h-32">
+              {/* Circular Progress Ring */}
+              <svg className="transform -rotate-90 w-32 h-32">
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="56"
+                  stroke="#e5e7eb"
+                  strokeWidth="8"
+                  fill="none"
+                />
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="56"
+                  stroke="#2A8B8A"
+                  strokeWidth="8"
+                  fill="none"
+                  strokeDasharray={`${2 * Math.PI * 56}`}
+                  strokeDashoffset={`${2 * Math.PI * 56 * (1 - (loadingStep + 1) / 5)}`}
+                  className="transition-all duration-500 ease-out"
+                  strokeLinecap="round"
+                />
+              </svg>
+              
+              {/* Icon in Center */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-20 h-20 bg-[#2A8B8A] rounded-full flex items-center justify-center animate-pulse">
+                  <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="text-white">
+                    <path d={loadingSteps[loadingStep].icon} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Step Name */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-1">
+                {loadingSteps[loadingStep].name}
+              </h3>
+              <p className="text-gray-600">
+                Step {loadingStep + 1} of 5
+              </p>
+            </div>
+
+            {/* Progress Dots */}
+            <div className="flex items-center gap-2">
+              {loadingSteps.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    index <= loadingStep ? 'w-8 bg-[#2A8B8A]' : 'w-2 bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Floating Action Button for Mobile */}
       <button
-        className="fixed bottom-8 right-8 z-40 md:hidden bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white rounded-full shadow-xl p-4 transition-all duration-200"
+        className="fixed bottom-8 right-8 z-40 md:hidden bg-[#2A8B8A] text-white rounded-full shadow-xl p-4"
         onClick={() => router.push("/templates/create")}
         aria-label="Create Template"
       >
-        <svg width="28" height="28" fill="none" viewBox="0 0 28 28"><circle cx="14" cy="14" r="14" fill="#fff"/><path d="M14 7v14M7 14h14" stroke="#2A8B8A" strokeWidth="2.5" strokeLinecap="round"/></svg>
+        <svg width="28" height="28" fill="none" viewBox="0 0 28 28">
+          <path d="M14 7v14M7 14h14" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+        </svg>
       </button>
 
       {/* Main Content */}
-      <div className="mx-auto">
+      <div className="mx-auto relative z-10 px-6 py-8">
         <div className="flex flex-col gap-8">
-          {/* Header row: Title left, Button right */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 className="text-2xl font-bold tracking-tight" style={{ color: STITCHBYTE_DARK }}>
-              Your Templates
-            </h2>
+          {/* Header Section */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">
+                Templates
+              </h1>
+              <p className="text-gray-600 text-base">
+                Manage your WhatsApp message templates
+              </p>
+            </div>
             <button
-              className="flex items-center gap-2 bg-gradient-to-r from-[#2A8B8A] to-[#238080] hover:from-[#238080] hover:to-[#1e6b6b] text-white font-semibold px-6 py-2 rounded-xl shadow-lg transition-all duration-200 text-base"
+              className="flex items-center justify-center gap-2 bg-[#2A8B8A] text-white font-semibold px-6 py-3 rounded-xl shadow-lg"
               onClick={() => router.push("/templates/create")}
             >
               <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
-                <circle cx="10" cy="10" r="10" fill="#fff"/>
-                <path d="M10 5v10M5 10h10" stroke="#2A8B8A" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M10 5v10M5 10h10" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
-              Create Template
+              <span>Create New Template</span>
             </button>
           </div>
-          {templatesLoading ? (
-            <div className="text-center py-10 text-lg text-[#65676b]">Loading templates...</div>
+
+          {/* Templates Grid */}
+          {templatesLoading && !isInitialLoad ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 border-4 border-[#2A8B8A]/20 border-t-[#2A8B8A] rounded-full animate-spin"></div>
+              </div>
+              <p className="mt-4 text-gray-600 font-medium">Loading templates...</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-              {templates.length === 0 && (
-                <div className="col-span-3 text-center text-[#b0b3b8] py-12 text-lg">
-                  No templates found. Click <span className="text-[#2A8B8A] font-semibold">Create Template</span> to get started!
+            <>
+              {templates.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 px-6">
+                  <div className="w-24 h-24 bg-[#2A8B8A]/10 rounded-2xl flex items-center justify-center mb-6">
+                    <svg width="48" height="48" fill="none" viewBox="0 0 24 24" className="text-[#2A8B8A]">
+                      <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No templates yet</h3>
+                  <p className="text-gray-600 text-center max-w-md mb-6">
+                    Create your first message template to get started
+                  </p>
+                  <button
+                    className="flex items-center gap-2 bg-[#2A8B8A] text-white font-semibold px-6 py-3 rounded-xl shadow-lg"
+                    onClick={() => router.push("/templates/create")}
+                  >
+                    <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                      <path d="M10 5v10M5 10h10" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    Create Your First Template
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {templates.map((tpl, index) => (
+                    <div
+                      key={tpl.name}
+                      className="relative bg-white rounded-xl shadow-sm cursor-pointer overflow-hidden"
+                      onClick={() => handleCardClick(tpl)}
+                      style={{ 
+                        animation: `fadeInUp 0.4s ease-out ${index * 0.08}s both`
+                      }}
+                    >
+                      {/* Card Content */}
+                      <div className="p-6">
+                        {/* Header with Icon and Status */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-11 h-11 bg-[#2A8B8A] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" className="text-white">
+                                <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-bold text-gray-900 truncate">
+                                {tpl.name}
+                              </h3>
+                            </div>
+                          </div>
+                          <span className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ml-2
+                            ${tpl.status?.toLowerCase() === 'pending'
+                              ? 'bg-amber-100 text-amber-700'
+                              : tpl.status?.toLowerCase() === 'approved'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-red-100 text-red-700'
+                            }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full animate-pulse
+                              ${tpl.status?.toLowerCase() === 'pending'
+                                ? 'bg-amber-500'
+                                : tpl.status?.toLowerCase() === 'approved'
+                                ? 'bg-emerald-500'
+                                : 'bg-red-500'
+                              }`}></span>
+                            {tpl.status?.toLowerCase()}
+                          </span>
+                        </div>
+
+                        {/* Header Text */}
+                        {tpl.header && (
+                          <div className="mb-3 p-3 bg-[#2A8B8A]/5 rounded-lg">
+                            <p className="text-sm font-semibold text-[#2A8B8A] line-clamp-2">
+                              {tpl.header}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Body Preview */}
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-700 line-clamp-4 leading-relaxed">
+                            {tpl.body || tpl.content}
+                          </p>
+                        </div>
+
+                        {/* Footer with Variables and Action */}
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                          <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                            {(tpl.variables || tpl.example_variables || []).slice(0, 3).map((v: string, idx: number) => (
+                              <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] rounded-md text-xs font-semibold">
+                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24">
+                                  <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                {v.replace(/[{}]/g, "")}
+                              </span>
+                            ))}
+                            {(tpl.variables || tpl.example_variables || []).length > 3 && (
+                              <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold">
+                                +{(tpl.variables || tpl.example_variables || []).length - 3}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[#2A8B8A] font-semibold text-sm ml-3 flex-shrink-0">
+                            <span>View</span>
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                              <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-              {templates.map((tpl) => (
-                <div
-                  key={tpl.name}
-                  className="group relative rounded-xl shadow-xl border border-white/50 bg-white/80 backdrop-blur-sm hover:bg-white/90 transition-all duration-200 cursor-pointer flex flex-col min-h-[230px] overflow-hidden"
-                  onClick={() => handleCardClick(tpl)}
-                  style={{ boxShadow: "0 6px 32px 0 rgba(42,139,138,0.07)" }}
-                >
-                  {/* Status badge */}
-                  <span className={`absolute top-5 right-5 px-3 py-1 rounded-xl text-xs font-semibold shadow-sm border
-                    ${tpl.status?.toLowerCase() === 'pending'
-                      ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                      : tpl.status?.toLowerCase() === 'approved'
-                      ? 'bg-[#2A8B8A]/10 text-[#2A8B8A] border-[#2A8B8A]/30'
-                      : 'bg-red-50 text-red-600 border-red-200'
-                    }`}>
-                    {tpl.status?.toLowerCase()}
-                  </span>
-                  <div className="flex-1 flex flex-col justify-between p-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-bold text-lg text-[#2B1A5A] group-hover:text-[#6C47FF] tracking-tight">{tpl.name}</span>
-                      </div>
-                      <div className="mb-2 text-base text-[#6C47FF] font-semibold">{tpl.header || ""}</div>
-                      <div className="mb-3 text-base text-[#050505] line-clamp-4 whitespace-pre-line">{tpl.body || tpl.content}</div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {(tpl.variables || tpl.example_variables || []).map((v: string, idx: number) => (
-                        <span key={idx} className="bg-[#ece6ff] px-2 py-1 rounded text-xs text-[#6C47FF] font-medium">{v.replace(/[{}]/g, "")}</span>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-[#2A8B8A]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-                </div>
-              ))}
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -738,6 +905,19 @@ function TemplatesPage() {
           onClose={() => setShowPreviewModal(false)}
         />
       )}
+
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </section>
   );
 }

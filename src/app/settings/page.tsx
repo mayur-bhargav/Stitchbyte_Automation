@@ -18,6 +18,9 @@ import {
   LuShield,
 } from 'react-icons/lu';
 import { buildApiUrl } from '@/config/server';
+import { useWhatsAppRegistration } from '../hooks/useWhatsAppRegistration';
+import { WhatsAppRegistrationBanner } from '@/components/WhatsAppRegistrationBanner';
+import { WhatsAppPINModal } from '@/components/WhatsAppPINModal';
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -45,7 +48,7 @@ interface WhatsAppConnection {
 // Hardcoded OAuth configuration - EXACT working setup with setup_type=seamless
 const META_APP_ID = '1717883002200842';
 // USE FRONTEND CALLBACK PAGE - This allows us to capture WABA data from sessionStorage
-const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI ?? 'https://automationwhats.stitchbyte.in/auth/meta-callback';
+const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI ?? 'http://localhost:8000/api/auth/meta/callback';
 const CONFIG_ID = '829144999529928'; // Mandatory config_id for Embedded Signup
 const STATE = 'stitchbyte_csrf_token';
 
@@ -176,6 +179,17 @@ export default function SettingsPage() {
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [businessMetaUrl, setBusinessMetaUrl] = useState<string | null>(null);
 
+  // NEW: Use registration hook
+  const { 
+    status: registrationStatus, 
+    loading: regLoading, 
+    registerPhone, 
+    registering,
+    refetch: refetchRegistration 
+  } = useWhatsAppRegistration();
+  
+  const [showNewPinModal, setShowNewPinModal] = useState(false);
+
   const handleSignOut = () => {
     logout();
   };
@@ -237,6 +251,51 @@ export default function SettingsPage() {
       fetchConnection();
     }
   }, [user]);
+
+  // NEW: Handler for new registration flow (without PIN)
+  const handleNewRegistration = async () => {
+    try {
+      setError("");
+      setSuccess("");
+      const result = await registerPhone();
+      
+      if (result.success) {
+        setSuccess(result.message);
+        await fetchConnection(true); // Refresh connection data
+      } else {
+        if (result.requiresPin) {
+          setShowNewPinModal(true);
+        } else {
+          setError(result.message);
+        }
+      }
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Failed to register phone');
+    } finally {
+      setTimeout(() => {
+        setSuccess("");
+        setError("");
+      }, 5000);
+    }
+  };
+
+  // NEW: Handler for PIN modal submission
+  const handlePinModalSubmit = async (pin: string) => {
+    const result = await registerPhone(pin);
+    
+    if (result.success) {
+      setSuccess(result.message);
+      await fetchConnection(true); // Refresh connection data
+      setShowNewPinModal(false);
+      
+      setTimeout(() => {
+        setSuccess("");
+      }, 5000);
+    }
+    
+    return result;
+  }
 
   const handleConnect = async (isReconnect = false) => {
     if (!user) return;
@@ -498,17 +557,9 @@ export default function SettingsPage() {
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">Settings</h1>
-            <p className="text-sm text-slate-500 mt-1">Manage your account and integration settings.</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-red-600 transition"
-          >
-            <LuLogOut size={16} /> Sign Out
-          </button>
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800">Settings</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage your account and integration settings.</p>
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-1 space-y-8">
@@ -527,7 +578,6 @@ export default function SettingsPage() {
                     <InfoRow label="Company ID" value={user.companyId} isMono />
                     {user.subscription && (
                         <>
-                            <InfoRow label="Plan" value={user.subscription.plan_name} />
                             <InfoRow label="Plan Status" value={
                                 <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${
                                 user.subscription.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
@@ -553,6 +603,21 @@ export default function SettingsPage() {
                         <p className="text-sm font-semibold text-emerald-800">Successfully connected to WhatsApp Business</p>
                     </div>
                     
+                    {/* NEW: Registration Banner - Shows when connected but not registered */}
+                    {registrationStatus && !regLoading && (
+                      <WhatsAppRegistrationBanner
+                        status={registrationStatus}
+                        onVerifyClick={() => {
+                          if (registrationStatus.requires_pin) {
+                            setShowNewPinModal(true);
+                          } else {
+                            handleNewRegistration();
+                          }
+                        }}
+                        loading={registering}
+                      />
+                    )}
+                    
                     <div className="space-y-1">
                         <InfoRow label="Display Name" value={connection.displayName} />
                         <InfoRow label="Phone Number" value={connection.phoneNumber} isMono />
@@ -568,6 +633,20 @@ export default function SettingsPage() {
                                 </span>
                             )
                         } />
+                        {/* NEW: Show registration status */}
+                        {registrationStatus && (
+                          <InfoRow label="Registration Status" value={
+                            registrationStatus.registered ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
+                                <LuCheck size={12} /> Registered
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                <LuTriangleAlert size={12} /> Not Registered
+                              </span>
+                            )
+                          } />
+                        )}
                     </div>
 
                     {/* Verification Warning Banner */}
@@ -803,6 +882,14 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      
+      {/* NEW: PIN Modal for Registration */}
+      <WhatsAppPINModal
+        isOpen={showNewPinModal}
+        onClose={() => setShowNewPinModal(false)}
+        onSubmit={handlePinModalSubmit}
+        phoneNumber={registrationStatus?.phone_number}
+      />
     </div>
   );
 }

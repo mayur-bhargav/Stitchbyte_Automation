@@ -3,7 +3,8 @@
  * Always import URLs from this module instead of hardcoding them in components.
  */
 
-const DEFAULT_SERVER_URL = 'https://automationwhats.stitchbyte.in';
+// Development mode - use localhost
+const DEFAULT_SERVER_URL = 'http://localhost:8000';
 const PRODUCTION_SERVER_URL = 'https://automationwhats.stitchbyte.in';
 
 const getEnvValue = (key: string): string | undefined => {

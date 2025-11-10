@@ -9,6 +9,7 @@ import Script from "next/script";
 import ProtectedRoute from "../components/ProtectedRoute"; // Assuming this component exists
 import AddBalanceModal from "../components/AddBalanceModal"; // Assuming this component exists
 import PermissionGuard from "../components/PermissionGuard";
+import { useRouter } from "next/navigation";
 import {
   LuCreditCard, LuWallet, LuX, LuPlus, LuShield, LuTrendingUp, LuCheck,
   LuClock, LuTriangleAlert, LuFilter, LuDownload, LuRefreshCw, LuZap, LuArrowRight,
@@ -120,16 +121,45 @@ export default function BillingPage() {
   const { balance, transactions, loadTransactions } = useBalance();
   const { darkMode } = useThemeWatcher();
   const colors = getThemeColors(darkMode);
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'reboost'>('overview');
   const [showAddBalanceModal, setShowAddBalanceModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
 
-  // Example data (replace with your API calls)
-  const [paymentMethods] = useState<PaymentMethod[]>([
-      { id: '1', type: 'card', brand: 'Visa', lastFour: '4242', isDefault: true },
-      { id: '2', type: 'upi', isDefault: false },
-  ]);
+  // Format date as dd/mon/yyyy
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Fetch payment methods from backend
+  const fetchPaymentMethods = async () => {
+    setLoadingPaymentMethods(true);
+    try {
+      const response = await apiService.getPaymentMethods();
+      if (response && Array.isArray(response)) {
+        setPaymentMethods(response);
+      } else if (response && typeof response === 'object' && 'data' in response) {
+        const data = (response as any).data;
+        if (Array.isArray(data)) {
+          setPaymentMethods(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      // Set empty array if error - don't show dummy data
+      setPaymentMethods([]);
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
   
   // Calculate stats from real transactions
   const stats = React.useMemo(() => {
@@ -208,6 +238,7 @@ export default function BillingPage() {
     // console.log('🔍 Billing page loading, current transactions:', transactions);
     // console.log('👤 Current user:', user);
     handleRefreshTransactions();
+    fetchPaymentMethods();
   }, []);
 
   useEffect(() => {
@@ -235,13 +266,25 @@ export default function BillingPage() {
             <Card icon={<LuBadgeCheck size={20}/>} title="Current Subscription">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <p className="text-lg font-bold capitalize" style={{ color: colors.text }}>{user.subscription.plan_name} Plan</p>
-                        <p className="text-sm" style={{ color: colors.textMuted }}>
-                           Your plan is currently <span className="font-semibold text-emerald-600">active</span>.
-                           {user.subscription.end_date && ` It will renew on ${new Date(user.subscription.end_date).toLocaleDateString()}.`}
+                        <p className="text-2xl font-bold capitalize" style={{ color: colors.text }}>
+                          {user.subscription.plan_id || user.subscription.plan_name} Plan
                         </p>
+                        <p className="text-sm mt-2" style={{ color: colors.textMuted }}>
+                           Your plan is currently <span className="font-semibold text-emerald-600">active</span>.
+                           {user.subscription.end_date && ` Renews on ${formatDate(user.subscription.end_date)}.`}
+                        </p>
+                        {(user.subscription as any).billing_cycle && (
+                          <p className="text-sm mt-1" style={{ color: colors.textMuted }}>
+                            Billing: <span className="font-semibold capitalize">{(user.subscription as any).billing_cycle}</span>
+                          </p>
+                        )}
                     </div>
-                    <button className="btn-secondary text-sm">Manage Subscription</button>
+                    <button 
+                      onClick={() => router.push('/select-plan')}
+                      className="btn-secondary text-sm whitespace-nowrap"
+                    >
+                      Manage Subscription
+                    </button>
                 </div>
             </Card>
         )}
@@ -417,31 +460,62 @@ export default function BillingPage() {
                 )}
             </Card>
             <Card title="Payment Methods" icon={<LuCreditCard size={20}/>} headerRight={<button className="btn-secondary text-xs"><LuPlus size={14}/> Add New</button>}>
-                <ul className="space-y-3">
-                    {paymentMethods.length > 0 ? paymentMethods.map(p => (
-                        <li key={p.id} className="flex items-center justify-between p-3 rounded-lg" 
-                            style={{ backgroundColor: colors.backgroundSecondary }}>
-                            <div className="flex items-center gap-3">
-                                <LuCreditCard size={20} style={{ color: colors.textMuted }}/>
-                                <div>
-                                    <p className="font-semibold text-sm" style={{ color: colors.text }}>{p.brand} ending in {p.lastFour}</p>
-                                    <p className="text-xs" style={{ color: colors.textMuted }}>Expires 12/2027</p>
-                                </div>
-                            </div>
-                            {p.isDefault && (
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                                    style={{
-                                      backgroundColor: colors.backgroundTertiary,
-                                      color: colors.textSecondary
-                                    }}>
-                                Default
-                              </span>
-                            )}
-                        </li>
-                    )) : (
-                        <p className="text-sm text-center py-4" style={{ color: colors.textMuted }}>No payment methods saved.</p>
-                    )}
-                </ul>
+                {loadingPaymentMethods ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2" 
+                         style={{ borderColor: '#2A8B8A' }}></div>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                      {paymentMethods.length > 0 ? paymentMethods.map(p => (
+                          <li key={p.id} className="flex items-center justify-between p-3 rounded-lg" 
+                              style={{ backgroundColor: colors.backgroundSecondary }}>
+                              <div className="flex items-center gap-3">
+                                  <LuCreditCard size={20} style={{ color: colors.textMuted }}/>
+                                  <div>
+                                      {p.type === 'card' && p.brand && p.lastFour ? (
+                                        <>
+                                          <p className="font-semibold text-sm" style={{ color: colors.text }}>
+                                            {p.brand} •••• {p.lastFour}
+                                          </p>
+                                          <p className="text-xs" style={{ color: colors.textMuted }}>
+                                            Card
+                                          </p>
+                                        </>
+                                      ) : p.type === 'upi' ? (
+                                        <>
+                                          <p className="font-semibold text-sm" style={{ color: colors.text }}>UPI</p>
+                                          <p className="text-xs" style={{ color: colors.textMuted }}>Unified Payments Interface</p>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <p className="font-semibold text-sm capitalize" style={{ color: colors.text }}>{p.type}</p>
+                                          <p className="text-xs" style={{ color: colors.textMuted }}>Payment Method</p>
+                                        </>
+                                      )}
+                                  </div>
+                              </div>
+                              {p.isDefault && (
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                      style={{
+                                        backgroundColor: colors.backgroundTertiary,
+                                        color: colors.textSecondary
+                                      }}>
+                                  Default
+                                </span>
+                              )}
+                          </li>
+                      )) : (
+                          <div className="text-center py-8">
+                            <LuCreditCard size={32} className="mx-auto mb-2" style={{ color: colors.borderLight }}/>
+                            <p className="text-sm font-semibold" style={{ color: colors.textSecondary }}>No Payment Methods</p>
+                            <p className="text-xs mt-1" style={{ color: colors.textMuted }}>
+                              Add a payment method for faster checkout
+                            </p>
+                          </div>
+                      )}
+                  </ul>
+                )}
             </Card>
           </div>
         </div>

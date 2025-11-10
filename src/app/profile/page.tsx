@@ -263,6 +263,13 @@ export default function ProfilePage() {
                         linkedin: p.linkedin || '', twitter: p.twitter || '', timezone: p.timezone || 'UTC+5:30 (India Standard Time)',
                         language: p.language || 'English (US)', profilePicture: p.profilePicture || ''
                     });
+                    // Update user context with profile picture if available
+                    if (p.profilePicture && p.profilePicture !== user.profilePicture) {
+                        updateUser({
+                            ...user,
+                            profilePicture: p.profilePicture
+                        });
+                    }
                 } else {
                     // Fallback to user context data
                     setProfileData(prev => ({ 
@@ -386,6 +393,11 @@ export default function ProfilePage() {
       const result = await response.json();
       if (result.success && result.profilePicture) {
         setProfileData(prev => ({ ...prev, profilePicture: result.profilePicture }));
+        // Update user context so sidebar shows the new profile picture
+        updateUser({
+          ...user,
+          profilePicture: result.profilePicture
+        });
         setShowSuccess('Profile picture updated!');
         setTimeout(() => setShowSuccess(''), 3000);
       } else { throw new Error(result.message || 'Upload succeeded but no image URL returned'); }

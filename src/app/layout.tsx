@@ -7,6 +7,7 @@ import HelpBubble from "../components/HelpBubble";
 import { UserProvider } from "./contexts/UserContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import { PermissionProvider } from "./contexts/PermissionContext";
+import { DashboardProvider } from "./contexts/DashboardContext";
 import SubscriptionGuard from "./components/SubscriptionGuard";
 
 // Force dynamic rendering for all pages
@@ -31,8 +32,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
+      <head suppressHydrationWarning>
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -68,12 +70,14 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
         <UserProvider>
           <ChatProvider>
             <PermissionProvider>
-              <SubscriptionGuard>
-                <ClientLayout>
-                  {children}
-                  <HelpBubble />
-                </ClientLayout>
-              </SubscriptionGuard>
+              <DashboardProvider>
+                <SubscriptionGuard>
+                  <ClientLayout>
+                    {children}
+                    <HelpBubble />
+                  </ClientLayout>
+                </SubscriptionGuard>
+              </DashboardProvider>
             </PermissionProvider>
           </ChatProvider>
         </UserProvider>

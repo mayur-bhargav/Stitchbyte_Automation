@@ -13,8 +13,7 @@ import {
   LuClock,
   LuSettings,
   LuLogOut,
-  LuArrowRight,
-  LuPlus
+  LuChevronRight
 } from 'react-icons/lu';
 import { apiService } from '../../services/apiService';
 
@@ -156,55 +155,24 @@ export default function EmailDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        {/* Skeleton Header */}
-        <div className="mb-8 animate-pulse">
-          <div className="h-10 bg-gray-200 rounded-lg w-64 mb-4"></div>
-          <div className="h-6 bg-gray-200 rounded-lg w-96"></div>
-        </div>
+      <div className="min-h-screen bg-transparent p-6 md:p-8">
+        <div className="max-w-[1200px] mx-auto">
+          {/* Skeleton Header */}
+          <div className="mb-6 animate-pulse">
+            <div className="h-20 bg-white/50 backdrop-blur-sm rounded-[28px] mb-4 border border-gray-200"></div>
+          </div>
 
-        {/* Skeleton Stats Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 animate-pulse">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
-                <div className="w-16 h-6 bg-gray-200 rounded-full"></div>
-              </div>
-              <div className="h-8 bg-gray-200 rounded w-24 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-32"></div>
-            </div>
-          ))}
-        </div>
+          {/* Skeleton Stats Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-[140px] bg-white/50 backdrop-blur-sm rounded-[22px] animate-pulse border border-gray-200"></div>
+            ))}
+          </div>
 
-        {/* Skeleton Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 animate-pulse">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
-                <div className="flex-1">
-                  <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-40"></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Skeleton Recent Activity */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
-          <div className="space-y-4">
+          {/* Skeleton Feature Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4 pb-4 border-b border-gray-100">
-                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-                <div className="w-20 h-6 bg-gray-200 rounded-full"></div>
-              </div>
+              <div key={i} className="h-[220px] bg-white/50 backdrop-blur-sm rounded-[26px] animate-pulse border border-gray-200"></div>
             ))}
           </div>
         </div>
@@ -213,237 +181,352 @@ export default function EmailDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-transparent">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center shadow-xl">
-                <LuMail size={32} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                  Email Campaign Studio
-                </h1>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></div>
-                  <p className="text-sm text-gray-600">
-                    Connected as <span className="font-semibold text-gray-900">{emailConfig?.email}</span>
-                  </p>
-                </div>
-              </div>
+    <div 
+      className="min-h-screen bg-transparent"
+      style={{
+        color: 'hsl(220, 20%, 12%)'
+      }}
+    >
+      <div className="max-w-[1200px] mx-auto px-6 md:px-7 py-6 md:py-7">
+        
+        {/* Header */}
+        <header className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-center mb-6">
+          <div 
+            className="flex gap-4 items-center p-4 rounded-[28px] backdrop-blur-sm"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 1px 2px hsl(220, 20%, 40%, 0.1)'
+            }}
+          >
+            <div 
+              className="w-12 h-12 rounded-[14px] flex items-center justify-center"
+              style={{
+                background: '#2A8B8A',
+                boxShadow: 'inset 0 1px 0 hsl(0, 0%, 100%, 0.25), 0 1px 2px hsl(220, 20%, 40%, 0.1)'
+              }}
+            >
+              <LuMail size={26} className="text-white" />
             </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/email-sender/settings')}
-                className="p-4 bg-white/80 hover:bg-white rounded-2xl transition-all duration-200 backdrop-blur-md border border-gray-200 shadow-lg hover:shadow-xl"
-              >
-                <LuSettings size={22} className="text-gray-900" />
-              </button>
-              <button
-                onClick={handleDisconnect}
-                className="flex items-center gap-2 px-6 py-3.5 bg-gray-900 text-white hover:bg-gray-800 rounded-2xl transition-all duration-200 font-bold shadow-xl"
-              >
-                <LuLogOut size={20} />
-                Disconnect
-              </button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight mb-0.5" style={{ color: 'hsl(220, 20%, 12%)' }}>
+                Email Campaign Studio
+              </h1>
+              <div className="flex items-center gap-2.5 text-sm" style={{ color: 'hsl(220, 12%, 38%)' }}>
+                <span 
+                  className="w-2.5 h-2.5 rounded-full animate-pulse"
+                  style={{
+                    background: 'hsl(146, 64%, 50%)',
+                    boxShadow: '0 0 0 4px hsl(146, 64%, 50%, 0.15)'
+                  }}
+                />
+                <span className="font-medium">Connected as</span>
+                <strong style={{ color: 'hsl(220, 20%, 12%)' }}>{emailConfig?.email}</strong>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 md:px-10 py-10">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => router.push('/email-sender/settings')}
+              className="flex items-center gap-2.5 px-4 py-3 rounded-[14px] backdrop-blur-sm font-semibold"
+              style={{
+                background: 'rgba(255, 255, 255, 0.7)',
+                border: '1px solid hsl(220, 20%, 90%)',
+                color: 'hsl(220, 20%, 12%)',
+                boxShadow: '0 1px 2px hsl(220, 20%, 40%, 0.1)'
+              }}
+            >
+              <LuSettings size={18} />
+              <span className="hidden sm:inline">Settings</span>
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="flex items-center gap-2.5 px-4 py-3 rounded-[14px] backdrop-blur-sm font-semibold"
+              style={{
+                background: 'hsl(220, 20%, 12%)',
+                border: '1px solid hsl(220, 20%, 12%)',
+                color: 'white',
+                boxShadow: '0 1px 2px hsl(220, 20%, 40%, 0.1)'
+              }}
+            >
+              <LuLogOut size={18} />
+              <span className="hidden sm:inline">Disconnect</span>
+            </button>
+          </div>
+        </header>
+
+        {/* KPIs Grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
           {/* Total Sent */}
-          <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
-                <LuCircleCheck size={24} className="text-green-600" />
+          <div 
+            className="relative min-h-[140px] p-[18px] rounded-[22px] backdrop-blur-sm overflow-hidden"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
+          >
+            <div className="flex justify-between items-center mb-3.5">
+              <div className="text-sm font-semibold tracking-wide" style={{ color: 'hsl(220, 12%, 38%)' }}>
+                Total Sent
               </div>
-              {stats.total_sent > 0 && (
-                <span className="text-xs font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">
-                  ✓ Sent
-                </span>
-              )}
+              <span 
+                className="flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full"
+                style={{
+                  color: 'hsl(146, 64%, 40%)',
+                  border: '1px solid hsl(146, 64%, 50%, 0.3)',
+                  background: 'hsl(146, 64%, 50%, 0.1)'
+                }}
+              >
+                <LuCircleCheck size={14} />
+                Sent
+              </span>
             </div>
-            <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-wide mb-1">
-              Total Sent
-            </h3>
-            <p className="text-3xl font-black text-gray-900">{stats.total_sent.toLocaleString()}</p>
+            <div className="text-4xl font-extrabold tracking-tight" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              {stats.total_sent.toLocaleString()}
+            </div>
+            <div className="absolute right-3.5 bottom-3 text-xs" style={{ color: 'hsl(220, 12%, 38%)' }}>
+              all-time
+            </div>
+            <div 
+              className="absolute w-[180px] h-[180px] -right-[60px] -bottom-[60px] rounded-full rotate-[25deg] pointer-events-none"
+              style={{
+                background: 'radial-gradient(closest-side, hsl(210, 100%, 60%, 0.08), transparent 70%)'
+              }}
+            />
           </div>
 
           {/* Failed */}
-          <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
-                <LuCircleX size={24} className="text-red-600" />
+          <div 
+            className="relative min-h-[140px] p-[18px] rounded-[22px] backdrop-blur-sm overflow-hidden"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
+          >
+            <div className="flex justify-between items-center mb-3.5">
+              <div className="text-sm font-semibold tracking-wide" style={{ color: 'hsl(220, 12%, 38%)' }}>
+                Failed
               </div>
-              <span className="text-xs font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full">
+              <span 
+                className="flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full"
+                style={{
+                  color: 'hsl(350, 84%, 50%)',
+                  border: '1px solid hsl(350, 84%, 60%, 0.3)',
+                  background: 'hsl(350, 84%, 60%, 0.1)'
+                }}
+              >
+                <LuCircleX size={14} />
                 {stats.total_failed}
               </span>
             </div>
-            <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-wide mb-1">
-              Failed
-            </h3>
-            <p className="text-3xl font-black text-gray-900">{stats.total_failed}</p>
+            <div className="text-4xl font-extrabold tracking-tight" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              {stats.total_failed}
+            </div>
+            <div className="absolute right-3.5 bottom-3 text-xs" style={{ color: 'hsl(220, 12%, 38%)' }}>
+              last 30 days
+            </div>
+            <div 
+              className="absolute w-[180px] h-[180px] -right-[60px] -bottom-[60px] rounded-full rotate-[25deg] pointer-events-none"
+              style={{
+                background: 'radial-gradient(closest-side, hsl(210, 100%, 60%, 0.08), transparent 70%)'
+              }}
+            />
           </div>
 
           {/* Success Rate */}
-          <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <LuTrendingUp size={24} className="text-blue-600" />
+          <div 
+            className="relative min-h-[140px] p-[18px] rounded-[22px] backdrop-blur-sm overflow-hidden"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
+          >
+            <div className="flex justify-between items-center mb-3.5">
+              <div className="text-sm font-semibold tracking-wide" style={{ color: 'hsl(220, 12%, 38%)' }}>
+                Success Rate
               </div>
-              <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
+              <span 
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
+                style={{
+                  color: 'hsl(210, 100%, 50%)',
+                  border: '1px solid hsl(210, 100%, 60%, 0.3)',
+                  background: 'hsl(210, 100%, 60%, 0.1)'
+                }}
+              >
                 Excellent
               </span>
             </div>
-            <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-wide mb-1">
-              Success Rate
-            </h3>
-            <p className="text-3xl font-black text-gray-900">{stats.success_rate}%</p>
+            <div className="text-4xl font-extrabold tracking-tight" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              {stats.success_rate}%
+            </div>
+            <div className="absolute right-3.5 bottom-3 text-xs" style={{ color: 'hsl(220, 12%, 38%)' }}>
+              delivery
+            </div>
+            <div 
+              className="absolute w-[180px] h-[180px] -right-[60px] -bottom-[60px] rounded-full rotate-[25deg] pointer-events-none"
+              style={{
+                background: 'radial-gradient(closest-side, hsl(210, 100%, 60%, 0.08), transparent 70%)'
+              }}
+            />
           </div>
 
-          {/* Recent Campaigns */}
-          <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
-                <LuClock size={24} className="text-purple-600" />
+          {/* Campaigns */}
+          <div 
+            className="relative min-h-[140px] p-[18px] rounded-[22px] backdrop-blur-sm overflow-hidden"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
+          >
+            <div className="flex justify-between items-center mb-3.5">
+              <div className="text-sm font-semibold tracking-wide" style={{ color: 'hsl(220, 12%, 38%)' }}>
+                Campaigns
               </div>
-              <span className="text-xs font-semibold text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
+              <span 
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
+                style={{
+                  color: 'hsl(264, 88%, 56%)',
+                  border: '1px solid hsl(264, 88%, 66%, 0.3)',
+                  background: 'hsl(264, 88%, 66%, 0.1)'
+                }}
+              >
                 This month
               </span>
             </div>
-            <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-wide mb-1">
-              Campaigns
-            </h3>
-            <p className="text-3xl font-black text-gray-900">{stats.recent_campaigns}</p>
+            <div className="text-4xl font-extrabold tracking-tight" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              {stats.recent_campaigns}
+            </div>
+            <div className="absolute right-3.5 bottom-3 text-xs" style={{ color: 'hsl(220, 12%, 38%)' }}>
+              active
+            </div>
+            <div 
+              className="absolute w-[180px] h-[180px] -right-[60px] -bottom-[60px] rounded-full rotate-[25deg] pointer-events-none"
+              style={{
+                background: 'radial-gradient(closest-side, hsl(210, 100%, 60%, 0.08), transparent 70%)'
+              }}
+            />
           </div>
-        </div>
+        </section>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {/* Feature Cards */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Send Email */}
-          <button
+          <article 
             onClick={() => router.push('/email-sender/send')}
-            className="group bg-gradient-to-br from-gray-900 to-gray-700 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1"
+            className="relative backdrop-blur-sm min-h-[220px] p-[22px] rounded-[26px] overflow-hidden cursor-pointer"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
           >
-            <div className="flex items-center justify-between mb-6">
-              <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <LuSend size={32} className="text-white" />
-              </div>
-              <LuArrowRight size={24} className="text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Send Email</h3>
-            <p className="text-gray-300 text-sm">
-              Compose and send emails to your contacts
-            </p>
-          </button>
-
-          {/* Manage Templates */}
-          <button
-            onClick={() => router.push('/email-sender/templates')}
-            className="group bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 border border-gray-200"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <LuFileText size={32} className="text-gray-900" />
-              </div>
-              <LuArrowRight size={24} className="text-gray-300 group-hover:text-gray-900 group-hover:translate-x-1 transition-all" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Templates</h3>
-            <p className="text-gray-600 text-sm">
-              Create and manage email templates
-            </p>
-          </button>
-
-          {/* Manage Contacts */}
-          <button
-            onClick={() => router.push('/contacts')}
-            className="group bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 border border-gray-200"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <LuUsers size={32} className="text-gray-900" />
-              </div>
-              <LuArrowRight size={24} className="text-gray-300 group-hover:text-gray-900 group-hover:translate-x-1 transition-all" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Contacts</h3>
-            <p className="text-gray-600 text-sm">
-              Manage your contact list
-            </p>
-          </button>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
-            <button 
-              onClick={() => router.push('/email-sender/history')}
-              className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors"
+            <div 
+              className="w-14 h-14 rounded-[18px] flex items-center justify-center mb-[18px]"
+              style={{
+                background: '#2A8B8A',
+                boxShadow: 'inset 0 1px 0 hsl(0, 0%, 100%, 0.25), 0 1px 2px hsl(220, 20%, 40%, 0.1)'
+              }}
             >
-              View All
-            </button>
-          </div>
-          
-          <div className="space-y-4">
-            {recentActivity.length > 0 ? (
-              recentActivity.map((activity) => {
-                const successRate = activity.recipients_count > 0 
-                  ? Math.round((activity.success_count / activity.recipients_count) * 100)
-                  : 0;
-                const { Icon, bgColor, iconColor } = getActivityIcon(activity.status);
+              <LuSend size={26} className="text-white" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold mb-2" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              Send Email
+            </h3>
+            <p style={{ color: 'hsl(220, 12%, 38%)', margin: 0 }}>
+              Compose and distribute campaigns to your contacts.
+            </p>
+            <div 
+              className="absolute right-[18px] bottom-[18px] w-10 h-10 rounded-[12px] flex items-center justify-center"
+              style={{
+                border: '1px solid hsl(220, 20%, 90%)',
+                background: 'hsl(0, 0%, 98%)',
+                color: 'hsl(220, 20%, 12%)'
+              }}
+            >
+              <LuChevronRight size={18} />
+            </div>
+          </article>
 
-                return (
-                  <div key={activity.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
-                    <div className={`w-12 h-12 ${bgColor} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                      <Icon size={20} className={iconColor} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 mb-1 truncate">
-                        {activity.subject || 'Email Campaign'}
-                      </h4>
-                      <p className="text-sm text-gray-500">
-                        {activity.recipients_count} recipient{activity.recipients_count !== 1 ? 's' : ''} • {getTimeAgo(activity.sent_at)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-semibold ${getSuccessRateColor(successRate)}`}>
-                        {successRate}% success
-                      </p>
-                      {activity.failed_count > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {activity.failed_count} failed
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <LuMail size={32} className="text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No recent activity</h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  Start sending emails to see your campaign history here
-                </p>
-                <button
-                  onClick={() => router.push('/email-sender/send')}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-all"
-                >
-                  <LuPlus size={20} />
-                  Send Your First Email
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+          {/* Templates */}
+                    {/* Templates */}
+          <article 
+            onClick={() => router.push('/email-sender/templates')}
+            className="relative cursor-pointer backdrop-blur-sm min-h-[160px] p-[18px] rounded-[22px] overflow-hidden transition-all duration-300 hover:scale-[1.02]"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
+          >
+            <div 
+              className="w-14 h-14 rounded-[18px] flex items-center justify-center mb-[18px]"
+              style={{
+                background: '#2A8B8A',
+                boxShadow: 'inset 0 1px 0 hsl(0, 0%, 100%, 0.25), 0 1px 2px hsl(220, 20%, 40%, 0.1)'
+              }}
+            >
+              <LuFileText size={26} className="text-white" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold mb-2" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              Templates
+            </h3>
+            <p style={{ color: 'hsl(220, 12%, 38%)', margin: 0 }}>
+              Create, manage, and reuse branded email templates.
+            </p>
+            <div 
+              className="absolute right-[18px] bottom-[18px] w-10 h-10 rounded-[12px] flex items-center justify-center"
+              style={{
+                border: '1px solid hsl(220, 20%, 90%)',
+                background: 'hsl(0, 0%, 98%)',
+                color: 'hsl(220, 20%, 12%)'
+              }}
+            >
+              <LuChevronRight size={18} />
+            </div>
+          </article>
+
+          {/* Contacts */}
+          <article 
+            onClick={() => router.push('/email-sender/contacts')}
+            className="relative cursor-pointer backdrop-blur-sm min-h-[160px] p-[18px] rounded-[22px] overflow-hidden transition-all duration-300 hover:scale-[1.02]"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid hsl(220, 20%, 90%)',
+              boxShadow: '0 2px 8px hsl(220, 20%, 40%, 0.08)'
+            }}
+          >
+            <div 
+              className="w-14 h-14 rounded-[18px] flex items-center justify-center mb-[18px]"
+              style={{
+                background: '#2A8B8A',
+                boxShadow: 'inset 0 1px 0 hsl(0, 0%, 100%, 0.25), 0 1px 2px hsl(220, 20%, 40%, 0.1)'
+              }}
+            >
+              <LuUsers size={26} className="text-white" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold mb-2" style={{ color: 'hsl(220, 20%, 12%)' }}>
+              Contacts
+            </h3>
+            <p style={{ color: 'hsl(220, 12%, 38%)', margin: 0 }}>
+              Manage your audience and import lists securely.
+            </p>
+            <div 
+              className="absolute right-[18px] bottom-[18px] w-10 h-10 rounded-[12px] flex items-center justify-center"
+              style={{
+                border: '1px solid hsl(220, 20%, 90%)',
+                background: 'hsl(0, 0%, 98%)',
+                color: 'hsl(220, 20%, 12%)'
+              }}
+            >
+              <LuChevronRight size={18} />
+            </div>
+          </article>
+        </section>
       </div>
     </div>
   );

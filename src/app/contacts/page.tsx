@@ -463,281 +463,364 @@ export default function ContactsPage() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading contacts...</p>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-[#2A8B8A] border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading contacts...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <section className="w-full max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
-          <p className="text-gray-600 mt-1">Manage your WhatsApp contacts and customer data</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={downloadTemplate}
-            className="bg-gray-600 text-white px-4 py-3 font-medium hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
-          >
-            <MdDownload className="w-4 h-4" />
-            Template
-          </button>
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="bg-blue-600 text-white px-4 py-3 font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
-          >
-            <MdUpload className="w-4 h-4" />
-            Import
-          </button>
-          <button
-            onClick={exportContacts}
-            className="bg-green-600 text-white px-4 py-3 font-medium hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
-          >
-            <MdDownload className="w-4 h-4" />
-            Export
-          </button>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowAddModal(true);
-            }}
-            className="bg-[#2A8B8A] text-white px-6 py-3 font-medium hover:bg-[#238080] transition-colors flex items-center gap-2"
-          >
-            <MdAdd className="w-5 h-5" />
-            Add Contact
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2">
-            <MdPerson className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-gray-600">Total</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{contacts.length}</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2">
-            <MdCheckCircle className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium text-gray-600">Active</span>
-          </div>
-          <p className="text-2xl font-bold text-green-600 mt-1">{contacts.filter(c => (c.status || "active") === "active").length}</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2">
-            <MdEmail className="w-5 h-5 text-purple-600" />
-            <span className="text-sm font-medium text-gray-600">With Email</span>
-          </div>
-          <p className="text-2xl font-bold text-purple-600 mt-1">{contacts.filter(c => c.email).length}</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2">
-            <MdTag className="w-5 h-5 text-orange-600" />
-            <span className="text-sm font-medium text-gray-600">Tagged</span>
-          </div>
-          <p className="text-2xl font-bold text-orange-600 mt-1">{contacts.filter(c => c.tags && c.tags.length > 0).length}</p>
-        </div>
-      </div>
-
-      {/* Controls Bar */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search contacts by name, phone, or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <MdClear className="w-4 h-4" />
-                </button>
-              )}
+    <section className="w-full space-y-6">
+      {/* Header Section with Gradient Background */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2A8B8A] via-[#238080] to-[#1d6a6a] p-8 shadow-lg">
+        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]"></div>
+        <div className="relative">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">Contacts</h1>
+              <p className="text-white/80 text-lg">Manage your WhatsApp contacts and build stronger customer relationships</p>
             </div>
-            
-            {/* Tag Filter */}
-            <div className="sm:w-48">
-              <select
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                value={selectedTag}
-                onChange={(e) => setSelectedTag(e.target.value)}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={downloadTemplate}
+                className="bg-white/20 backdrop-blur-sm text-white px-5 py-3 rounded-xl font-medium hover:bg-white/30 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
               >
-                <option value="">All Tags</option>
-                {allTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
+                <MdDownload className="w-5 h-5" />
+                Template
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="bg-white/20 backdrop-blur-sm text-white px-5 py-3 rounded-xl font-medium hover:bg-white/30 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                <MdUpload className="w-5 h-5" />
+                Import
+              </button>
+              <button
+                onClick={exportContacts}
+                className="bg-white/20 backdrop-blur-sm text-white px-5 py-3 rounded-xl font-medium hover:bg-white/30 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                <MdDownload className="w-5 h-5" />
+                Export
+              </button>
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
+                className="bg-white text-[#2A8B8A] px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                <MdAdd className="w-5 h-5" />
+                Add Contact
+              </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Stats Cards with Modern Design */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-[#2A8B8A]/10 rounded-xl group-hover:bg-[#2A8B8A]/20 transition-colors duration-200">
+              <MdPerson className="w-6 h-6 text-[#2A8B8A]" />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{contacts.length}</span>
+          </div>
+          <p className="text-sm font-semibold text-gray-900">Total Contacts</p>
+          <p className="text-xs text-gray-600 mt-1">All registered users</p>
+        </div>
+
+        <div className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-[#2A8B8A]/10 rounded-xl group-hover:bg-[#2A8B8A]/20 transition-colors duration-200">
+              <MdCheckCircle className="w-6 h-6 text-[#2A8B8A]" />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{contacts.filter(c => (c.status || "active") === "active").length}</span>
+          </div>
+          <p className="text-sm font-semibold text-gray-900">Active Users</p>
+          <p className="text-xs text-gray-600 mt-1">Currently reachable</p>
+        </div>
+
+        <div className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-[#2A8B8A]/10 rounded-xl group-hover:bg-[#2A8B8A]/20 transition-colors duration-200">
+              <MdEmail className="w-6 h-6 text-[#2A8B8A]" />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{contacts.filter(c => c.email).length}</span>
+          </div>
+          <p className="text-sm font-semibold text-gray-900">With Email</p>
+          <p className="text-xs text-gray-600 mt-1">Email addresses added</p>
+        </div>
+
+        <div className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-[#2A8B8A]/10 rounded-xl group-hover:bg-[#2A8B8A]/20 transition-colors duration-200">
+              <MdTag className="w-6 h-6 text-[#2A8B8A]" />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{contacts.filter(c => c.tags && c.tags.length > 0).length}</span>
+          </div>
+          <p className="text-sm font-semibold text-gray-900">Tagged</p>
+          <p className="text-xs text-gray-600 mt-1">Organized contacts</p>
+        </div>
+      </div>
+
+      {/* Search and Filter Bar with Modern Look */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 p-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <MdSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search by name, phone, or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-10 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent text-gray-900 placeholder-gray-500 transition-all duration-200"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <MdClear className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+          
+          {/* Tag Filter */}
+          <div className="lg:w-64">
+            <select
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent text-gray-900 font-medium transition-all duration-200"
+              value={selectedTag}
+              onChange={(e) => setSelectedTag(e.target.value)}
+            >
+              <option value="">All Tags</option>
+              {allTags.map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {(searchTerm || selectedTag) && (
+          <div className="mt-4 flex items-center gap-2 text-sm">
+            <span className="text-gray-600">Active filters:</span>
+            {searchTerm && (
+              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
+                Search: "{searchTerm}"
+              </span>
+            )}
+            {selectedTag && (
+              <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">
+                Tag: {selectedTag}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Contacts List */}
       {filteredContacts.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <MdPerson className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {searchTerm || selectedTag ? "No contacts found" : "No contacts yet"}
-          </h3>
-          <p className="text-gray-600 mb-6">
-            {searchTerm || selectedTag 
-              ? "Try adjusting your search or filter criteria" 
-              : "Add your first contact to start managing your WhatsApp customer relationships."}
-          </p>
-          {!searchTerm && !selectedTag && (
-            <button
-              onClick={() => {
-                resetForm();
-                setShowAddModal(true);
-              }}
-              className="bg-[#2A8B8A] text-white px-6 py-3 font-medium hover:bg-[#238080] transition-colors"
-            >
-              Add Your First Contact
-            </button>
-          )}
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300 p-16 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#2A8B8A] to-[#238080] rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <MdPerson className="w-10 h-10 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              {searchTerm || selectedTag ? "No contacts found" : "No contacts yet"}
+            </h3>
+            <p className="text-gray-600 text-lg mb-8">
+              {searchTerm || selectedTag 
+                ? "Try adjusting your search or filter criteria to find what you're looking for" 
+                : "Start building your contact list by adding your first contact. Import from CSV or add manually."}
+            </p>
+            {!searchTerm && !selectedTag && (
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
+                className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white px-8 py-4 rounded-xl font-semibold hover:shadow-xl transition-all duration-200 inline-flex items-center gap-2 hover:scale-105"
+              >
+                <MdAdd className="w-5 h-5" />
+                Add Your First Contact
+              </button>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Contacts ({filteredContacts.length})
-              </h2>
-              <div className="text-sm text-gray-500">
-                {searchTerm && `Searching for "${searchTerm}"`}
-                {selectedTag && `Filtered by tag: ${selectedTag}`}
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#2A8B8A]/10 rounded-lg">
+                    <MdPerson className="w-5 h-5 text-[#2A8B8A]" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    All Contacts <span className="text-[#2A8B8A]">({filteredContacts.length})</span>
+                  </h2>
+                </div>
+                {(searchTerm || selectedTag) && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedTag("");
+                    }}
+                    className="text-sm text-[#2A8B8A] hover:text-[#238080] font-medium flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-[#2A8B8A]/10 transition-colors"
+                  >
+                    <MdClear className="w-4 h-4" />
+                    Clear Filters
+                  </button>
+                )}
               </div>
             </div>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {filteredContacts.map((contact) => (
-              <div key={contact._id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-[#2A8B8A] text-white rounded-full flex items-center justify-center font-medium">
-                      {contact.name.charAt(0).toUpperCase()}
+            <div className="divide-y divide-gray-100">
+              {filteredContacts.map((contact, index) => (
+                <div key={contact._id} className="group p-6 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
+                  <div className="flex items-start gap-5">
+                    {/* Avatar with Animation */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-16 h-16 bg-gradient-to-br from-[#2A8B8A] to-[#238080] text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform duration-200">
+                        {contact.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white shadow-sm ${
+                        (contact.status || "active") === "active" ? "bg-green-500" : "bg-gray-400"
+                      }`}></div>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{contact.name}</h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          (contact.status || "active") === "active" ? "bg-green-100 text-green-800" :
-                          (contact.status || "active") === "blocked" ? "bg-red-100 text-red-800" :
-                          "bg-gray-100 text-gray-800"
-                        }`}>
-                          {(contact.status || "active").toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <MdPhone className="w-4 h-4" />
-                          {contact.phone}
-                        </div>
-                        {contact.email && (
-                          <div className="flex items-center gap-2">
-                            <MdEmail className="w-4 h-4" />
-                            {contact.email}
+                    
+                    {/* Contact Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#2A8B8A] transition-colors">{contact.name}</h3>
+                            <span className={`px-3 py-1 text-xs font-bold rounded-full shadow-sm ${
+                              (contact.status || "active") === "active" 
+                                ? "bg-green-100 text-green-700 border border-green-200" 
+                                : (contact.status || "active") === "blocked" 
+                                ? "bg-red-100 text-red-700 border border-red-200" 
+                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                            }`}>
+                              {(contact.status || "active").toUpperCase()}
+                            </span>
                           </div>
-                        )}
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <div className="w-8 h-8 bg-[#2A8B8A]/10 rounded-lg flex items-center justify-center">
+                                <MdPhone className="w-4 h-4 text-[#2A8B8A]" />
+                              </div>
+                              <span className="font-medium">{contact.phone}</span>
+                            </div>
+                            {contact.email && (
+                              <div className="flex items-center gap-2 text-gray-700">
+                                <div className="w-8 h-8 bg-[#2A8B8A]/10 rounded-lg flex items-center justify-center">
+                                  <MdEmail className="w-4 h-4 text-[#2A8B8A]" />
+                                </div>
+                                <span className="font-medium">{contact.email}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                      
+                      {/* Tags */}
                       {contact.tags && contact.tags.length > 0 && (
-                        <div className="flex items-center gap-2 mt-3">
+                        <div className="flex items-center gap-2 mb-3">
                           <MdTag className="w-4 h-4 text-gray-400" />
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-2">
                             {contact.tags.map(tag => (
-                              <span key={tag} className="bg-gray-100 text-gray-700 px-2 py-1 text-xs rounded">
+                              <span key={tag} className="bg-[#2A8B8A]/10 text-[#2A8B8A] px-3 py-1 text-xs font-semibold rounded-full border border-[#2A8B8A]/20">
                                 {tag}
                               </span>
                             ))}
                           </div>
                         </div>
                       )}
+                      
+                      {/* Notes */}
                       {contact.notes && (
-                        <div className="flex items-start gap-2 mt-2">
-                          <MdNotes className="w-4 h-4 text-gray-400 mt-0.5" />
-                          <p className="text-sm text-gray-500">{contact.notes}</p>
+                        <div className="flex items-start gap-2 mb-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                          <MdNotes className="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-gray-700 font-medium">{contact.notes}</p>
                         </div>
                       )}
-                      <div className="flex items-center gap-4 text-xs text-gray-400 mt-3">
-                        <span>Added: {new Date(contact.created_at).toLocaleDateString()}</span>
+                      
+                      {/* Metadata */}
+                      <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
+                        <span className="flex items-center gap-1">
+                          <MdPerson className="w-3 h-3" />
+                          Added: {new Date(contact.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
                         {contact.last_message_at && (
-                          <span>Last message: {new Date(contact.last_message_at).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-1">
+                            <MdMessage className="w-3 h-3" />
+                            Last message: {new Date(contact.last_message_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
                         )}
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button 
+                          onClick={() => router.push(`/chats/${encodeURIComponent(contact.phone)}`)}
+                          className="bg-[#2A8B8A] text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-[#238080] hover:shadow-lg transition-all duration-200 flex items-center gap-2 hover:scale-105"
+                        >
+                          <MdMessage className="w-4 h-4" />
+                          Message
+                        </button>
+                        <button 
+                          onClick={() => toggleContactStatus(contact._id)}
+                          className={`px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-lg hover:scale-105 ${
+                            (contact.status || "active") === "active" 
+                              ? "bg-gray-600 hover:bg-gray-700 text-white" 
+                              : "bg-[#2A8B8A] hover:bg-[#238080] text-white"
+                          }`}
+                        >
+                          {(contact.status || "active") === "active" ? <MdBlock className="w-4 h-4" /> : <MdCheckCircle className="w-4 h-4" />}
+                          {(contact.status || "active") === "active" ? "Block" : "Unblock"}
+                        </button>
+                        <button 
+                          onClick={() => handleEdit(contact)}
+                          className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-semibold hover:bg-gray-200 hover:shadow-lg transition-all duration-200 flex items-center gap-2 hover:scale-105 border border-gray-200"
+                        >
+                          <MdEdit className="w-4 h-4" />
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setTagsEditingContact(contact);
+                            setTagsFormData({
+                              selectedTags: [...(contact.tags || [])],
+                              newTag: ""
+                            });
+                            setShowTagsModal(true);
+                          }}
+                          className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-semibold hover:bg-gray-200 hover:shadow-lg transition-all duration-200 flex items-center gap-2 hover:scale-105 border border-gray-200"
+                        >
+                          <MdLabel className="w-4 h-4" />
+                          Tags
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setDeletingContact(contact);
+                            setShowDeleteModal(true);
+                          }}
+                          className="bg-red-50 text-red-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-red-100 hover:shadow-lg transition-all duration-200 flex items-center gap-2 hover:scale-105 border border-red-200"
+                        >
+                          <MdDelete className="w-4 h-4" />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => router.push(`/chats/${encodeURIComponent(contact.phone)}`)}
-                      className="bg-[#2A8B8A] text-white px-3 py-2 text-sm font-medium hover:bg-[#238080] transition-colors flex items-center gap-1 rounded-md"
-                    >
-                      <MdMessage className="w-4 h-4" />
-                      Message
-                    </button>
-                    <button 
-                      onClick={() => toggleContactStatus(contact._id)}
-                      className={`px-3 py-2 text-sm font-medium transition-colors rounded-md ${
-                        (contact.status || "active") === "active" 
-                          ? "bg-orange-600 hover:bg-orange-700 text-white" 
-                          : "bg-green-600 hover:bg-green-700 text-white"
-                      }`}
-                    >
-                      {(contact.status || "active") === "active" ? <MdBlock className="w-4 h-4" /> : <MdCheckCircle className="w-4 h-4" />}
-                    </button>
-                    <button 
-                      onClick={() => handleEdit(contact)}
-                      className="bg-blue-600 text-white px-3 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-1 rounded-md"
-                    >
-                      <MdEdit className="w-4 h-4" />
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setTagsEditingContact(contact);
-                        setTagsFormData({
-                          selectedTags: [...(contact.tags || [])],
-                          newTag: ""
-                        });
-                        setShowTagsModal(true);
-                      }}
-                      className="bg-purple-600 text-white px-3 py-2 text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-1 rounded-md"
-                      title="Manage Tags"
-                    >
-                      <MdLabel className="w-4 h-4" />
-                      Tags
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setDeletingContact(contact);
-                        setShowDeleteModal(true);
-                      }}
-                      className="bg-red-600 text-white px-3 py-2 text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1 rounded-md"
-                    >
-                      <MdDelete className="w-4 h-4" />
-                      Delete
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
