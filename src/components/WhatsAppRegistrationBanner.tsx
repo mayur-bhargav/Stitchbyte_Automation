@@ -30,11 +30,15 @@ export function WhatsAppRegistrationBanner({ status, onVerifyClick, loading }: W
         return {
           type: 'warning' as const,
           icon: LuShieldAlert,
-          title: 'Two-Step Verification Required',
-          message: userMessage || 'Your WhatsApp number requires a 6-digit PIN to complete registration.',
-          buttonText: 'Enter PIN',
+          title: 'Two-Step Verification Setup Required',
+          message: userMessage || 'Your WhatsApp number requires two-step verification PIN setup to complete registration.',
+          buttonText: status.requires_pin ? 'Enter PIN' : 'Complete Setup',
           showButton: true,
-          hint: hint || 'This is the PIN you set up in your WhatsApp app for two-step verification.',
+          hint: hint || (
+            'If the "Enable" button is grayed out in WhatsApp Manager, your account may be too new. ' +
+            'Meta typically enables two-step verification 24-48 hours after phone verification. ' +
+            'You can also try: 1) Disconnect & reconnect WhatsApp, 2) Wait 24-48 hours, or 3) Contact Meta support.'
+          ),
         };
 
       case 'TOKEN_INVALID':

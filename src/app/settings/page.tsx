@@ -604,18 +604,43 @@ export default function SettingsPage() {
                     </div>
                     
                     {/* NEW: Registration Banner - Shows when connected but not registered */}
-                    {registrationStatus && !regLoading && (
-                      <WhatsAppRegistrationBanner
-                        status={registrationStatus}
-                        onVerifyClick={() => {
-                          if (registrationStatus.requires_pin) {
-                            setShowNewPinModal(true);
-                          } else {
+                    {registrationStatus && !regLoading && !registrationStatus.registered && (
+                      <div>
+                        <WhatsAppRegistrationBanner
+                          status={registrationStatus}
+                          onVerifyClick={() => {
+                            // ALWAYS try without PIN first - if PIN is needed, backend will tell us
                             handleNewRegistration();
-                          }
-                        }}
-                        loading={registering}
-                      />
+                          }}
+                          loading={registering}
+                        />
+                        {/* Show additional hint if PIN seems to be required but might not be enabled */}
+                        {registrationStatus.requires_pin && (
+                          <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-start gap-3">
+                              <LuTriangleAlert className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
+                              <div className="flex-1 text-sm text-blue-900">
+                                <p className="font-semibold mb-2">Two-Step Verification Not Available?</p>
+                                <p className="mb-2">
+                                  If the "Enable" button is grayed out in WhatsApp Manager, this is normal for new accounts.
+                                  Meta typically enables this feature 24-48 hours after phone verification.
+                                </p>
+                                <div className="space-y-1 text-xs text-blue-800">
+                                  <p>• <strong>Option 1:</strong> Wait 24-48 hours and try again</p>
+                                  <p>• <strong>Option 2:</strong> Disconnect and reconnect your WhatsApp account</p>
+                                  <p>• <strong>Option 3:</strong> Contact Meta Business support for assistance</p>
+                                </div>
+                                <button
+                                  onClick={() => setShowDisconnectModal(true)}
+                                  className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                  Disconnect & Try Again
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                     
                     <div className="space-y-1">
