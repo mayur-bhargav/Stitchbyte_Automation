@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef, ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { BalanceProvider, useBalance } from "../contexts/BalanceContext";
 import { useUser } from "../contexts/UserContext";
 import { usePermissions } from "../contexts/PermissionContext";
@@ -89,7 +89,7 @@ const navConfig = [
     title: "Automation",
     items: [
       { href: "/automations", label: "Automations", icon: <LuWand size={20} />, permission: "manage_integrations" },
-      { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} />, permission: "manage_integrations", comingSoon: true },
+      { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} />, permission: "manage_integrations" },
       { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} />, permission: "manage_integrations", comingSoon: true },
     ],
   },
@@ -398,6 +398,48 @@ const SearchFilterDropdown = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
   );
 };
 
+// ============================================================================
+// Notification Trigger Component - Must be inside BalanceProvider
+// ============================================================================
+const NotificationTrigger = () => {
+  const { balance } = useBalance();
+  const { 
+    showWelcomeNotification, 
+    checkAndShowBalanceNotification,
+    showBalanceUsedNotification 
+  } = useDashboard();
+  const { user } = useUser();
+  const prevBalanceRef = useRef<number | null>(null);
+  const hasCheckedWelcomeRef = useRef(false);
+
+  // Check for welcome notification on first load (only once per session)
+  useEffect(() => {
+    if (user && !hasCheckedWelcomeRef.current) {
+      hasCheckedWelcomeRef.current = true;
+      // Show welcome notification for the user
+      showWelcomeNotification(user.name || user.email || 'User');
+    }
+  }, [user, showWelcomeNotification]);
+
+  // Check balance and show appropriate notifications
+  useEffect(() => {
+    if (balance !== undefined && balance !== null) {
+      // Check for low/zero balance
+      checkAndShowBalanceNotification(balance);
+      
+      // Check if balance was used (decreased)
+      if (prevBalanceRef.current !== null && prevBalanceRef.current > balance) {
+        const amountUsed = prevBalanceRef.current - balance;
+        showBalanceUsedNotification(amountUsed, balance);
+      }
+      
+      prevBalanceRef.current = balance;
+    }
+  }, [balance, checkAndShowBalanceNotification, showBalanceUsedNotification]);
+
+  return null; // This component only triggers notifications, no UI
+};
+
 const NotificationsDropdown = ({ 
   isOpen, 
   onClose, 
@@ -418,6 +460,7 @@ const NotificationsDropdown = ({
   const { unreadCount } = useDashboard();
   const { darkMode } = useThemeWatcher();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -432,6 +475,17 @@ const NotificationsDropdown = ({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
+
+  // Handle action click - supports both actionUrl (new) and action function (legacy)
+  const handleAction = (notif: any) => {
+    markAsRead(notif.id);
+    if (notif.actionUrl) {
+      router.push(notif.actionUrl);
+    } else if (notif.action && typeof notif.action === 'function') {
+      notif.action();
+    }
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -496,9 +550,22 @@ const NotificationsDropdown = ({
             {notifications.map((notif) => (
               <div
                 key={notif.id}
-                className={`p-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                className={`p-4 transition-all cursor-pointer group ${
                   !notif.read ? (darkMode ? 'bg-slate-800/50' : 'bg-blue-50/30') : ''
                 }`}
+                style={{
+                  backgroundColor: !notif.read 
+                    ? (darkMode ? 'rgba(30, 41, 59, 0.5)' : 'rgba(239, 246, 255, 0.3)') 
+                    : undefined
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = darkMode ? '#334155' : '#f1f5f9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = !notif.read 
+                    ? (darkMode ? 'rgba(30, 41, 59, 0.5)' : 'rgba(239, 246, 255, 0.3)') 
+                    : '';
+                }}
               >
                 <div className="flex items-start gap-3">
                   <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -530,22 +597,41 @@ const NotificationsDropdown = ({
                       </div>
                       <button
                         onClick={() => clearNotification(notif.id)}
-                        className="flex-shrink-0 hover:bg-slate-100 dark:hover:bg-slate-600 p-1 rounded"
-                        style={{ color: darkMode ? '#64748b' : '#94a3b8' }}
+                        className="flex-shrink-0 p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: darkMode ? '#94a3b8' : '#64748b',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = darkMode ? '#475569' : '#e2e8f0';
+                          e.currentTarget.style.color = darkMode ? '#f1f5f9' : '#1e293b';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = darkMode ? '#94a3b8' : '#64748b';
+                        }}
+                        tabIndex={-1}
+                        aria-label="Clear notification"
                       >
                         <LuX size={16} />
                       </button>
                     </div>
-                    {notif.action && (
+                    {(notif.action || notif.actionUrl) && (
                       <button
-                        onClick={() => {
-                          markAsRead(notif.id);
-                          notif.action();
-                          onClose();
+                        onClick={() => handleAction(notif)}
+                        className="mt-2 px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors"
+                        style={{
+                          color: '#2A8B8A',
+                          backgroundColor: darkMode ? 'rgba(42, 139, 138, 0.1)' : 'rgba(42, 139, 138, 0.08)',
                         }}
-                        className="mt-2 text-sm font-semibold text-[#2A8B8A] hover:underline"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = darkMode ? 'rgba(42, 139, 138, 0.25)' : 'rgba(42, 139, 138, 0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = darkMode ? 'rgba(42, 139, 138, 0.1)' : 'rgba(42, 139, 138, 0.08)';
+                        }}
                       >
-                        Take Action →
+                        {notif.actionLabel || 'Take Action'} →
                       </button>
                     )}
                   </div>
@@ -592,11 +678,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     showNotifications, setShowNotifications, 
     showSearchFilter, setShowSearchFilter, 
     unreadCount, searchQuery, dateFilter, statusFilter,
-    notifications, setNotifications, setUnreadCount
+    notifications, setNotifications, setUnreadCount,
+    markNotificationAsRead, markAllNotificationsAsRead, clearNotificationById,
+    showWelcomeNotification, checkAndShowBalanceNotification
   } = useDashboard();
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const { darkMode } = useThemeWatcher();
   const colors = getThemeColors(darkMode);
+  const router = useRouter();
+  
+  // Alias notification functions for component compatibility
+  const markAllAsRead = markAllNotificationsAsRead;
+  const clearNotification = clearNotificationById;
 
   const isPublicRoute = pathname === '/' || ['/auth', '/landing', '/select-plan', '/about', '/blog', '/careers', '/help', '/api-docs', '/status', '/security', '/privacy', '/terms'].some(p => pathname.startsWith(p)) || pathname === '/integrations';
   const isFullScreenRoute = pathname.startsWith('/automations/builder') || 
@@ -704,28 +797,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       return 'Invalid time';
     }
   };
-
-  const markNotificationAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
-    setUnreadCount(0);
-  };
-
-  const clearNotification = (notificationId: string) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-    const notif = notifications.find(n => n.id === notificationId);
-    if (notif && !notif.read) {
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    }
-  };
   
   const getPageTitle = () => {
       const allItems = navConfig.flatMap(g => g.items);
@@ -745,6 +816,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <BalanceProvider>
+      {/* Notification trigger component - handles automatic notifications */}
+      <NotificationTrigger />
       <div className="min-h-screen flex" style={{ backgroundColor: colors.background }}>
         <aside className="w-72 flex flex-col border-r fixed left-0 top-0 h-full z-50" 
                style={{ 
@@ -924,73 +997,70 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
              </h1>
              
              <div className="flex items-center gap-4 relative">
-               {/* Show Search & Notifications only on dashboard */}
+               {/* Show Search only on dashboard */}
                {pathname === '/dashboard' && (
-                 <>
-                   {/* Search & Filter Button */}
-                   <div className="relative">
-                     <button
-                       onClick={() => {
-                         setShowSearchFilter(!showSearchFilter);
-                         setShowNotifications(false); // Close notifications when opening search
-                       }}
-                       className={`relative p-2.5 rounded-lg transition-all ${
-                         (searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all')
-                           ? 'bg-[#2A8B8A] text-white shadow-md' 
-                           : darkMode
-                           ? 'bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600'
-                           : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                       }`}
-                       title="Search and Filter"
-                     >
-                       <LuSearch size={20} />
-                       {(searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all') && (
-                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
-                       )}
-                     </button>
-                     
-                     {/* Search Filter Dropdown */}
-                     <SearchFilterDropdown 
-                       isOpen={showSearchFilter} 
-                       onClose={() => setShowSearchFilter(false)} 
-                     />
-                   </div>
-
-                   {/* Notifications Button */}
-                   <div className="relative">
-                     <button
-                       onClick={() => {
-                         setShowNotifications(!showNotifications);
-                         setShowSearchFilter(false); // Close search when opening notifications
-                       }}
-                       className={`relative p-2.5 rounded-lg transition-all ${
-                         darkMode
-                           ? 'bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600'
-                           : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                       }`}
-                       title="Notifications"
-                     >
-                       {unreadCount > 0 ? <LuBellRing size={20} className="text-[#2A8B8A]" /> : <LuBell size={20} />}
-                       {unreadCount > 0 && (
-                         <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px]">
-                           {unreadCount > 9 ? '9+' : unreadCount}
-                         </span>
-                       )}
-                     </button>
-                     
-                     {/* Notifications Dropdown */}
-                     <NotificationsDropdown 
-                       isOpen={showNotifications} 
-                       onClose={() => setShowNotifications(false)}
-                       notifications={notifications}
-                       markAsRead={markNotificationAsRead}
-                       markAllAsRead={markAllAsRead}
-                       clearNotification={clearNotification}
-                       formatTimeAgo={formatTimeAgo}
-                     />
-                   </div>
-                 </>
+                 <div className="relative">
+                   <button
+                     onClick={() => {
+                       setShowSearchFilter(!showSearchFilter);
+                       setShowNotifications(false); // Close notifications when opening search
+                     }}
+                     className={`relative p-2.5 rounded-lg transition-all ${
+                       (searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all')
+                         ? 'bg-[#2A8B8A] text-white shadow-md' 
+                         : darkMode
+                         ? 'bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600'
+                         : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                     }`}
+                     title="Search and Filter"
+                   >
+                     <LuSearch size={20} />
+                     {(searchQuery.trim() !== '' || dateFilter !== 'all' || statusFilter !== 'all') && (
+                       <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+                     )}
+                   </button>
+                   
+                   {/* Search Filter Dropdown */}
+                   <SearchFilterDropdown 
+                     isOpen={showSearchFilter} 
+                     onClose={() => setShowSearchFilter(false)} 
+                   />
+                 </div>
                )}
+
+               {/* Notifications Button - Show on ALL pages */}
+               <div className="relative">
+                 <button
+                   onClick={() => {
+                     setShowNotifications(!showNotifications);
+                     setShowSearchFilter(false); // Close search when opening notifications
+                   }}
+                   className={`relative p-2.5 rounded-lg transition-all ${
+                     darkMode
+                       ? 'bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600'
+                       : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                   }`}
+                   title="Notifications"
+                 >
+                   {unreadCount > 0 ? <LuBellRing size={20} className="text-[#2A8B8A]" /> : <LuBell size={20} />}
+                   {unreadCount > 0 && (
+                     <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px]">
+                       {unreadCount > 9 ? '9+' : unreadCount}
+                     </span>
+                   )}
+                 </button>
+                 
+                 {/* Notifications Dropdown */}
+                 <NotificationsDropdown 
+                   isOpen={showNotifications} 
+                   onClose={() => setShowNotifications(false)}
+                   notifications={notifications}
+                   markAsRead={markNotificationAsRead}
+                   markAllAsRead={markAllAsRead}
+                   clearNotification={clearNotification}
+                   formatTimeAgo={formatTimeAgo}
+                 />
+               </div>
                
                <BalanceHeader onTopUpClick={() => setShowAddBalanceModal(true)} />
              </div>

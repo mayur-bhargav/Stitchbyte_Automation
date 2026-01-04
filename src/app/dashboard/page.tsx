@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, ReactNode, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "../contexts/UserContext";
 import { useBalance } from "../contexts/BalanceContext";
@@ -178,11 +178,18 @@ export default function Dashboard() {
   const { 
     showNotifications, setShowNotifications, 
     showSearchFilter, setShowSearchFilter,
-    notifications, setNotifications,
-    unreadCount, setUnreadCount,
+    notifications, 
+    unreadCount,
     searchQuery, setSearchQuery,
     dateFilter, setDateFilter,
-    statusFilter, setStatusFilter
+    statusFilter, setStatusFilter,
+    markNotificationAsRead: contextMarkAsRead,
+    markAllNotificationsAsRead: contextMarkAllAsRead,
+    clearNotificationById: contextClearNotification,
+    showWhatsAppNotConnectedNotification,
+    showFailedMessagesNotification,
+    showUnreadChatsNotification,
+    addNotification
   } = useDashboard();
   
   // Demo mode for screen recording (set to true when recording)
@@ -229,130 +236,82 @@ export default function Dashboard() {
   const [wpMsg, setWpMsg] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [hasPermissionError, setHasPermissionError] = useState(false);
+  const prevDataRef = useRef<{ whatsappConnected?: boolean; failedMessages?: number; unreadChats?: number }>({});
 
   // ============================================================================
   // HELPER FUNCTIONS
   // ============================================================================
 
-  // Notification Management
-  const generateNotifications = (data: any) => {
-    const notifs: any[] = [];
-    const now = new Date();
-
-    // Low balance notification
-    if (balance < 100) {
-      notifs.push({
-        id: `balance-${Date.now()}`,
-        type: 'warning',
-        title: 'Low Balance Alert',
-        message: `Your balance is ₹${balance.toFixed(2)}. Add funds to continue sending messages.`,
-        timestamp: now.toISOString(),
-        read: false,
-        action: () => setShowAddBalanceModal(true)
-      });
+  // Trigger real notifications based on dashboard data
+  const triggerDataBasedNotifications = (data: any) => {
+    // WhatsApp not connected - only show if status changed to disconnected
+    const isConnected = (data.whatsappProfile as any)?.connected;
+    if (isConnected === false && prevDataRef.current.whatsappConnected !== false) {
+      showWhatsAppNotConnectedNotification();
     }
+    prevDataRef.current.whatsappConnected = isConnected;
 
-    // WhatsApp not connected
-    if (!(data.whatsappProfile as any)?.connected) {
-      notifs.push({
-        id: `whatsapp-${Date.now()}`,
-        type: 'error',
-        title: 'WhatsApp Not Connected',
-        message: 'Connect your WhatsApp Business Account to start messaging.',
-        timestamp: now.toISOString(),
-        read: false,
-        action: connectWhatsApp
-      });
+    // Failed messages notification - only if increased
+    const failedMessages = data.stats?.failedMessages || 0;
+    if (failedMessages > 0 && failedMessages > (prevDataRef.current.failedMessages || 0)) {
+      showFailedMessagesNotification(failedMessages);
     }
+    prevDataRef.current.failedMessages = failedMessages;
 
-    // Failed messages notification
-    if (data.stats.failedMessages > 0) {
-      notifs.push({
-        id: `failed-${Date.now()}`,
-        type: 'error',
-        title: 'Message Delivery Failed',
-        message: `${data.stats.failedMessages} messages failed to deliver. Check logs for details.`,
-        timestamp: now.toISOString(),
-        read: false,
-        action: () => router.push('/logs')
-      });
+    // Unread chats notification - only if increased
+    const unreadChats = data.stats?.unreadChats || 0;
+    if (unreadChats > 0 && unreadChats > (prevDataRef.current.unreadChats || 0)) {
+      showUnreadChatsNotification(unreadChats);
     }
+    prevDataRef.current.unreadChats = unreadChats;
 
     // Campaign completion notifications
     if (data.campaigns?.campaigns) {
+      const now = new Date();
       data.campaigns.campaigns.forEach((campaign: any) => {
         if (campaign.status === 'completed' && campaign.completed_at) {
           const completedDate = new Date(campaign.completed_at);
           const hoursSinceCompletion = (now.getTime() - completedDate.getTime()) / (1000 * 60 * 60);
           
           if (hoursSinceCompletion < 24) {
-            notifs.push({
-              id: `campaign-complete-${campaign.id}`,
-              type: 'success',
-              title: 'Campaign Completed',
-              message: `"${campaign.name}" finished sending to ${campaign.recipients?.length || 0} contacts.`,
-              timestamp: campaign.completed_at,
-              read: false,
-              action: () => router.push('/campaigns')
-            });
+            // Check if we already have this notification
+            const existingNotif = notifications.find(n => n.id === `campaign-complete-${campaign.id}`);
+            if (!existingNotif) {
+              addNotification({
+                type: 'success',
+                title: 'Campaign Completed',
+                message: `"${campaign.name}" finished sending to ${campaign.recipients?.length || 0} contacts.`,
+                actionUrl: '/campaigns',
+                actionLabel: 'View Campaigns',
+                category: 'campaign'
+              });
+            }
           }
         }
       });
     }
 
-    // Unread chats notification
-    if (data.stats.unreadChats > 0) {
-      notifs.push({
-        id: `unread-chats-${Date.now()}`,
-        type: 'info',
-        title: 'New Messages',
-        message: `You have ${data.stats.unreadChats} unread conversation${data.stats.unreadChats > 1 ? 's' : ''}.`,
-        timestamp: now.toISOString(),
-        read: false,
-        action: () => router.push('/chats')
-      });
-    }
-
-    // No payment method
+    // No payment method notification
     if (!(data.metaPaymentMethods as any)?.payment_gateway?.enabled && hasPermission('view_billing')) {
-      notifs.push({
-        id: `payment-${Date.now()}`,
-        type: 'warning',
-        title: 'Payment Method Required',
-        message: 'Add a payment method to ensure uninterrupted service.',
-        timestamp: now.toISOString(),
-        read: false,
-        action: () => router.push('/billing')
-      });
-    }
-
-    // Sort by timestamp (newest first)
-    notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return notifs;
-  };
-
-  const markNotificationAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
-    setUnreadCount(0);
-  };
-
-  const clearNotification = (notificationId: string) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-    const notif = notifications.find(n => n.id === notificationId);
-    if (notif && !notif.read) {
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      // Check if we already have an unread payment notification
+      const existingPaymentNotif = notifications.find(n => n.category === 'billing' && !n.read);
+      if (!existingPaymentNotif) {
+        addNotification({
+          type: 'warning',
+          title: 'Payment Method Required',
+          message: 'Add a payment method to ensure uninterrupted service.',
+          actionUrl: '/billing',
+          actionLabel: 'Add Payment',
+          category: 'billing'
+        });
+      }
     }
   };
+
+  // Use context functions for notification management
+  const markNotificationAsRead = contextMarkAsRead;
+  const markAllAsRead = contextMarkAllAsRead;
+  const clearNotification = contextClearNotification;
 
   // Search and Filter Functions
   const applyFilters = (data: any) => {
@@ -727,9 +686,8 @@ export default function Dashboard() {
           unreadChats: getUnreadChatsCount(chatContactsData)
         }
       };
-      const generatedNotifications = generateNotifications(tempData);
-      setNotifications(generatedNotifications);
-      setUnreadCount(generatedNotifications.filter(n => !n.read).length);
+      // Trigger data-based notifications (uses the new notification system)
+      triggerDataBasedNotifications(tempData);
     } catch (error) {
       setDashboardData(prev => ({ ...prev, isLoading: false }));
     }

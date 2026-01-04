@@ -5,7 +5,8 @@
 
 // Development mode - use localhost
 const DEFAULT_SERVER_URL = 'http://localhost:8000';
-const PRODUCTION_SERVER_URL = 'https://automationwhats.stitchbyte.in';
+// FORCED LOCALHOST: User requested to run only on localhost
+const PRODUCTION_SERVER_URL = 'http://localhost:8000'; // Was: 'https://automationwhats.stitchbyte.in';
 
 const getEnvValue = (key: string): string | undefined => {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;

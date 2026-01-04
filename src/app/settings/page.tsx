@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, ReactNode } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '../contexts/UserContext';
 import { apiService } from '../services/apiService';
 import {
@@ -9,7 +10,6 @@ import {
   LuLink,
   LuUnlink,
   LuRefreshCw,
-  LuLogOut,
   LuTriangleAlert,
   LuCheck,
   LuLoader,
@@ -18,9 +18,6 @@ import {
   LuShield,
 } from 'react-icons/lu';
 import { buildApiUrl } from '@/config/server';
-import { useWhatsAppRegistration } from '../hooks/useWhatsAppRegistration';
-import { WhatsAppRegistrationBanner } from '@/components/WhatsAppRegistrationBanner';
-import { WhatsAppPINModal } from '@/components/WhatsAppPINModal';
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -112,61 +109,64 @@ function InfoRow({ label, value, isMono = false }: InfoRowProps) {
 }
 
 type ModalProps = {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    title: string;
-    description: string;
-    confirmText: string;
-    icon: ReactNode;
-    isLoading: boolean;
-    variant?: 'danger' | 'primary';
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+  confirmText: string;
+  icon: ReactNode;
+  isLoading: boolean;
+  variant?: 'danger' | 'primary';
 };
 
 function ConfirmationModal({ isOpen, onClose, onConfirm, title, description, confirmText, icon, isLoading, variant = 'primary' }: ModalProps) {
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const confirmButtonStyles = {
-        danger: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-        primary: 'bg-[#2A8B8A] hover:bg-[#238080] focus:ring-[#2A8B8A]',
-    };
+  const confirmButtonStyles = {
+    danger: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+    primary: 'bg-[#2A8B8A] hover:bg-[#238080] focus:ring-[#2A8B8A]',
+  };
 
-    return (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl transform transition-all">
-                <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        {icon}
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
-                        <p className="text-sm text-slate-500 mt-2">
-                            {description}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex gap-3 mt-6">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition"
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        className={`flex-1 px-4 py-2 text-sm font-semibold text-white rounded-lg transition flex items-center justify-center ${confirmButtonStyles[variant]}`}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? <LuLoader className="animate-spin" /> : confirmText}
-                    </button>
-                </div>
-            </div>
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
+      <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl transform transition-all">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
+            {icon}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+            <p className="text-sm text-slate-500 mt-2">
+              {description}
+            </p>
+          </div>
         </div>
-    );
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 px-4 py-2 text-sm font-semibold text-white rounded-lg transition flex items-center justify-center ${confirmButtonStyles[variant]}`}
+            disabled={isLoading}
+          >
+            {isLoading ? <LuLoader className="animate-spin" /> : confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 export default function SettingsPage() {
-  const { user, logout } = useUser();
+  const { user } = useUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [connection, setConnection] = useState<WhatsAppConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -178,21 +178,6 @@ export default function SettingsPage() {
   const [pin, setPin] = useState("");
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [businessMetaUrl, setBusinessMetaUrl] = useState<string | null>(null);
-
-  // NEW: Use registration hook
-  const { 
-    status: registrationStatus, 
-    loading: regLoading, 
-    registerPhone, 
-    registering,
-    refetch: refetchRegistration 
-  } = useWhatsAppRegistration();
-  
-  const [showNewPinModal, setShowNewPinModal] = useState(false);
-
-  const handleSignOut = () => {
-    logout();
-  };
 
   const fetchConnection = async (isRefresh = false) => {
     if (!user) return;
@@ -207,11 +192,11 @@ export default function SettingsPage() {
       if (config?.data?.selected_option) {
         const option = config.data.selected_option;
         const phone = config.data.selected_phone;
-        
+
         debugLog('📊 Config data:', config.data);
         debugLog('🔐 Phone verified:', config.data.phone_verified);
         debugLog('📋 Verification status:', config.data.phone_verification_status);
-        
+
         setConnection({
           phoneNumber: phone?.display_phone_number || 'N/A',
           displayName: phone?.verified_name || option.business_name || 'N/A',
@@ -224,12 +209,12 @@ export default function SettingsPage() {
           verificationDetails: config.data.verification_details || {}
         });
         if (isRefresh) {
-            setSuccess("Configuration refreshed successfully.");
+          setSuccess("Configuration refreshed successfully.");
         }
       } else {
         setConnection(null);
         if (isRefresh) {
-            setError("No active WhatsApp configuration found.");
+          setError("No active WhatsApp configuration found.");
         }
       }
 
@@ -252,159 +237,127 @@ export default function SettingsPage() {
     }
   }, [user]);
 
-  // NEW: Handler for new registration flow (without PIN)
-  const handleNewRegistration = async () => {
-    try {
-      setError("");
-      setSuccess("");
-      const result = await registerPhone();
-      
-      if (result.success) {
-        setSuccess(result.message);
-        await fetchConnection(true); // Refresh connection data
-      } else {
-        if (result.requiresPin) {
-          setShowNewPinModal(true);
-        } else {
-          setError(result.message);
-        }
-      }
-    } catch (err: any) {
-      console.error('Registration error:', err);
-      setError(err.message || 'Failed to register phone');
-    } finally {
-      setTimeout(() => {
-        setSuccess("");
-        setError("");
-      }, 5000);
-    }
-  };
+  // Handle URL parameters from backend redirects
+  useEffect(() => {
+    if (!searchParams) return;
 
-  // NEW: Handler for PIN modal submission
-  const handlePinModalSubmit = async (pin: string) => {
-    const result = await registerPhone(pin);
-    
-    if (result.success) {
-      setSuccess(result.message);
-      await fetchConnection(true); // Refresh connection data
-      setShowNewPinModal(false);
-      
-      setTimeout(() => {
-        setSuccess("");
-      }, 5000);
+    const errorParam = searchParams.get('error');
+    const messageParam = searchParams.get('message');
+    const successParam = searchParams.get('success');
+
+    if (errorParam) {
+      setError(messageParam || 'An error occurred during WhatsApp connection.');
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    } else if (successParam) {
+      setSuccess("WhatsApp connected successfully!");
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
     }
-    
-    return result;
-  }
+  }, [searchParams]);
 
   const handleConnect = async (isReconnect = false) => {
     if (!user) return;
-    if(isReconnect) setShowReconnectModal(false);
+    if (isReconnect) setShowReconnectModal(false);
 
     setLoading(true);
     setError("");
 
     try {
-        // Cleanup old config if reconnecting
-        if (isReconnect) {
-            try {
-                await apiService.deleteWhatsAppConfig();
-            } catch (cleanupError) {
-                console.warn('Cleanup warning (non-critical):', cleanupError);
-            }
+      // Cleanup old config if reconnecting
+      if (isReconnect) {
+        try {
+          await apiService.deleteWhatsAppConfig();
+        } catch (cleanupError) {
+          console.warn('Cleanup warning (non-critical):', cleanupError);
         }
-          debugLog('🚀 Launching Meta OAuth with Embedded Signup (POPUP MODE)');
-        
-        // Check if Facebook SDK is loaded
-        if (typeof window.FB === 'undefined') {
-          setError('Facebook SDK not loaded. Please refresh the page.');
-          setLoading(false);
-          return;
-        }
+      }
+      debugLog('🚀 Launching Meta OAuth with Embedded Signup (POPUP MODE)');
 
-        // Create state with user info
-        const stateData = { 
-          csrf: STATE, 
-          userId: user.id, 
-          companyId: user.companyId, 
-          email: user.email, 
-          reconnect: isReconnect 
-        };
-        const encodedState = btoa(JSON.stringify(stateData));
+      // Check if Facebook SDK is loaded
+      if (typeof window.FB === 'undefined') {
+        setError('Facebook SDK not loaded. Please refresh the page.');
+        setLoading(false);
+        return;
+      }
 
-        // Use FB.login() in POPUP mode - this is what captures WABA data!
-        window.FB.login((response: any) => {
-          debugLog('🔔 FB.login() callback fired');
-          debugLog('📦 Response:', response);
-          
-          if (response.authResponse) {
-            const code = response.authResponse.code;
-            debugLog('✅ Authorization code:', code);
-            
-            // Check if we have WABA data in sessionStorage (captured via postMessage)
-            const wabaId = sessionStorage.getItem('waba_id');
-            const phoneNumberId = sessionStorage.getItem('phone_number_id');
-            const businessId = sessionStorage.getItem('business_id');
-            
-            debugLog('📋 Captured WABA data:', { wabaId, phoneNumberId, businessId });
-            
-            if (wabaId && phoneNumberId) {
-              // Send to exchange-code endpoint with WABA data
-              debugLog('✅ WABA data found - calling exchange-code endpoint');
-              const exchangeUrl = buildApiUrl(
-                `/api/auth/meta/exchange-code?code=${encodeURIComponent(code)}&waba_id=${encodeURIComponent(wabaId)}&phone_number_id=${encodeURIComponent(phoneNumberId)}${businessId ? `&business_id=${encodeURIComponent(businessId)}` : ''}&state=${encodedState}`
-              );
-              window.location.href = exchangeUrl;
-            } else {
-              // Fallback to regular callback endpoint
-              debugLog('⚠️  No WABA data - falling back to regular callback');
-              const callbackUrl = buildApiUrl(`/api/auth/meta/callback?code=${encodeURIComponent(code)}&state=${encodedState}`);
-              window.location.href = callbackUrl;
-            }
-            
-            // Clear sessionStorage
-            sessionStorage.removeItem('waba_id');
-            sessionStorage.removeItem('phone_number_id');
-            sessionStorage.removeItem('business_id');
-          } else {
-            debugLog('❌ No authResponse - login failed or cancelled');
-            setError('WhatsApp connection cancelled or failed.');
+      // Create state with user info
+      const stateData = {
+        csrf: STATE,
+        userId: user.id,
+        companyId: user.companyId,
+        email: user.email,
+        reconnect: isReconnect
+      };
+      const encodedState = btoa(JSON.stringify(stateData));
+
+      // Use FB.login() in POPUP mode - Following Meta's exact Embedded Signup documentation
+      // https://developers.facebook.com/docs/whatsapp/embedded-signup
+      window.FB.login((response: any) => {
+        debugLog('🔔 FB.login() callback fired');
+        debugLog('📦 SDK Response:', JSON.stringify(response, null, 2));
+
+        if (response.authResponse) {
+          const code = response.authResponse.code;
+          debugLog('✅ Authorization code received:', code?.substring(0, 20) + '...');
+
+          // Check if we have WABA data in sessionStorage (captured via postMessage from Embedded Signup)
+          const wabaId = sessionStorage.getItem('waba_id');
+          const phoneNumberId = sessionStorage.getItem('phone_number_id');
+          const embeddedSignupError = sessionStorage.getItem('embedded_signup_error');
+          const embeddedSignupCancelled = sessionStorage.getItem('embedded_signup_cancelled');
+
+          debugLog('📋 Captured WABA data:', { wabaId, phoneNumberId });
+
+          // Check for errors or cancellation from Embedded Signup
+          if (embeddedSignupError) {
+            debugLog('🚨 Embedded Signup error:', embeddedSignupError);
+            setError(`WhatsApp setup error: ${embeddedSignupError}`);
             setLoading(false);
+            sessionStorage.removeItem('embedded_signup_error');
+            return;
           }
-        }, {
-          config_id: CONFIG_ID,
-          response_type: 'code',
-          override_default_response_type: true,
-          extras: {
-            "version": "v3",
-            "setup": {
-              "business": {
-                "id": null,
-                "name": null,
-                "email": null,
-                "phone": {"code": null, "number": null},
-                "website": null,
-                "address": {
-                  "streetAddress1": null,
-                  "streetAddress2": null,
-                  "city": null,
-                  "state": null,
-                  "zipPostal": null,
-                  "country": null
-                },
-                "timezone": null
-              },
-              "phone": {
-                "displayName": null,
-                "category": null,
-                "description": null
-              },
-              "preVerifiedPhone": {"ids": null},
-              "solutionID": null,
-              "whatsAppBusinessAccount": {"ids": null}
-            }
+
+          if (embeddedSignupCancelled) {
+            debugLog('❌ User cancelled at step:', embeddedSignupCancelled);
+            setError('WhatsApp setup was cancelled.');
+            setLoading(false);
+            sessionStorage.removeItem('embedded_signup_cancelled');
+            return;
           }
-        });
+
+          // Build the exchange URL with WABA data
+          let exchangeUrl = buildApiUrl(`/api/auth/meta/exchange-code?code=${encodeURIComponent(code)}&state=${encodedState}`);
+          
+          if (wabaId) {
+            exchangeUrl += `&waba_id=${encodeURIComponent(wabaId)}`;
+          }
+          if (phoneNumberId) {
+            exchangeUrl += `&phone_number_id=${encodeURIComponent(phoneNumberId)}`;
+          }
+
+          debugLog('🔗 Redirecting to:', exchangeUrl);
+          
+          // Clear sessionStorage before redirect
+          sessionStorage.removeItem('waba_id');
+          sessionStorage.removeItem('phone_number_id');
+          sessionStorage.removeItem('embedded_signup_data');
+          
+          window.location.href = exchangeUrl;
+        } else {
+          debugLog('❌ No authResponse - login failed or cancelled');
+          debugLog('📦 Full response:', response);
+          setError('WhatsApp connection cancelled or failed. Please try again.');
+          setLoading(false);
+        }
+      }, {
+        config_id: CONFIG_ID,  // '829144999529928' - Your Embedded Signup config
+        response_type: 'code', // Must be 'code' for System User access token
+        override_default_response_type: true,
+        extras: { "version": "v3" }  // Simplified extras per Meta documentation
+      });
 
     } catch (error) {
       console.error('Error initiating Meta OAuth:', error);
@@ -412,7 +365,7 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
-  
+
   const confirmDisconnect = async () => {
     setShowDisconnectModal(false);
     try {
@@ -432,18 +385,18 @@ export default function SettingsPage() {
 
   const handleVerifyPhone = async (pinValue?: string) => {
     if (!user) return;
-    
+
     try {
       setVerifying(true);
       setError("");
       setSuccess("");
-      
+
       // Build request payload
       const payload: { pin?: string } = {};
       if (pinValue) {
         payload.pin = pinValue;
       }
-      
+
       // Call backend verification API
       const response = await fetch(buildApiUrl('/whatsapp/verify-phone'), {
         method: 'POST',
@@ -453,20 +406,20 @@ export default function SettingsPage() {
         },
         body: JSON.stringify(payload)
       });
-      
+
       const data = await response.json();
-      
+
       // Handle error responses
       if (!response.ok) {
         const errorDetail = data.detail || data;
-        
+
         // Check for PIN required
         if (errorDetail.error === 'PIN_REQUIRED') {
           setShowPinModal(true);
           setVerifying(false);
           return;
         }
-        
+
         // Check for business action required
         if (errorDetail.error === 'BUSINESS_ACTION_REQUIRED') {
           setBusinessMetaUrl(errorDetail.meta_url || 'https://business.facebook.com/settings/whatsapp-business-accounts');
@@ -474,13 +427,13 @@ export default function SettingsPage() {
           setVerifying(false);
           return;
         }
-        
+
         // Generic error
         setError(errorDetail.message || "Phone verification failed");
         setVerifying(false);
         return;
       }
-      
+
       // Success!
       if (data.success) {
         setShowPinModal(false);
@@ -490,7 +443,7 @@ export default function SettingsPage() {
       } else {
         setError(data.message || "Verification failed");
       }
-      
+
     } catch (error: any) {
       console.error('Error verifying phone:', error);
       setError("Failed to verify phone. Check console for details.");
@@ -499,7 +452,7 @@ export default function SettingsPage() {
       setTimeout(() => { setSuccess(""); setError(""); }, 10000);
     }
   };
-  
+
   const handlePinSubmit = () => {
     console.log('📌 PIN submit clicked. PIN length:', pin.length);
     if (pin && pin.length === 6) {
@@ -546,8 +499,8 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
-            <LuLoader className="w-12 h-12 mx-auto animate-spin text-[#2A8B8A]" />
-            <p className="text-slate-500 mt-4">Loading Settings...</p>
+          <LuLoader className="w-12 h-12 mx-auto animate-spin text-[#2A8B8A]" />
+          <p className="text-slate-500 mt-4">Loading Settings...</p>
         </div>
       </div>
     );
@@ -559,7 +512,7 @@ export default function SettingsPage() {
         {/* Header */}
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-slate-800">Settings</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your account and integration settings.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage your WhatsApp integration settings.</p>
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-1 space-y-8">
@@ -573,168 +526,70 @@ export default function SettingsPage() {
             </SettingsCard>
 
             <SettingsCard title="Company Details" description="Your organization's information" icon={<LuBuilding size={20} />}>
-                <div className="space-y-1">
-                    <InfoRow label="Company Name" value={user.companyName} />
-                    <InfoRow label="Company ID" value={user.companyId} isMono />
-                    {user.subscription && (
-                        <>
-                            <InfoRow label="Plan Status" value={
-                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${
-                                user.subscription.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                }`}>
-                                {user.subscription.status}
-                                </span>
-                            } />
-                            <InfoRow label="Renews On" value={new Date(user.subscription.end_date).toLocaleDateString()} />
-                        </>
-                    )}
-                </div>
+              <div className="space-y-1">
+                <InfoRow label="Company Name" value={user.companyName} />
+                <InfoRow label="Company ID" value={user.companyId} isMono />
+                {user.subscription && (
+                  <>
+                    <InfoRow label="Plan Status" value={
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${user.subscription.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                        {user.subscription.status}
+                      </span>
+                    } />
+                    <InfoRow label="Renews On" value={new Date(user.subscription.end_date).toLocaleDateString()} />
+                  </>
+                )}
+              </div>
             </SettingsCard>
           </div>
 
           {/* Right Column */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
             <SettingsCard title="WhatsApp Integration" description="Connect your WhatsApp Business account" icon={<LuPower size={20} />}>
               {connection ? (
                 // CONNECTED STATE
                 <div className="space-y-6">
-                    <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                        <LuCheck className="text-emerald-500" size={20} />
-                        <p className="text-sm font-semibold text-emerald-800">Successfully connected to WhatsApp Business</p>
-                    </div>
-                    
-                    {/* NEW: Registration Banner - Shows when connected but not registered */}
-                    {registrationStatus && !regLoading && !registrationStatus.registered && (
-                      <div>
-                        <WhatsAppRegistrationBanner
-                          status={registrationStatus}
-                          onVerifyClick={() => {
-                            // ALWAYS try without PIN first - if PIN is needed, backend will tell us
-                            handleNewRegistration();
-                          }}
-                          loading={registering}
-                        />
-                        {/* Show additional hint if PIN seems to be required but might not be enabled */}
-                        {registrationStatus.requires_pin && (
-                          <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-start gap-3">
-                              <LuTriangleAlert className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
-                              <div className="flex-1 text-sm text-blue-900">
-                                <p className="font-semibold mb-2">Two-Step Verification Not Available?</p>
-                                <p className="mb-2">
-                                  If the "Enable" button is grayed out in WhatsApp Manager, this is normal for new accounts.
-                                  Meta typically enables this feature 24-48 hours after phone verification.
-                                </p>
-                                <div className="space-y-1 text-xs text-blue-800">
-                                  <p>• <strong>Option 1:</strong> Wait 24-48 hours and try again</p>
-                                  <p>• <strong>Option 2:</strong> Disconnect and reconnect your WhatsApp account</p>
-                                  <p>• <strong>Option 3:</strong> Contact Meta Business support for assistance</p>
-                                </div>
-                                <button
-                                  onClick={() => setShowDisconnectModal(true)}
-                                  className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                >
-                                  Disconnect & Try Again
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="space-y-1">
-                        <InfoRow label="Display Name" value={connection.displayName} />
-                        <InfoRow label="Phone Number" value={connection.phoneNumber} isMono />
-                        <InfoRow label="Connection Status" value={<span className="font-semibold capitalize text-emerald-700">{connection.status}</span>} />
-                        <InfoRow label="Verification Status" value={
-                            connection.phoneVerified ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
-                                    <LuCheck size={12} /> Verified
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
-                                    <LuTriangleAlert size={12} /> Pending Verification
-                                </span>
-                            )
-                        } />
-                        {/* NEW: Show registration status */}
-                        {registrationStatus && (
-                          <InfoRow label="Registration Status" value={
-                            registrationStatus.registered ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
-                                <LuCheck size={12} /> Registered
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                                <LuTriangleAlert size={12} /> Not Registered
-                              </span>
-                            )
-                          } />
-                        )}
-                    </div>
+                  <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <LuCheck className="text-emerald-500" size={20} />
+                    <p className="text-sm font-semibold text-emerald-800">Successfully connected to WhatsApp Business</p>
+                  </div>
 
-                    {/* Verification Warning Banner */}
-                    {!connection.phoneVerified && connection.phoneVerificationStatus !== 'verified' && (
-                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="flex items-start gap-3">
-                                <LuTriangleAlert className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-                                <div className="flex-1">
-                                    <h4 className="text-sm font-semibold text-yellow-800">Phone Verification Required</h4>
-                                    <p className="text-xs text-yellow-700 mt-1">
-                                        You must verify your phone number before you can send messages or create templates. 
-                                        Click the button below to complete verification.
-                                    </p>
-                                    <button 
-                                        onClick={() => handleVerifyPhone()} 
-                                        disabled={verifying || loading}
-                                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#2A8B8A] hover:bg-[#238080] rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {verifying ? (
-                                            <>
-                                                <LuLoader className="animate-spin" size={16} />
-                                                Verifying...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <LuCheck size={16} />
-                                                Verify Phone Number
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                  <div className="space-y-1">
+                    <InfoRow label="Display Name" value={connection.displayName} />
+                    <InfoRow label="Phone Number" value={connection.phoneNumber} isMono />
+                    <InfoRow label="WABA ID" value={connection.wabaId} isMono />
+                    <InfoRow label="Phone Number ID" value={connection.phoneNumberId} isMono />
+                  </div>
 
-                    <div className="pt-4 border-t border-slate-200">
-                        <p className="text-xs text-slate-400 mb-2 font-semibold uppercase">Manage Connection</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <button onClick={() => fetchConnection(true)} disabled={loading} className="btn-secondary">
-                                <LuRefreshCw size={16} className={loading ? 'animate-spin' : ''}/> Refresh
-                            </button>
-                            <button onClick={() => setShowReconnectModal(true)} disabled={loading} className="btn-secondary">
-                                <LuLink size={16}/> Reconnect
-                            </button>
-                            <button onClick={() => setShowDisconnectModal(true)} disabled={loading} className="btn-danger">
-                                <LuUnlink size={16}/> Disconnect
-                            </button>
-                        </div>
+                  <div className="pt-4 border-t border-slate-200">
+                    <p className="text-xs text-slate-400 mb-2 font-semibold uppercase">Manage Connection</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <button onClick={() => fetchConnection(true)} disabled={loading} className="btn-secondary">
+                        <LuRefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                      </button>
+                      <button onClick={() => setShowReconnectModal(true)} disabled={loading} className="btn-secondary">
+                        <LuLink size={16} /> Reconnect
+                      </button>
+                      <button onClick={() => setShowDisconnectModal(true)} disabled={loading} className="btn-danger">
+                        <LuUnlink size={16} /> Disconnect
+                      </button>
                     </div>
+                  </div>
                 </div>
               ) : (
                 // DISCONNECTED STATE
                 <div className="text-center py-8 px-4">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-md">
-                        <LuUnlink size={32} className="text-slate-400"/>
-                    </div>
-                    <h4 className="text-lg font-semibold text-slate-800 mt-4">No Account Connected</h4>
-                    <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-                        Integrate your WhatsApp Business account to unlock messaging capabilities, campaigns, and more.
-                    </p>
-                    <button onClick={() => handleConnect(false)} disabled={loading} className="btn-primary mt-6">
-                        {loading ? <LuLoader className="animate-spin" /> : 'Connect with Meta'}
-                    </button>
+                  <div className="w-16 h-16 bg-slate-100 rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-md">
+                    <LuUnlink size={32} className="text-slate-400" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-slate-800 mt-4">No Account Connected</h4>
+                  <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                    Integrate your WhatsApp Business account to unlock messaging capabilities, campaigns, and more.
+                  </p>
+                  <button onClick={() => handleConnect(false)} disabled={loading} className="btn-primary mt-6">
+                    {loading ? <LuLoader className="animate-spin" /> : 'Connect with Meta'}
+                  </button>
                 </div>
               )}
 
@@ -745,16 +600,16 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-        
+
       {/* Modals */}
       <ConfirmationModal
         isOpen={showDisconnectModal}
         onClose={() => setShowDisconnectModal(false)}
         onConfirm={confirmDisconnect}
-        title="Disconnect WhatsApp Account"
-        description="Are you sure? This will remove all connection data. You'll need to reconnect to use WhatsApp features again."
-        confirmText="Yes, Disconnect"
-        icon={<LuTriangleAlert className="text-red-500" size={24}/>}
+        title="⚠️ Permanently Disconnect WhatsApp"
+        description="WARNING: This action will permanently deregister your phone number from WhatsApp Cloud API. Your phone number will no longer be usable with Cloud API until re-registered. All connection data will be removed. This action cannot be undone easily."
+        confirmText="Yes, Permanently Disconnect"
+        icon={<LuTriangleAlert className="text-red-500" size={24} />}
         isLoading={loading}
         variant="danger"
       />
@@ -766,11 +621,11 @@ export default function SettingsPage() {
         title="Reconnect WhatsApp Account"
         description="This will start the reconnection process. You'll be redirected to Meta to authorize the connection."
         confirmText="Continue to Reconnect"
-        icon={<LuRefreshCw className="text-[#2A8B8A]" size={24}/>}
+        icon={<LuRefreshCw className="text-[#2A8B8A]" size={24} />}
         isLoading={loading}
         variant="primary"
       />
-      
+
       {/* PIN Modal */}
       {showPinModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -782,12 +637,12 @@ export default function SettingsPage() {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">Two-Step Verification Required</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Your WhatsApp Business Account has two-step verification enabled. 
+                  Your WhatsApp Business Account has two-step verification enabled.
                   Please enter your 6-digit PIN to complete verification.
                 </p>
               </div>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 6-Digit PIN
@@ -805,7 +660,7 @@ export default function SettingsPage() {
                 Find your PIN in WhatsApp Business Manager → Account Settings → Two-step verification
               </p>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -847,7 +702,7 @@ export default function SettingsPage() {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">System User Permissions Required</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Meta rejected the registration because the System User doesn't have the required permissions. 
+                  Meta rejected the registration because the System User doesn't have the required permissions.
                   Follow these steps to grant full access:
                 </p>
               </div>
@@ -907,14 +762,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-      
-      {/* NEW: PIN Modal for Registration */}
-      <WhatsAppPINModal
-        isOpen={showNewPinModal}
-        onClose={() => setShowNewPinModal(false)}
-        onSubmit={handlePinModalSubmit}
-        phoneNumber={registrationStatus?.phone_number}
-      />
+
     </div>
   );
 }

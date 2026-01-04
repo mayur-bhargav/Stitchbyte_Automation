@@ -402,9 +402,10 @@ function SendMessage() {
     setPhones(phones.filter(p => p !== phoneToRemove));
   };
 
-  const handlePhoneKeyPress = (e: React.KeyboardEvent) => {
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      e.stopPropagation();
       addPhoneNumber();
     }
   };
@@ -441,13 +442,13 @@ function SendMessage() {
     // Remove placeholder headers like [IMAGE HEADER], [VIDEO HEADER], [DOCUMENT HEADER]
     preview = preview.replace(/\[(?:IMAGE|VIDEO|DOCUMENT)\s+HEADER\]\s*/g, '');
     
-    if (selectedTpl.variables) {
-      selectedTpl.variables.forEach(variable => {
-        let value = variableValues[variable] || `{{${variable}}}`;
+    if (selectedTpl.variables && selectedTpl.variables.length > 0) {
+      selectedTpl.variables.forEach((variable, index) => {
+        let value = variableValues[variable] || '';
         
         // Show preview of dynamic variables for first phone number or sample data
         const firstPhone = getAllPhoneNumbers()[0];
-        if (firstPhone && value.includes('{{')) {
+        if (value && value.includes('{{')) {
           // Replace dynamic variables for preview
           value = value.replace(/\{\{name\}\}/g, firstPhone || 'John Doe');
           value = value.replace(/\{\{phone\}\}/g, firstPhone || '+1234567890');
@@ -458,7 +459,14 @@ function SendMessage() {
           value = value.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
         }
         
-        preview = preview.replace(new RegExp(`{{${variable}}}`, 'g'), value);
+        // If user has entered a value, use it; otherwise show placeholder
+        const displayValue = value || `[${variable}]`;
+        
+        // Replace numbered placeholders {{1}}, {{2}}, etc. (index + 1)
+        preview = preview.replace(new RegExp(`\\{\\{${index + 1}\\}\\}`, 'g'), displayValue);
+        
+        // Also replace named placeholders {{variable_name}}
+        preview = preview.replace(new RegExp(`\\{\\{${variable}\\}\\}`, 'g'), displayValue);
       });
     }
     
@@ -479,6 +487,18 @@ function SendMessage() {
     if (!template) {
       alert('Please select a template');
       return;
+    }
+
+    // Validate template variables are filled
+    const selectedTemplate = approvedTemplates.find(t => t.name === template);
+    if (selectedTemplate && selectedTemplate.variables && selectedTemplate.variables.length > 0) {
+      const emptyVariables = selectedTemplate.variables.filter(
+        (v: string) => !variableValues[v] || variableValues[v].trim() === ''
+      );
+      if (emptyVariables.length > 0) {
+        alert(`Please fill in all template variables: ${emptyVariables.join(', ')}`);
+        return;
+      }
     }
 
     // Check if scheduled and validate time
@@ -590,10 +610,13 @@ function SendMessage() {
                 comps.push({
                   type: "body",
                   parameters: bodyVarIndices.map(index => {
-                    const varKey = `{{${index}}}`;
+                    // Map the numbered placeholder (1, 2, 3...) to the variable name from the variables array
+                    const variableName = selectedTpl.variables ? selectedTpl.variables[index - 1] : undefined; // index is 1-based
+                    // Use a placeholder if value is empty (WhatsApp API requires non-empty values)
+                    const value = variableName ? (processedVariableValues[variableName]?.trim() || '-') : '-';
                     return {
                       type: "text",
-                      text: processedVariableValues[varKey] || ""
+                      text: value
                     };
                   })
                 });
@@ -607,10 +630,14 @@ function SendMessage() {
                     const urlVarMatches = button.url.match(/\{\{(\d+)\}\}/g) || [];
                     if (urlVarMatches.length > 0) {
                       const buttonParams = urlVarMatches.map((match: string) => {
-                        const varKey = match; // e.g., "{{1}}"
+                        const varIndex = parseInt(match.replace(/[{}]/g, '')); // Extract number from {{1}}
+                        // Map to variable name from variables array
+                        const variableName = selectedTpl.variables ? selectedTpl.variables[varIndex - 1] : undefined; // index is 1-based
+                        // Use a placeholder if value is empty (WhatsApp API requires non-empty values)
+                        const value = variableName ? (processedVariableValues[variableName]?.trim() || '-') : '-';
                         return {
                           type: "text",
-                          text: processedVariableValues[varKey] || ""
+                          text: value
                         };
                       });
                       
@@ -999,159 +1026,296 @@ function SendMessage() {
       
       <div className="space-y-8">
 
-      {/* Balance and Cost Information */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Page Header */}
+
+      {/* Balance and Cost Information - Modern Glass Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Current Balance */}
-        <div className="border border-gray-200 p-6 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Current Balance</h3>
-              <div className="text-2xl font-bold text-[#2A8B8A]">
-                ₹{userBalance.toFixed(2)}
+        <div className="group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2A8B8A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-[#2A8B8A] to-[#238080] rounded-2xl flex items-center justify-center shadow-lg shadow-[#2A8B8A]/20">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
               </div>
+              <span className="px-3 py-1 bg-[#2A8B8A]/10 text-[#2A8B8A] text-xs font-semibold rounded-full">
+                Wallet
+              </span>
             </div>
-            <div className="w-12 h-12 border border-[#2A8B8A] rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-[#2A8B8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
+            <p className="text-sm text-gray-500 font-medium mb-1">Current Balance</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-bold text-gray-900">₹{userBalance.toFixed(2)}</span>
             </div>
-          </div>
-          <div className="mt-4">
             <button
               onClick={() => setShowAddBalanceModal(true)}
-              className="w-full px-4 py-2 text-sm bg-[#2A8B8A] text-white rounded-lg hover:bg-[#238080] transition-colors"
+              className="mt-4 w-full py-3 bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white text-sm font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2A8B8A]/30 transition-all duration-300 flex items-center justify-center gap-2"
             >
-              Add ₹100
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add Balance
             </button>
           </div>
         </div>
 
         {/* Cost per Message */}
-        <div className="border border-gray-200 p-6 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Cost per Message</h3>
-              <div className="text-2xl font-bold text-black">₹{MESSAGE_COST.toFixed(2)}</div>
+        <div className="group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full">
+                Fixed Rate
+              </span>
             </div>
-            <div className="w-12 h-12 border border-blue-600 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            <p className="text-sm text-gray-500 font-medium mb-1">Cost per Message</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-bold text-gray-900">₹{MESSAGE_COST.toFixed(2)}</span>
+              <span className="text-sm text-gray-400">/msg</span>
+            </div>
+            <p className="mt-4 text-xs text-gray-400 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            </div>
+              Only charged for delivered messages
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Charged only for successfully sent messages
-          </p>
         </div>
 
         {/* Estimated Cost */}
-        <div className="border border-gray-200 p-6 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Estimated Cost</h3>
-              <div className="text-2xl font-bold text-orange-600">
-                ₹{(getAllPhoneNumbers().length * MESSAGE_COST).toFixed(2)}
+        <div className="group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
               </div>
+              <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                getAllPhoneNumbers().length > 0 && userBalance < (getAllPhoneNumbers().length * MESSAGE_COST)
+                  ? 'bg-red-50 text-red-600'
+                  : 'bg-orange-50 text-orange-600'
+              }`}>
+                {getAllPhoneNumbers().length} Recipients
+              </span>
             </div>
-            <div className="w-12 h-12 border border-orange-600 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+            <p className="text-sm text-gray-500 font-medium mb-1">Estimated Total</p>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-3xl font-bold ${
+                getAllPhoneNumbers().length > 0 && userBalance < (getAllPhoneNumbers().length * MESSAGE_COST)
+                  ? 'text-red-600'
+                  : 'text-gray-900'
+              }`}>
+                ₹{(getAllPhoneNumbers().length * MESSAGE_COST).toFixed(2)}
+              </span>
             </div>
+            {getAllPhoneNumbers().length > 0 && userBalance < (getAllPhoneNumbers().length * MESSAGE_COST) ? (
+              <button
+                onClick={() => setShowAddBalanceModal(true)}
+                className="mt-4 w-full py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Insufficient Balance
+              </button>
+            ) : (
+              <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#2A8B8A] to-[#238080] rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min((getAllPhoneNumbers().length * MESSAGE_COST / userBalance) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <span>{userBalance > 0 ? Math.round((getAllPhoneNumbers().length * MESSAGE_COST / userBalance) * 100) : 0}% of balance</span>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            For {getAllPhoneNumbers().length || 0} recipient{getAllPhoneNumbers().length !== 1 ? 's' : ''}
-          </p>
-          {getAllPhoneNumbers().length > 0 && userBalance < (getAllPhoneNumbers().length * MESSAGE_COST) && (
-            <div className="mt-2 text-xs text-red-600 font-medium">
-              ⚠️ Insufficient balance
-            </div>
-          )}
         </div>
       </div>
 
       {/* Message Composition */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Form Section */}
-        <div className="border border-gray-200 p-8 rounded-lg">
-          <h2 className="text-xl font-bold text-black mb-6">Compose Message</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        {/* Form Section - Takes 3 columns */}
+        <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Form Header */}
+          <div className="bg-gradient-to-r from-gray-50 to-white px-8 py-5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#2A8B8A]/10 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-[#2A8B8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Compose Message</h2>
+                <p className="text-sm text-gray-500">Fill in the details below to send your message</p>
+              </div>
+            </div>
+          </div>
           
-          <form className="space-y-6">
+          <form className="p-8 space-y-8">
             {/* Phone Numbers Section */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-medium text-black">
-                  Recipients
-                </label>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-[#2A8B8A]/10 rounded-lg flex items-center justify-center">
+                    <svg className="w-4 h-4 text-[#2A8B8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <label className="text-sm font-semibold text-gray-900">
+                    Recipients
+                  </label>
+                  {getAllPhoneNumbers().length > 0 && (
+                    <span className="px-2.5 py-1 bg-[#2A8B8A] text-white text-xs font-semibold rounded-full">
+                      {getAllPhoneNumbers().length}
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={openContactModal}
-                  className="text-[#2A8B8A] hover:text-[#238080] text-sm font-medium flex items-center gap-1 transition-colors"
+                  className="group flex items-center gap-2 px-4 py-2 bg-[#2A8B8A]/5 hover:bg-[#2A8B8A]/10 text-[#2A8B8A] text-sm font-medium rounded-xl transition-all duration-200"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
-                  Select from Contacts
+                  Import Contacts
                 </button>
               </div>
               
               {/* Modern Phone Input with Chips */}
-              <div className="border border-gray-300 bg-white p-3 focus-within:ring-2 focus-within:ring-[#2A8B8A] focus-within:border-transparent transition-all rounded-lg">
-                <div className="flex flex-wrap gap-2 min-h-[40px] items-center">
-                  {/* Phone Number Chips */}
-                  {phones.map((phoneNumber, index) => (
-                    <span
-                      key={index}
-                      className="bg-[#2A8B8A] text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {phoneNumber}
-                      <button
-                        type="button"
-                        onClick={() => removePhoneNumber(phoneNumber)}
-                        className="text-white hover:text-red-200 font-bold text-lg leading-none"
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2A8B8A] to-[#238080] rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity blur"></div>
+                <div className="relative bg-white border-2 border-gray-200 focus-within:border-[#2A8B8A] p-4 rounded-xl transition-all">
+                  <div className="flex flex-wrap gap-2 min-h-[48px] items-center">
+                    {/* Phone Number Chips */}
+                    {phones.map((phoneNumber, index) => (
+                      <span
+                        key={index}
+                        className="group/chip inline-flex items-center gap-2 bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white pl-4 pr-2 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  
-                  {/* Input Field */}
-                  <input
-                    className="flex-1 min-w-[200px] bg-transparent text-black outline-none placeholder-gray-500"
-                    placeholder={phones.length === 0 ? "Enter phone numbers (with country code)" : "Add another number..."}
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    onKeyPress={handlePhoneKeyPress}
-                  />
+                        <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        {phoneNumber}
+                        <button
+                          type="button"
+                          onClick={() => removePhoneNumber(phoneNumber)}
+                          className="w-6 h-6 bg-white/20 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    
+                    {/* Input Field */}
+                    <input
+                      className="flex-1 min-w-[200px] bg-transparent text-gray-900 outline-none placeholder-gray-400 text-base py-2"
+                      placeholder={phones.length === 0 ? "Enter phone number with country code (e.g., 919876543210)" : "Add another number..."}
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      onKeyDown={handlePhoneKeyDown}
+                    />
+                  </div>
                 </div>
               </div>
               
-              <p className="text-sm text-gray-600 mt-2">
-                Total recipients: {getAllPhoneNumbers().length}
-              </p>
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Press Enter to add multiple numbers
+                </p>
+                {phone.trim() && (
+                  <button
+                    type="button"
+                    onClick={addPhoneNumber}
+                    className="text-sm text-[#2A8B8A] font-medium hover:underline"
+                  >
+                    + Add this number
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Template Selection */}
             <div>
-              <label className="block text-sm font-medium text-black mb-3">
-                Message Template
-              </label>
-              <select
-                className="w-full border border-gray-300 bg-white text-black p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
-                value={template}
-                onChange={e => {
-                  // console.log("Selected template:", e.target.value);
-                  setTemplate(e.target.value);
-                  setVariableValues({});
-                }}
-                required
-                disabled={templatesLoading}
-              >
-                <option value="">{templatesLoading ? "Loading templates..." : approvedTemplates.length === 0 ? "No approved templates available" : "Select Template"}</option>
-                {approvedTemplates.map((t) => (
-                  <option key={t.name} value={t.name}>{t.name}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-[#2A8B8A]/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-[#2A8B8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <label className="text-sm font-semibold text-gray-900">
+                  Message Template
+                </label>
+                {template && (
+                  <span className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Selected
+                  </span>
+                )}
+              </div>
+              
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2A8B8A] to-[#238080] rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity blur"></div>
+                <div className="relative">
+                  <select
+                    className="w-full appearance-none bg-white border-2 border-gray-200 text-gray-900 p-4 pr-12 rounded-xl focus:border-[#2A8B8A] focus:outline-none transition-all cursor-pointer font-medium"
+                    value={template}
+                    onChange={e => {
+                      setTemplate(e.target.value);
+                      setVariableValues({});
+                    }}
+                    required
+                    disabled={templatesLoading}
+                  >
+                    <option value="" className="text-gray-500">
+                      {templatesLoading ? "Loading templates..." : approvedTemplates.length === 0 ? "No approved templates available" : "Choose a template..."}
+                    </option>
+                    {approvedTemplates.map((t) => (
+                      <option key={t.name} value={t.name} className="py-2">{t.name}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              {templatesLoading && (
+                <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Fetching your templates...
+                </div>
+              )}
+              
+              {!templatesLoading && approvedTemplates.length === 0 && (
+                <div className="flex items-center gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm text-amber-700">No approved templates. Create one first!</span>
+                </div>
+              )}
             </div>
 
             {/* Variable Inputs */}
@@ -1160,82 +1324,97 @@ function SendMessage() {
               if (selectedTpl && selectedTpl.variables && selectedTpl.variables.length > 0) {
                 return (
                   <div className="md:col-span-2">
-                    <h3 className="text-lg font-medium text-black mb-2">Template Variables</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Use dynamic variables like {'{name}'} to automatically personalize messages for each recipient. 
-                      Click the {'{}'} icon to see available options.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedTpl.variables.map((v, idx) => (
-                        <div key={v} className="relative">
-                          <label className="block text-sm font-medium text-black mb-2">
-                            {v.charAt(0).toUpperCase() + v.slice(1)}
-                          </label>
-                          <div className="relative">
-                            <input
-                              className="w-full border border-gray-300 bg-white text-black p-4 pr-12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
-                              placeholder={`Enter value for {{${v}}} or use dynamic variables`}
-                              value={variableValues[v] || ""}
-                              onChange={e => setVariableValues(vals => ({ ...vals, [v]: e.target.value }))}
-                              required
-                            />
-                            <button
-                              type="button"
-                              className="variable-toggle-btn absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#2A8B8A] transition-colors"
-                              onClick={() => {
-                                // console.log('Variable dropdown button clicked for:', v);
-                                setActiveVariableField(v);
-                                setShowVariableDropdown(!showVariableDropdown || activeVariableField !== v);
-                              }}
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12H8m0 4h8m-8-8h4" />
-                              </svg>
-                            </button>
-                            
-                            {/* Variable Dropdown */}
-                            {showVariableDropdown && activeVariableField === v && (
-                              <div className="variable-dropdown absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
-                                <div className="py-2">
-                                  <div className="px-4 py-2 text-sm font-medium text-gray-700 border-b border-gray-200">
-                                    Dynamic Variables
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">Template Variables</h3>
+                        <p className="text-xs text-gray-500">
+                          Personalize with dynamic data like {'{name}'}
+                        </p>
+                      </div>
+                      <span className="ml-auto px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                        {selectedTpl.variables.length} variable{selectedTpl.variables.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-50/50 to-transparent p-5 rounded-xl border border-purple-100/50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {selectedTpl.variables.map((v, idx) => (
+                          <div key={v} className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                              <span className="w-6 h-6 bg-purple-100 text-purple-700 rounded-md flex items-center justify-center text-xs font-bold">
+                                {idx + 1}
+                              </span>
+                              {v.charAt(0).toUpperCase() + v.slice(1)}
+                            </label>
+                            <div className="relative group">
+                              <input
+                                className="w-full bg-white border-2 border-gray-200 text-gray-900 p-3.5 pr-12 rounded-xl focus:border-[#2A8B8A] focus:outline-none transition-all placeholder-gray-400"
+                                placeholder={`Enter {{${v}}} or use dynamic...`}
+                                value={variableValues[v] || ""}
+                                onChange={e => setVariableValues(vals => ({ ...vals, [v]: e.target.value }))}
+                                required
+                              />
+                              <button
+                                type="button"
+                                className="variable-toggle-btn absolute right-3 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-gray-100 hover:bg-[#2A8B8A] rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-all"
+                                onClick={() => {
+                                  setActiveVariableField(v);
+                                  setShowVariableDropdown(!showVariableDropdown || activeVariableField !== v);
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                              </button>
+                              
+                              {/* Variable Dropdown */}
+                              {showVariableDropdown && activeVariableField === v && (
+                                <div className="variable-dropdown absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                                  <div className="bg-gradient-to-r from-[#2A8B8A] to-[#238080] px-4 py-3">
+                                    <p className="text-sm font-semibold text-white">Dynamic Variables</p>
+                                    <p className="text-xs text-white/70">Click to insert</p>
                                   </div>
-                                  {DYNAMIC_VARIABLES.map((variable) => (
-                                    <button
-                                      key={variable.key}
-                                      type="button"
-                                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-                                      onMouseDown={(e) => {
-                                        e.preventDefault(); // Prevent input blur
-                                        e.stopPropagation(); // Stop event bubbling
-                                      }}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log('Variable selected:', variable.label, 'for field:', v);
-                                        const currentValue = variableValues[v] || "";
-                                        console.log('Current value:', currentValue);
-                                        const newValue = currentValue + variable.label;
-                                        console.log('New value:', newValue);
-                                        setVariableValues(vals => ({ 
-                                          ...vals, 
-                                          [v]: newValue 
-                                        }));
-                                        setShowVariableDropdown(false);
-                                        setActiveVariableField(null);
-                                      }}
-                                    >
-                                      <div className="font-medium text-[#2A8B8A]">{variable.label}</div>
-                                      <div className="text-xs text-gray-500">{variable.description}</div>
-                                    </button>
-                                  ))}
+                                  <div className="max-h-48 overflow-y-auto">
+                                    {DYNAMIC_VARIABLES.map((variable) => (
+                                      <button
+                                        key={variable.key}
+                                        type="button"
+                                        className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-0 transition-colors"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                        }}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          const currentValue = variableValues[v] || "";
+                                          const newValue = currentValue + variable.label;
+                                          setVariableValues(vals => ({ 
+                                            ...vals, 
+                                            [v]: newValue 
+                                          }));
+                                          setShowVariableDropdown(false);
+                                          setActiveVariableField(null);
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="px-2 py-0.5 bg-[#2A8B8A]/10 text-[#2A8B8A] rounded text-sm font-mono">{variable.label}</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">{variable.description}</div>
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1249,146 +1428,181 @@ function SendMessage() {
               const hasMediaHeader = selectedTpl?.header_type && ['image', 'video', 'document'].includes(selectedTpl.header_type);
               const hasExistingMedia = selectedTpl?.header_media?.handle;
               
-              // Debug info - remove this after testing
-              //  console.log('Template media debug:', {
-              //   template,
-              //   selectedTpl: selectedTpl ? {
-              //     name: selectedTpl.name,
-              //     header_type: selectedTpl.header_type,
-              //     header_media: selectedTpl.header_media
-              //   } : null,
-              //   hasMediaHeader,
-              //   hasExistingMedia
-              // });
-              
               if (hasMediaHeader) {
                 return (
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-black mb-3">
-                      {selectedTpl?.header_type?.toUpperCase()} Media for Header
-                      {hasExistingMedia && (
-                        <span className="text-xs text-gray-500 ml-2">(Override template media)</span>
-                      )}
-                    </label>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">{selectedTpl?.header_type?.toUpperCase()} Media</h3>
+                        {hasExistingMedia && (
+                          <p className="text-xs text-gray-500">Override template's default media</p>
+                        )}
+                      </div>
+                    </div>
                     
                     {/* Show existing media info if available */}
                     {hasExistingMedia && (
-                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span className="text-sm text-blue-800">
-                            Template has default {selectedTpl?.header_type} media. You can override it below.
-                          </span>
                         </div>
+                        <span className="text-sm text-blue-800 font-medium">
+                          Template includes default {selectedTpl?.header_type}. You can override it below.
+                        </span>
                       </div>
                     )}
                     
                     {/* Media Upload Options */}
-                    <div className="space-y-4">
+                    <div className="bg-gradient-to-br from-blue-50/30 to-transparent p-5 rounded-xl border border-blue-100/50 space-y-5">
                       {/* File Upload Option */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <input
-                            type="radio"
-                            id="upload-file"
-                            name="media-option"
-                            checked={(!mediaUrl && !mediaFile) || !!mediaFile}
-                            onChange={() => {
-                              setMediaUrl('');
-                            }}
-                            className="text-[#2A8B8A] focus:ring-[#2A8B8A]"
-                          />
-                          <label htmlFor="upload-file" className="text-sm font-medium text-gray-700">
-                            Upload {selectedTpl?.header_type} file
+                      <div className="group">
+                        <label className="flex items-center gap-3 cursor-pointer mb-3">
+                          <div className="relative">
+                            <input
+                              type="radio"
+                              id="upload-file"
+                              name="media-option"
+                              checked={(!mediaUrl && !mediaFile) || !!mediaFile}
+                              onChange={() => setMediaUrl('')}
+                              className="peer sr-only"
+                            />
+                            <div className="w-5 h-5 border-2 border-gray-300 rounded-full peer-checked:border-[#2A8B8A] peer-checked:bg-[#2A8B8A] transition-all flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100"></div>
+                            </div>
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">Upload {selectedTpl?.header_type} file</span>
+                        </label>
+                        
+                        <div className={`relative ${mediaUrl.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-white hover:bg-gray-50 hover:border-[#2A8B8A] transition-all">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              <p className="text-sm text-gray-500"><span className="font-medium text-[#2A8B8A]">Click to upload</span> or drag and drop</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {selectedTpl?.header_type === 'image' && 'JPG, PNG, GIF (max 5MB)'}
+                                {selectedTpl?.header_type === 'video' && 'MP4, 3GP (max 16MB)'}
+                                {selectedTpl?.header_type === 'document' && 'PDF, DOC, XLS, PPT (max 100MB)'}
+                              </p>
+                            </div>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept={
+                                selectedTpl?.header_type === 'image' ? 'image/*' :
+                                selectedTpl?.header_type === 'video' ? 'video/*' :
+                                selectedTpl?.header_type === 'document' ? '*/*' : '*/*'
+                              }
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                setMediaFile(file || null);
+                                if (file) setMediaUrl('');
+                              }}
+                              disabled={mediaUrl.length > 0}
+                            />
                           </label>
                         </div>
-                        <input
-                          type="file"
-                          accept={
-                            selectedTpl?.header_type === 'image' ? 'image/*' :
-                            selectedTpl?.header_type === 'video' ? 'video/*' :
-                            selectedTpl?.header_type === 'document' ? '*/*' : '*/*'
-                          }
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            setMediaFile(file || null);
-                            if (file) {
-                              setMediaUrl(''); // Clear URL when file is selected
-                            }
-                          }}
-                          className="w-full border border-gray-300 bg-white text-black p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
-                          disabled={mediaUrl.length > 0}
-                        />
+                        
                         {mediaFile && (
-                          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              <span className="text-sm text-green-800 font-medium">
-                                Selected: {mediaFile.name} ({(mediaFile.size / 1024 / 1024).toFixed(2)} MB)
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMediaFile(null);
-                                  // Reset the file input
-                                  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                                  if (fileInput) fileInput.value = '';
-                                }}
-                                className="ml-auto text-red-600 hover:text-red-800 font-medium text-sm"
-                              >
-                                Remove
-                              </button>
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-green-800 truncate">{mediaFile.name}</p>
+                              <p className="text-xs text-green-600">{(mediaFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMediaFile(null);
+                                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                                if (fileInput) fileInput.value = '';
+                              }}
+                              className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
                         )}
                       </div>
                       
+                      {/* Divider */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px bg-gray-200"></div>
+                        <span className="text-xs text-gray-400 font-medium">OR</span>
+                        <div className="flex-1 h-px bg-gray-200"></div>
+                      </div>
+                      
                       {/* URL Option */}
                       <div>
-                        <div className="flex items-center gap-2 mb-2">
+                        <label className="flex items-center gap-3 cursor-pointer mb-3">
+                          <div className="relative">
+                            <input
+                              type="radio"
+                              id="use-url"
+                              name="media-option"
+                              checked={mediaUrl.length > 0 && !mediaFile}
+                              onChange={() => {
+                                setMediaFile(null);
+                                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                                if (fileInput) fileInput.value = '';
+                              }}
+                              className="peer sr-only"
+                            />
+                            <div className="w-5 h-5 border-2 border-gray-300 rounded-full peer-checked:border-[#2A8B8A] peer-checked:bg-[#2A8B8A] transition-all flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100"></div>
+                            </div>
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">Use {selectedTpl?.header_type} URL</span>
+                        </label>
+                        
+                        <div className="relative">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                          </div>
                           <input
-                            type="radio"
-                            id="use-url"
-                            name="media-option"
-                            checked={mediaUrl.length > 0 && !mediaFile}
-                            onChange={() => {
-                              setMediaFile(null);
-                              // Reset the file input
-                              const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                              if (fileInput) fileInput.value = '';
+                            type="url"
+                            placeholder={`https://example.com/${selectedTpl?.header_type}.jpg`}
+                            value={mediaUrl}
+                            onChange={e => {
+                              setMediaUrl(e.target.value);
+                              if (e.target.value) {
+                                setMediaFile(null);
+                                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                                if (fileInput) fileInput.value = '';
+                              }
                             }}
-                            className="text-[#2A8B8A] focus:ring-[#2A8B8A]"
+                            className="w-full bg-white border-2 border-gray-200 text-gray-900 p-3.5 pl-12 rounded-xl focus:border-[#2A8B8A] focus:outline-none transition-all placeholder-gray-400"
+                            disabled={!!mediaFile}
                           />
-                          <label htmlFor="use-url" className="text-sm font-medium text-gray-700">
-                            Use {selectedTpl?.header_type} URL
-                          </label>
                         </div>
-                        <input
-                          type="url"
-                          placeholder={`Enter ${selectedTpl?.header_type} URL (e.g., https://example.com/image.jpg)`}
-                          value={mediaUrl}
-                          onChange={e => {
-                            setMediaUrl(e.target.value);
-                            if (e.target.value) {
-                              setMediaFile(null);
-                              // Reset the file input
-                              const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                              if (fileInput) fileInput.value = '';
-                            }
-                          }}
-                          className="w-full border border-gray-300 bg-white text-black p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
-                          disabled={!!mediaFile}
-                        />
                       </div>
                       
                       {/* Default Media Option (if exists) */}
                       {hasExistingMedia && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
+                        <>
+                          <div className="flex items-center gap-4">
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                            <span className="text-xs text-gray-400 font-medium">OR</span>
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                          </div>
+                          
+                          <label className="flex items-center gap-3 p-4 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-[#2A8B8A] transition-all">
                             <input
                               type="radio"
                               id="use-default"
@@ -1397,27 +1611,23 @@ function SendMessage() {
                               onChange={() => {
                                 setMediaFile(null);
                                 setMediaUrl('');
-                                // Reset the file input
                                 const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
                                 if (fileInput) fileInput.value = '';
                               }}
-                              className="text-[#2A8B8A] focus:ring-[#2A8B8A]"
+                              className="w-5 h-5 text-[#2A8B8A] focus:ring-[#2A8B8A]"
                             />
-                            <label htmlFor="use-default" className="text-sm font-medium text-gray-700">
-                              Use template's default {selectedTpl?.header_type}
-                            </label>
-                          </div>
-                          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-                            Template includes its own {selectedTpl?.header_type} media
-                          </div>
-                        </div>
+                            <div className="flex-1">
+                              <span className="text-sm font-medium text-gray-900">Use template's default {selectedTpl?.header_type}</span>
+                              <p className="text-xs text-gray-500 mt-0.5">Template includes its own media</p>
+                            </div>
+                            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          </label>
+                        </>
                       )}
-                      
-                      <div className="text-xs text-gray-500">
-                        {selectedTpl?.header_type === 'image' && 'Supported: JPG, PNG, GIF (max 5MB)'}
-                        {selectedTpl?.header_type === 'video' && 'Supported: MP4, 3GP (max 16MB)'}
-                        {selectedTpl?.header_type === 'document' && 'Supported: PDF, DOC, XLS, PPT, etc. (max 100MB)'}
-                      </div>
                     </div>
                   </div>
                 );
@@ -1428,87 +1638,163 @@ function SendMessage() {
 
             {/* Scheduling Option */}
             {isScheduling && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-black mb-3">
-                  Schedule Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="w-full border border-gray-300 bg-white text-black p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2A8B8A] focus:border-transparent transition-all"
-                  required
-                />
+              <div className="md:col-span-2 animate-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
+                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <label className="text-sm font-semibold text-gray-900">Schedule Date & Time</label>
+                </div>
+                
+                <div className="bg-gradient-to-br from-orange-50/50 to-transparent p-5 rounded-xl border border-orange-100/50">
+                  <input
+                    type="datetime-local"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full bg-white border-2 border-gray-200 text-gray-900 p-4 rounded-xl focus:border-[#2A8B8A] focus:outline-none transition-all cursor-pointer"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-3 flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Message will be sent at the scheduled time in your local timezone
+                  </p>
+                </div>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="md:col-span-2 flex gap-4">
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, false)}
-                className="flex-1 bg-[#2A8B8A] text-white font-semibold p-4 rounded-xl hover:bg-[#238080] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={
-                  loading || 
-                  getAllPhoneNumbers().length === 0 || 
-                  !template || 
-                  isMediaRequired() || 
-                  userBalance < (getAllPhoneNumbers().length * MESSAGE_COST)
-                }
-              >
-                {loading ? "Sending..." : 
-                 userBalance < (getAllPhoneNumbers().length * MESSAGE_COST) ? "Insufficient Balance" :
-                 `Send Now${getAllPhoneNumbers().length > 1 ? ` (${getAllPhoneNumbers().length} recipients)` : ""}`}
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setIsScheduling(!isScheduling)}
-                className="px-6 py-4 border-2 border-[#2A8B8A] text-[#2A8B8A] font-semibold rounded-xl hover:bg-[#2A8B8A] hover:text-white transition-all duration-200"
-              >
-                {isScheduling ? "Cancel Schedule" : "Schedule Message"}
-              </button>
-              
-              {isScheduling && (
+            <div className="md:col-span-2 pt-4 border-t border-gray-100">
+              <div className="flex flex-wrap gap-4">
                 <button
                   type="button"
-                  onClick={(e) => handleSubmit(e, true)}
-                  className="px-6 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={(e) => handleSubmit(e, false)}
+                  className="flex-1 min-w-[200px] group relative bg-gradient-to-r from-[#2A8B8A] to-[#238080] text-white font-semibold px-6 py-4 rounded-xl hover:shadow-lg hover:shadow-[#2A8B8A]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none overflow-hidden"
                   disabled={
                     loading || 
                     getAllPhoneNumbers().length === 0 || 
                     !template || 
-                    !scheduledTime || 
                     isMediaRequired() || 
                     userBalance < (getAllPhoneNumbers().length * MESSAGE_COST)
                   }
                 >
-                  {loading ? "Scheduling..." : 
-                   userBalance < (getAllPhoneNumbers().length * MESSAGE_COST) ? "Insufficient Balance" :
-                   "Schedule"}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {loading ? (
+                      <>
+                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Sending...
+                      </>
+                    ) : userBalance < (getAllPhoneNumbers().length * MESSAGE_COST) ? (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Insufficient Balance
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Send Now{getAllPhoneNumbers().length > 1 ? ` (${getAllPhoneNumbers().length})` : ""}
+                      </>
+                    )}
+                  </span>
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                 </button>
-              )}
+                
+                <button
+                  type="button"
+                  onClick={() => setIsScheduling(!isScheduling)}
+                  className={`px-6 py-4 border-2 font-semibold rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                    isScheduling 
+                      ? 'border-red-300 text-red-600 hover:bg-red-50' 
+                      : 'border-[#2A8B8A] text-[#2A8B8A] hover:bg-[#2A8B8A] hover:text-white'
+                  }`}
+                >
+                  {isScheduling ? (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Cancel
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Schedule
+                    </>
+                  )}
+                </button>
+                
+                {isScheduling && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmit(e, true)}
+                    className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    disabled={
+                      loading || 
+                      getAllPhoneNumbers().length === 0 || 
+                      !template || 
+                      !scheduledTime || 
+                      isMediaRequired() || 
+                      userBalance < (getAllPhoneNumbers().length * MESSAGE_COST)
+                    }
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Scheduling...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Confirm Schedule
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
             
             {/* Balance Warning */}
             {getAllPhoneNumbers().length > 0 && userBalance < (getAllPhoneNumbers().length * MESSAGE_COST) && (
-              <div className="md:col-span-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-medium text-red-800">Insufficient Balance</p>
-                    <p className="text-xs text-red-600">
-                      You need ₹{(getAllPhoneNumbers().length * MESSAGE_COST).toFixed(2)} but only have ₹{userBalance.toFixed(2)}. 
-                      Please add ₹{(getAllPhoneNumbers().length * MESSAGE_COST - userBalance).toFixed(2)} to continue.
+              <div className="md:col-span-2 p-5 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-red-800">Insufficient Balance</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      Required: <span className="font-semibold">₹{(getAllPhoneNumbers().length * MESSAGE_COST).toFixed(2)}</span> • 
+                      Available: <span className="font-semibold">₹{userBalance.toFixed(2)}</span> • 
+                      Shortfall: <span className="font-semibold">₹{(getAllPhoneNumbers().length * MESSAGE_COST - userBalance).toFixed(2)}</span>
                     </p>
                   </div>
                   <button
                     onClick={() => setShowAddBalanceModal(true)}
-                    className="ml-auto px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+                    className="px-5 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2"
                   >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
                     Add Balance
                   </button>
                 </div>
@@ -1518,43 +1804,87 @@ function SendMessage() {
         </div>
 
         {/* iPhone WhatsApp Preview */}
-        <div className="border border-gray-200 p-8 rounded-lg">
-          <h2 className="text-xl font-bold text-black mb-6">Message Preview</h2>
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Preview Header */}
+          <div className="bg-gradient-to-r from-gray-50 to-white px-8 py-5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Live Preview</h2>
+                <p className="text-sm text-gray-500">See how your message will appear</p>
+              </div>
+            </div>
+          </div>
           
-          {/* iPhone Frame */}
-          <div className="max-w-sm mx-auto">
+          <div className="p-8">
             {/* iPhone Frame */}
-            <div className="bg-black p-2 rounded-[2.5rem] shadow-2xl">
-              <div className="bg-white rounded-[2rem] overflow-hidden">
-                {/* iPhone Status Bar */}
-                <div className="bg-gray-900 text-white px-6 py-2 text-xs flex justify-between items-center">
-                  <span className="font-medium">9:41</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-4 h-2 border border-white rounded-sm">
-                      <div className="w-3 h-1 bg-white rounded-sm m-0.5"></div>
-                    </div>
-                  </div>
-                </div>
+            <div className="max-w-[320px] mx-auto">
+              {/* iPhone Outer Frame */}
+              <div className="relative bg-gradient-to-b from-gray-800 to-gray-900 p-3 rounded-[3rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
+                {/* Notch */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-2xl"></div>
                 
-                {/* WhatsApp Header */}
-                <div className="bg-[#075E54] text-white px-4 py-3 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">
-                      {getAllPhoneNumbers().length === 0 
-                        ? (whatsappConfig?.selected_phone?.verified_name || "Business Name") 
-                        : getAllPhoneNumbers().length === 1 
-                          ? getAllPhoneNumbers()[0] 
-                          : `${getAllPhoneNumbers().length} recipients`
-                      }
+                {/* Screen Container */}
+                <div className="bg-white rounded-[2.5rem] overflow-hidden">
+                  {/* iPhone Status Bar */}
+                  <div className="bg-[#075E54] text-white px-6 py-3 flex justify-between items-center pt-8">
+                    <span className="font-semibold text-sm">9:41</span>
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 21c-1.5 0-2.8-.5-4-1.3-.5.2-1 .3-1.5.3-2.2 0-4-1.8-4-4 0-.7.2-1.4.5-2C2.4 12.8 2 11.5 2 10c0-3.3 2.7-6 6-6 .8 0 1.5.1 2.2.4C11.2 3.5 12.5 3 14 3c2.5 0 4.6 1.5 5.5 3.6.3 0 .6-.1.9-.1 2.5 0 4.5 2 4.5 4.5 0 2.2-1.6 4-3.6 4.4-.3 1.8-1.5 3.3-3.1 4.1-.5 2-2.3 3.5-4.4 3.5z"/>
+                      </svg>
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 3C6.95 3 3 6.95 3 12c0 .7.1 1.4.2 2H1v3h3.3c1.5 2.9 4.4 5 8 5s6.5-2.1 8-5H23v-3h-2.2c.1-.6.2-1.3.2-2 0-5.05-3.95-9-9-9zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7z"/>
+                      </svg>
+                      <div className="w-6 h-3 border border-white rounded-sm ml-1">
+                        <div className="w-4 h-2 bg-white rounded-sm m-0.5"></div>
+                      </div>
                     </div>
-                    <div className="text-xs text-green-200">online</div>
                   </div>
-                </div>
+                  
+                  {/* WhatsApp Header */}
+                  <div className="bg-[#075E54] text-white px-4 py-3 flex items-center gap-3 pb-4">
+                    <button className="p-1 hover:bg-white/10 rounded-full transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center ring-2 ring-white/20">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">
+                        {getAllPhoneNumbers().length === 0 
+                          ? (whatsappConfig?.selected_phone?.verified_name || "Business Name") 
+                          : getAllPhoneNumbers().length === 1 
+                            ? getAllPhoneNumbers()[0] 
+                            : `${getAllPhoneNumbers().length} recipients`
+                        }
+                      </div>
+                      <div className="text-xs text-green-200 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                        online
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+                        </svg>
+                      </button>
+                      <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 
                 {/* Chat Area */}
                 <div className="bg-[#ECE5DD] h-[500px] p-4 overflow-y-auto" style={{
@@ -1732,30 +2062,56 @@ function SendMessage() {
                 </div>
                 
                 {/* WhatsApp Input Bar */}
-                <div className="bg-gray-100 p-2 flex items-center gap-2">
-                  <div className="flex-1 bg-white rounded-full px-4 py-2 text-sm text-gray-400">
-                    Type a message
+                <div className="bg-[#F0F0F0] px-3 py-2 flex items-center gap-2">
+                  <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                  <div className="flex-1 bg-white rounded-full px-4 py-2.5 text-sm text-gray-400 flex items-center gap-2">
+                    <span>Type a message</span>
                   </div>
-                  <div className="w-8 h-8 bg-[#075E54] rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <button className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center text-white shadow-md hover:shadow-lg transition-shadow">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                     </svg>
-                  </div>
+                  </button>
+                </div>
+                
+                {/* Home Indicator */}
+                <div className="h-6 bg-white flex items-center justify-center">
+                  <div className="w-32 h-1 bg-gray-300 rounded-full"></div>
                 </div>
               </div>
             </div>
+            </div>
             
-            {/* Preview Info */}
+            {/* Preview Info Badge */}
             {getAllPhoneNumbers().length > 0 && (
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
-                  This message will be sent to <span className="font-medium text-black">{getAllPhoneNumbers().length}</span> recipient{getAllPhoneNumbers().length !== 1 ? 's' : ''}
-                </p>
-                {isScheduling && scheduledTime && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Scheduled for: {new Date(scheduledTime).toLocaleString()}
-                  </p>
-                )}
+              <div className="mt-6 flex justify-center">
+                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-[#2A8B8A]/5 to-green-50 border border-[#2A8B8A]/20 px-5 py-3 rounded-full">
+                  <div className="w-8 h-8 bg-[#2A8B8A] rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-600">Sending to</span>
+                    <span className="font-bold text-[#2A8B8A] mx-1">{getAllPhoneNumbers().length}</span>
+                    <span className="text-gray-600">recipient{getAllPhoneNumbers().length !== 1 ? 's' : ''}</span>
+                  </div>
+                  {isScheduling && scheduledTime && (
+                    <>
+                      <div className="w-px h-6 bg-gray-200"></div>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {new Date(scheduledTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1764,50 +2120,56 @@ function SendMessage() {
 
       {/* Result Display - Only show errors */}
       {result && result.error && (
-        <div className="border border-gray-200 p-6 rounded-lg">
-          <div className="bg-red-50 border border-red-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-red-500 flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-medium text-red-800">Error</h3>
-                <p className="text-red-600">{result.error}</p>
-              </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-6 overflow-hidden">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-800">Something went wrong</h3>
+              <p className="text-sm text-red-600 mt-1">{result.error}</p>
+            </div>
+            <button 
+              onClick={() => setResult(null)}
+              className="p-2 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed top-4 right-4 z-50 animate-fade-in">
-          <div className={`rounded-lg shadow-lg p-4 max-w-md ${
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 duration-300">
+          <div className={`rounded-2xl shadow-2xl p-5 max-w-md backdrop-blur-xl ${
             toastType === 'success' 
-              ? 'bg-green-50 border border-green-200' 
-              : 'bg-red-50 border border-red-200'
+              ? 'bg-white/95 border border-green-200' 
+              : 'bg-white/95 border border-red-200'
           }`}>
-            <div className="flex items-start gap-3">
-              <div className={`w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 ${
-                toastType === 'success' ? 'bg-green-500' : 'bg-red-500'
+            <div className="flex items-start gap-4">
+              <div className={`w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0 ${
+                toastType === 'success' ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gradient-to-br from-red-400 to-red-600'
               }`}>
                 {toastType === 'success' ? (
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${
+                <p className={`text-sm font-semibold ${
                   toastType === 'success' ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {toastType === 'success' ? 'Success!' : 'Error'}
+                  {toastType === 'success' ? 'Message Sent Successfully!' : 'Failed to Send'}
                 </p>
                 <p className={`text-sm mt-1 ${
                   toastType === 'success' ? 'text-green-600' : 'text-red-600'
@@ -1832,8 +2194,8 @@ function SendMessage() {
       
       {/* Contact Selection Modal */}
       {showContactModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div>

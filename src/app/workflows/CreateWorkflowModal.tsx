@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { apiService } from "../services/apiService";
 
 interface CreateWorkflowModalProps {
@@ -7,27 +7,115 @@ interface CreateWorkflowModalProps {
   onSuccess: () => void;
 }
 
-type WorkflowStep = {
-  type: string;
-  config: any;
-  critical?: boolean;
+// Trigger types
+type TriggerType = 'message_received' | 'keyword' | 'schedule' | 'webhook' | 'contact_created' | 'tag_added';
+
+// Action types
+type ActionType = 'send_message' | 'send_template' | 'add_tag' | 'remove_tag' | 'wait' | 'condition' | 'webhook' | 'assign_agent';
+
+type WorkflowAction = {
+  id: string;
+  type: ActionType;
+  config: Record<string, any>;
 };
 
+const TRIGGER_OPTIONS: { type: TriggerType; label: string; description: string; icon: ReactNode }[] = [
+  {
+    type: 'message_received',
+    label: 'Message Received',
+    description: 'Trigger when any message is received',
+    icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+  },
+  {
+    type: 'keyword',
+    label: 'Keyword Match',
+    description: 'Trigger when specific keywords are detected',
+    icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+  },
+  {
+    type: 'schedule',
+    label: 'Scheduled Time',
+    description: 'Run workflow at specific times',
+    icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+  },
+  {
+    type: 'webhook',
+    label: 'Webhook',
+    description: 'Trigger from external API calls',
+    icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+  },
+  {
+    type: 'contact_created',
+    label: 'New Contact',
+    description: 'Trigger when a new contact is added',
+    icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+  },
+  {
+    type: 'tag_added',
+    label: 'Tag Added',
+    description: 'Trigger when a specific tag is added',
+    icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+  }
+];
+
+const ACTION_OPTIONS: { type: ActionType; label: string; description: string; icon: ReactNode }[] = [
+  {
+    type: 'send_template',
+    label: 'Send Template',
+    description: 'Send a WhatsApp template message',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+  },
+  {
+    type: 'send_message',
+    label: 'Send Message',
+    description: 'Send a custom text message',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+  },
+  {
+    type: 'wait',
+    label: 'Wait / Delay',
+    description: 'Add a time delay between actions',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+  },
+  {
+    type: 'condition',
+    label: 'Condition',
+    description: 'Add conditional logic branching',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+  },
+  {
+    type: 'add_tag',
+    label: 'Add Tag',
+    description: 'Add a tag to the contact',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+  },
+  {
+    type: 'assign_agent',
+    label: 'Assign Agent',
+    description: 'Assign conversation to team member',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+  },
+  {
+    type: 'webhook',
+    label: 'HTTP Request',
+    description: 'Make an external API call',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+  }
+];
+
 export default function CreateWorkflowModal({ onClose, onSuccess }: CreateWorkflowModalProps) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     status: "draft"
   });
-  
-  const [steps, setSteps] = useState<WorkflowStep[]>([]);
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>({
-    type: "send_message",
-    config: {},
-    critical: true
-  });
+  const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | null>(null);
+  const [triggerConfig, setTriggerConfig] = useState<Record<string, any>>({});
+  const [actions, setActions] = useState<WorkflowAction[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showActionPicker, setShowActionPicker] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -36,50 +124,40 @@ export default function CreateWorkflowModal({ onClose, onSuccess }: CreateWorkfl
   const loadTemplates = async () => {
     try {
       const data = await apiService.get("/templates");
-      setTemplates(data?.templates || []);
+      setTemplates(data?.templates?.filter((t: any) => t.status === 'approved') || []);
     } catch (error) {
       console.error("Failed to load templates:", error);
     }
   };
 
-  const addStep = () => {
-    if (currentStep.type === "send_message" && !currentStep.config.template) {
-      alert("Please select a template for the message step");
-      return;
-    }
-    if (currentStep.type === "wait" && !currentStep.config.duration) {
-      alert("Please set a duration for the wait step");
-      return;
-    }
+  const generateId = () => Math.random().toString(36).substr(2, 9);
 
-    setSteps([...steps, { ...currentStep }]);
-    setCurrentStep({
-      type: "send_message",
-      config: {},
-      critical: true
-    });
+  const addAction = (type: ActionType) => {
+    setActions([...actions, { id: generateId(), type, config: {} }]);
+    setShowActionPicker(false);
   };
 
-  const removeStep = (index: number) => {
-    setSteps(steps.filter((_, i) => i !== index));
+  const updateAction = (id: string, config: Record<string, any>) => {
+    setActions(actions.map(a => a.id === id ? { ...a, config } : a));
   };
 
-  const moveStep = (index: number, direction: "up" | "down") => {
-    if (direction === "up" && index > 0) {
-      const newSteps = [...steps];
-      [newSteps[index], newSteps[index - 1]] = [newSteps[index - 1], newSteps[index]];
-      setSteps(newSteps);
-    } else if (direction === "down" && index < steps.length - 1) {
-      const newSteps = [...steps];
-      [newSteps[index], newSteps[index + 1]] = [newSteps[index + 1], newSteps[index]];
-      setSteps(newSteps);
+  const removeAction = (id: string) => {
+    setActions(actions.filter(a => a.id !== id));
+  };
+
+  const moveAction = (index: number, direction: 'up' | 'down') => {
+    const newActions = [...actions];
+    if (direction === 'up' && index > 0) {
+      [newActions[index], newActions[index - 1]] = [newActions[index - 1], newActions[index]];
+    } else if (direction === 'down' && index < actions.length - 1) {
+      [newActions[index], newActions[index + 1]] = [newActions[index + 1], newActions[index]];
     }
+    setActions(newActions);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      alert("Please enter a workflow name");
+  const handleSubmit = async () => {
+    if (!formData.name.trim() || !selectedTrigger) {
+      alert("Please fill in all required fields");
       return;
     }
 
@@ -87,7 +165,11 @@ export default function CreateWorkflowModal({ onClose, onSuccess }: CreateWorkfl
     try {
       const result = await apiService.post("/workflows", {
         ...formData,
-        steps: steps
+        trigger: {
+          type: selectedTrigger,
+          config: triggerConfig
+        },
+        actions: actions.map((a, i) => ({ ...a, position: i }))
       });
 
       if (result) {
@@ -103,345 +185,394 @@ export default function CreateWorkflowModal({ onClose, onSuccess }: CreateWorkfl
     }
   };
 
-  const renderStepConfig = () => {
-    switch (currentStep.type) {
-      case "send_message":
+  const renderTriggerConfig = () => {
+    switch (selectedTrigger) {
+      case 'keyword':
         return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Template</label>
-              <select
-                className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                value={currentStep.config.template || ""}
-                onChange={(e) => setCurrentStep({
-                  ...currentStep,
-                  config: { ...currentStep.config, template: e.target.value }
-                })}
-              >
-                <option value="">Select a template...</option>
-                {templates
-                  .filter(t => t.status === 'approved')
-                  .map((template) => (
-                    <option key={template.name} value={template.name}>
-                      {template.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Phone Number (optional)</label>
+          <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-xl">
+            <label className="block text-sm font-medium text-gray-700">Keywords (comma separated)</label>
+            <input
+              type="text"
+              placeholder="hello, hi, start, help"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+              value={triggerConfig.keywords || ''}
+              onChange={(e) => setTriggerConfig({ ...triggerConfig, keywords: e.target.value })}
+            />
+            <div className="flex items-center gap-2">
               <input
-                type="text"
-                placeholder="Leave empty to use trigger context"
-                className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                value={currentStep.config.phone || ""}
-                onChange={(e) => setCurrentStep({
-                  ...currentStep,
-                  config: { ...currentStep.config, phone: e.target.value }
-                })}
+                type="checkbox"
+                id="exactMatch"
+                checked={triggerConfig.exactMatch || false}
+                onChange={(e) => setTriggerConfig({ ...triggerConfig, exactMatch: e.target.checked })}
+                className="rounded text-[#2A8B8A] focus:ring-[#2A8B8A]"
               />
-              <p className="text-sm text-gray-500 mt-1">If empty, phone number will be taken from automation trigger</p>
+              <label htmlFor="exactMatch" className="text-sm text-gray-600">Exact match only</label>
             </div>
           </div>
         );
-      
-      case "wait":
+      case 'schedule':
         return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Duration (seconds)</label>
-              <input
-                type="number"
-                min="1"
-                placeholder="30"
-                className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                value={currentStep.config.duration || ""}
-                onChange={(e) => setCurrentStep({
-                  ...currentStep,
-                  config: { ...currentStep.config, duration: parseInt(e.target.value) || 0 }
-                })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Description (optional)</label>
-              <input
-                type="text"
-                placeholder="Wait for user response..."
-                className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                value={currentStep.config.description || ""}
-                onChange={(e) => setCurrentStep({
-                  ...currentStep,
-                  config: { ...currentStep.config, description: e.target.value }
-                })}
-              />
-            </div>
+          <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-xl">
+            <label className="block text-sm font-medium text-gray-700">Schedule Type</label>
+            <select
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+              value={triggerConfig.scheduleType || 'daily'}
+              onChange={(e) => setTriggerConfig({ ...triggerConfig, scheduleType: e.target.value })}
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="custom">Custom (Cron)</option>
+            </select>
+            <label className="block text-sm font-medium text-gray-700 mt-3">Time</label>
+            <input
+              type="time"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+              value={triggerConfig.time || '09:00'}
+              onChange={(e) => setTriggerConfig({ ...triggerConfig, time: e.target.value })}
+            />
           </div>
         );
-      
-      case "condition":
+      case 'tag_added':
         return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Condition Type</label>
-              <select
-                className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                value={currentStep.config.condition_type || "keyword"}
-                onChange={(e) => setCurrentStep({
-                  ...currentStep,
-                  config: { ...currentStep.config, condition_type: e.target.value }
-                })}
-              >
-                <option value="keyword">Keyword Match</option>
-                <option value="time">Time-based</option>
-                <option value="custom">Custom Logic</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Condition Value</label>
-              <input
-                type="text"
-                placeholder="yes, no, confirm"
-                className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                value={currentStep.config.condition_value || ""}
-                onChange={(e) => setCurrentStep({
-                  ...currentStep,
-                  config: { ...currentStep.config, condition_value: e.target.value }
-                })}
-              />
-            </div>
+          <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-xl">
+            <label className="block text-sm font-medium text-gray-700">Tag Name</label>
+            <input
+              type="text"
+              placeholder="Enter tag name..."
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+              value={triggerConfig.tagName || ''}
+              onChange={(e) => setTriggerConfig({ ...triggerConfig, tagName: e.target.value })}
+            />
           </div>
         );
-      
       default:
         return null;
     }
   };
 
-  const getStepIcon = (type: string) => {
-    switch (type) {
-      case "send_message":
+  const renderActionConfig = (action: WorkflowAction) => {
+    switch (action.type) {
+      case 'send_template':
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <select
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+            value={action.config.template || ''}
+            onChange={(e) => updateAction(action.id, { ...action.config, template: e.target.value })}
+          >
+            <option value="">Select template...</option>
+            {templates.map(t => (
+              <option key={t.name} value={t.name}>{t.name}</option>
+            ))}
+          </select>
         );
-      case "wait":
+      case 'send_message':
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <textarea
+            placeholder="Enter message..."
+            rows={2}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none resize-none"
+            value={action.config.message || ''}
+            onChange={(e) => updateAction(action.id, { ...action.config, message: e.target.value })}
+          />
         );
-      case "condition":
+      case 'wait':
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              placeholder="Duration"
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+              value={action.config.duration || ''}
+              onChange={(e) => updateAction(action.id, { ...action.config, duration: parseInt(e.target.value) || 0 })}
+            />
+            <select
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+              value={action.config.unit || 'minutes'}
+              onChange={(e) => updateAction(action.id, { ...action.config, unit: e.target.value })}
+            >
+              <option value="seconds">Seconds</option>
+              <option value="minutes">Minutes</option>
+              <option value="hours">Hours</option>
+              <option value="days">Days</option>
+            </select>
+          </div>
+        );
+      case 'add_tag':
+      case 'remove_tag':
+        return (
+          <input
+            type="text"
+            placeholder="Tag name..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none"
+            value={action.config.tag || ''}
+            onChange={(e) => updateAction(action.id, { ...action.config, tag: e.target.value })}
+          />
         );
       default:
-        return null;
+        return <p className="text-sm text-gray-500">Configure this action...</p>;
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-[#2A8B8A] to-[#238080]">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-black">Create New Workflow</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-            >
-              ×
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Create Workflow</h2>
+                <p className="text-white/70 text-sm">Step {step} of 3</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
+          </div>
+          
+          {/* Progress Steps */}
+          <div className="flex items-center gap-2 mt-6">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex-1">
+                <div className={`h-1 rounded-full transition-colors ${s <= step ? 'bg-white' : 'bg-white/30'}`} />
+                <p className={`text-xs mt-2 ${s <= step ? 'text-white' : 'text-white/50'}`}>
+                  {s === 1 ? 'Basic Info' : s === 2 ? 'Trigger' : 'Actions'}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="flex">
-            {/* Left Panel - Workflow Info & Steps */}
-            <div className="flex-1 p-6 border-r border-gray-200">
-              {/* Basic Information */}
-              <div className="space-y-4 mb-8">
-                <h3 className="text-lg font-semibold text-black">Basic Information</h3>
-                
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-black mb-2">
-                    Workflow Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    placeholder="Welcome Sequence"
-                    className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-black mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    placeholder="Describe what this workflow does..."
-                    rows={3}
-                    className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-black mb-2">
-                    Initial Status
-                  </label>
-                  <select
-                    id="status"
-                    className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                    value={formData.status}
-                    onChange={(e) => setFormData({...formData, status: e.target.value})}
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          {/* Step 1: Basic Info */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Workflow Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Welcome New Customers"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none text-lg"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
               </div>
-
-              {/* Workflow Steps */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-black">Workflow Steps</h3>
-                
-                {steps.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <p className="text-sm">No steps added yet</p>
-                    <p className="text-xs text-gray-400">Add steps using the panel on the right</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {steps.map((step, index) => (
-                      <div key={index} className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200">
-                        <div className="flex items-center justify-center w-8 h-8 bg-[#2A8B8A] text-white text-sm font-medium">
-                          {index + 1}
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          {getStepIcon(step.type)}
-                          <span className="font-medium capitalize">{step.type.replace('_', ' ')}</span>
-                        </div>
-                        <div className="flex-1 text-sm text-gray-500">
-                          {step.type === "send_message" && step.config.template && `Template: ${step.config.template}`}
-                          {step.type === "wait" && step.config.duration && `Wait: ${step.config.duration}s`}
-                          {step.type === "condition" && step.config.condition_value && `Condition: ${step.config.condition_value}`}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => moveStep(index, "up")}
-                            disabled={index === 0}
-                            className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveStep(index, "down")}
-                            disabled={index === steps.length - 1}
-                            className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeStep(index)}
-                            className="text-red-500 hover:text-red-700 ml-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <textarea
+                  placeholder="Describe what this workflow does..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2A8B8A]/20 focus:border-[#2A8B8A] outline-none resize-none"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
               </div>
             </div>
+          )}
 
-            {/* Right Panel - Add Step */}
-            <div className="w-96 p-6">
-              <h3 className="text-lg font-semibold text-black mb-4">Add Step</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">Step Type</label>
-                  <select
-                    className="w-full border border-gray-300 px-3 py-2 focus:border-[#2A8B8A] focus:outline-none"
-                    value={currentStep.type}
-                    onChange={(e) => setCurrentStep({
-                      type: e.target.value,
-                      config: {},
-                      critical: true
-                    })}
+          {/* Step 2: Select Trigger */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <p className="text-gray-600 mb-4">Choose what starts this workflow:</p>
+              <div className="grid grid-cols-2 gap-3">
+                {TRIGGER_OPTIONS.map((trigger) => (
+                  <button
+                    key={trigger.type}
+                    onClick={() => setSelectedTrigger(trigger.type)}
+                    className={`p-4 border-2 rounded-xl text-left transition-all ${
+                      selectedTrigger === trigger.type
+                        ? 'border-[#2A8B8A] bg-[#2A8B8A]/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
                   >
-                    <option value="send_message">Send Message</option>
-                    <option value="wait">Wait/Delay</option>
-                    <option value="condition">Condition/Branch</option>
-                  </select>
-                </div>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
+                      selectedTrigger === trigger.type ? 'bg-[#2A8B8A] text-white' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {trigger.icon}
+                    </div>
+                    <h4 className="font-semibold text-gray-900">{trigger.label}</h4>
+                    <p className="text-sm text-gray-500 mt-1">{trigger.description}</p>
+                  </button>
+                ))}
+              </div>
+              {renderTriggerConfig()}
+            </div>
+          )}
 
-                {renderStepConfig()}
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="critical"
-                    checked={currentStep.critical}
-                    onChange={(e) => setCurrentStep({...currentStep, critical: e.target.checked})}
-                    className="text-[#2A8B8A] focus:ring-[#2A8B8A]"
-                  />
-                  <label htmlFor="critical" className="text-sm text-gray-700">Critical step (stop workflow if fails)</label>
-                </div>
-
+          {/* Step 3: Add Actions */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-gray-600">Add actions to your workflow:</p>
                 <button
-                  type="button"
-                  onClick={addStep}
-                  className="w-full bg-[#2A8B8A] text-white py-2 px-4 font-medium hover:bg-[#238080] transition-colors"
+                  onClick={() => setShowActionPicker(true)}
+                  className="px-4 py-2 bg-[#2A8B8A] text-white rounded-lg font-medium hover:bg-[#238080] transition-colors flex items-center gap-2"
                 >
-                  Add Step
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Action
                 </button>
               </div>
-            </div>
-          </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-gray-200 flex justify-end gap-4">
+              {actions.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500">No actions added yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Click &quot;Add Action&quot; to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {actions.map((action, index) => {
+                    const actionInfo = ACTION_OPTIONS.find(a => a.type === action.type);
+                    return (
+                      <div key={action.id} className="p-4 border border-gray-200 rounded-xl bg-white">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-[#2A8B8A] text-white rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-[#2A8B8A]">{actionInfo?.icon}</span>
+                              <h4 className="font-medium text-gray-900">{actionInfo?.label}</h4>
+                            </div>
+                            {renderActionConfig(action)}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => moveAction(index, 'up')}
+                              disabled={index === 0}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => moveAction(index, 'down')}
+                              disabled={index === actions.length - 1}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => removeAction(action.id)}
+                              className="p-1.5 text-red-400 hover:text-red-600"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Action Picker Modal */}
+              {showActionPicker && (
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]">
+                  <div className="bg-white rounded-2xl p-6 max-w-md w-full m-4 shadow-xl">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Select Action</h3>
+                    <div className="space-y-2">
+                      {ACTION_OPTIONS.map((action) => (
+                        <button
+                          key={action.type}
+                          onClick={() => addAction(action.type)}
+                          className="w-full p-3 border border-gray-200 rounded-xl text-left hover:border-[#2A8B8A] hover:bg-[#2A8B8A]/5 transition-all flex items-center gap-3"
+                        >
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600">
+                            {action.icon}
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{action.label}</h4>
+                            <p className="text-sm text-gray-500">{action.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setShowActionPicker(false)}
+                      className="w-full mt-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+          <button
+            onClick={() => step > 1 ? setStep((step - 1) as 1 | 2 | 3) : onClose()}
+            className="px-6 py-2.5 text-gray-600 hover:text-gray-800 font-medium"
+          >
+            {step === 1 ? 'Cancel' : 'Back'}
+          </button>
+          
+          {step < 3 ? (
             <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              onClick={() => {
+                if (step === 1 && !formData.name.trim()) {
+                  alert('Please enter a workflow name');
+                  return;
+                }
+                if (step === 2 && !selectedTrigger) {
+                  alert('Please select a trigger');
+                  return;
+                }
+                setStep((step + 1) as 1 | 2 | 3);
+              }}
+              className="px-6 py-2.5 bg-[#2A8B8A] text-white rounded-xl font-medium hover:bg-[#238080] transition-colors"
             >
-              Cancel
+              Continue
             </button>
+          ) : (
             <button
-              type="submit"
+              onClick={handleSubmit}
               disabled={loading}
-              className="bg-[#2A8B8A] text-white px-6 py-3 font-medium hover:bg-[#238080] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-[#2A8B8A] text-white rounded-xl font-medium hover:bg-[#238080] transition-colors disabled:opacity-50 flex items-center gap-2"
             >
-              {loading ? "Creating..." : "Create Workflow"}
+              {loading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Create Workflow
+                </>
+              )}
             </button>
-          </div>
-        </form>
+          )}
+        </div>
       </div>
     </div>
   );
