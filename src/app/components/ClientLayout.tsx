@@ -90,7 +90,7 @@ const navConfig = [
     items: [
       { href: "/automations", label: "Automations", icon: <LuWand size={20} />, permission: "manage_integrations" },
       { href: "/workflows", label: "Workflows", icon: <LuGitFork size={20} />, permission: "manage_integrations" },
-      { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} />, permission: "manage_integrations", comingSoon: true },
+      { href: "/triggers", label: "Triggers", icon: <LuPlay size={20} />, permission: "manage_integrations" },
     ],
   },
   {
