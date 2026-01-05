@@ -45,7 +45,7 @@ interface WhatsAppConnection {
 // Hardcoded OAuth configuration - EXACT working setup with setup_type=seamless
 const META_APP_ID = '1717883002200842';
 // USE FRONTEND CALLBACK PAGE - This allows us to capture WABA data from sessionStorage
-const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI ?? 'http://localhost:8000/api/auth/meta/callback';
+const REDIRECT_URI = process.env.NEXT_PUBLIC_META_REDIRECT_URI ?? 'https://automationwhats.stitchbyte.in/api/auth/meta/callback';
 const CONFIG_ID = '829144999529928'; // Mandatory config_id for Embedded Signup
 const STATE = 'stitchbyte_csrf_token';
 
